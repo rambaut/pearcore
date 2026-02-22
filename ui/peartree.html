@@ -489,6 +489,8 @@
       overflow: hidden;
     }
     #palette-panel.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.55); }
+    #selection-hover-section { display: none; }
+    #palette-panel.advanced #selection-hover-section { display: block; }
     #palette-panel-header {
       display: flex;
       align-items: center;
@@ -919,7 +921,7 @@
 
   <!-- ── Fixed left: palette toggle + file operations ── -->
   <div class="pt-toolbar-left">
-    <button id="btn-palette" class="btn btn-sm btn-outline-secondary" title="Visual options panel (Tab)"><i class="bi bi-sliders"></i><i class="bi bi-caret-right"></i></button>
+    <button id="btn-palette" class="btn btn-sm btn-outline-secondary" title="Visual options panel (Tab · ⌥Tab for advanced)"><i class="bi bi-sliders"></i><i class="bi bi-caret-right"></i></button>
     <div class="pt-toolbar-sep"></div>
     <button id="btn-open-tree" class="btn btn-sm btn-outline-primary" title="Open tree file (⌘O)"><i class="bi bi-folder2-open"></i></button>
     <button id="btn-import-annot" class="btn btn-sm btn-outline-success" disabled title="Import annotations from CSV/TSV (⌘⇧O)"><i class="bi bi-table"></i></button>
@@ -1389,7 +1391,7 @@
       </div>
     </div>
 
-    <div class="pt-palette-section">
+    <div class="pt-palette-section" id="selection-hover-section">
       <h3><i class="bi bi-cursor-fill"></i> Selection &amp; Hover</h3>
 
       <div class="pt-palette-subhead">Selected Tips</div>
@@ -1569,18 +1571,23 @@
   const btnPalette       = document.getElementById('btn-palette');
   const btnPaletteClose  = document.getElementById('btn-palette-close');
 
-  function openPalette() {
+  function openPalette(advanced = false) {
     palettePanel.classList.add('open');
+    palettePanel.classList.toggle('advanced', advanced);
     btnPalette.classList.add('active');
   }
   function closePalette() {
-    palettePanel.classList.remove('open');
+    palettePanel.classList.remove('open', 'advanced');
     btnPalette.classList.remove('active');
   }
 
   btnPalette.addEventListener('click', e => {
     e.stopPropagation();
-    palettePanel.classList.contains('open') ? closePalette() : openPalette();
+    if (palettePanel.classList.contains('open')) {
+      closePalette();
+    } else {
+      openPalette(e.altKey);
+    }
   });
   btnPaletteClose.addEventListener('click', closePalette);
 
@@ -1676,13 +1683,13 @@
     closeAbout();
   });
 
-  // Tab key toggles palette (unless focus is in a form element)
+  // Tab / ⌥Tab toggles palette; Alt held opens in advanced mode
   document.addEventListener('keydown', e => {
-    if (e.key === 'Tab' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === 'Tab' && !e.metaKey && !e.ctrlKey) {
       const tag = document.activeElement && document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       e.preventDefault();
-      palettePanel.classList.contains('open') ? closePalette() : openPalette();
+      palettePanel.classList.contains('open') ? closePalette() : openPalette(e.altKey);
     }
   });
 
