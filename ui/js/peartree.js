@@ -18,6 +18,11 @@ import { AxisRenderer  } from './axisrenderer.js';
   const tipShapeColorEl   = document.getElementById('tip-shape-color');
   const tipShapeBgEl      = document.getElementById('tip-shape-bg-color');
   const labelColorEl      = document.getElementById('label-color');
+  const selectedLabelStyleEl = document.getElementById('selected-label-style');
+  const selectedTipColorEl   = document.getElementById('selected-ring-color');
+  const selectedNodeColorEl       = document.getElementById('mrca-ring-color');
+  const tipHoverColorEl       = document.getElementById('tip-hover-color');
+  const nodeHoverColorEl  = document.getElementById('internal-hover-color');
   const nodeShapeColorEl  = document.getElementById('node-shape-color');
   const nodeShapeBgEl     = document.getElementById('node-shape-bg-color');
   const tipColourBy       = document.getElementById('tip-colour-by');
@@ -79,6 +84,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#000000',
             axisColor:        '#444444',
             legendTextColor:  '#444444',
+            selectedTipColor:   '#43bfa6',
+            selectedNodeColor:       '#1964a6',
+            tipHoverColor:       '#43bfa6',
+            nodeHoverColor:  '#1964a6',
         },
         "Artic": {
             canvasBgColor:    '#02292e',
@@ -96,6 +105,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#02292e',
             axisColor:        '#f7eeca',
             legendTextColor:  '#f7eeca',
+            selectedTipColor:   '#E06961',
+            selectedNodeColor:       '#19A699',
+            tipHoverColor:       '#BF4B43',
+            nodeHoverColor:  '#19A699',
         },
         "BEAST": {
             canvasBgColor:    '#5A5F62',
@@ -113,6 +126,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#02292e',
             axisColor:        '#B1CBB8',
             legendTextColor:  '#B1CBB8',
+            selectedTipColor:   '#E06961',
+            selectedNodeColor:       '#19A699',
+            tipHoverColor:       '#BF4B43',
+            nodeHoverColor:  '#19A699',
         },
         // // Warm pastels: Grand Budapest Hotel / Moonrise Kingdom palette
         // "Wes": {
@@ -148,6 +165,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#1e2d3a',
             axisColor:        '#edd59c',
             legendTextColor:  '#edd59c',
+            selectedTipColor:   '#e07b65',
+            selectedNodeColor:       '#7dbfcc',
+            tipHoverColor:       '#e07b65',
+            nodeHoverColor:  '#7dbfcc',
         },
         // Royal Tenenbaums: aged plaster, forest green, burgundy, tennis-ball gold
         "Tenenbaums": {
@@ -166,6 +187,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#f0e8d8',
             axisColor:        '#2b4a2a',
             legendTextColor:  '#2b4a2a',
+            selectedTipColor:   '#a01830',
+            selectedNodeColor:       '#c8a020',
+            tipHoverColor:       '#a01830',
+            nodeHoverColor:  '#c8a020',
         },
         // Fantastic Mr Fox: night earth, fox orange, rust, harvest green
         "Mr Fox": {
@@ -184,6 +209,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#1a0d00',
             axisColor:        '#f0c060',
             legendTextColor:  '#f0c060',  
+            selectedTipColor:   '#c84a18',
+            selectedNodeColor:       '#508a28',
+            tipHoverColor:       '#c84a18',
+            nodeHoverColor:  '#508a28',
         },
         // The Darjeeling Limited: warm cream, saffron, cerulean, rust
         "Darjeeling": {
@@ -202,6 +231,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#faf0d8',
             axisColor:        '#3a2010',
             legendTextColor:  '#3a2010',
+            selectedTipColor:   '#c04428',
+            selectedNodeColor:       '#c87010',
+            tipHoverColor:       '#c04428',
+            nodeHoverColor:  '#c87010',
         },
         // // Mid Century Modern – Birch: warm white, teak, avocado, harvest gold
         // "MCM Birch": {
@@ -270,6 +303,10 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#D8D4D3',
             axisColor:        '#7984BC',
             legendTextColor:  '#7984BC',
+            selectedTipColor:   '#AF808B',
+            selectedNodeColor:       '#88B2BA',
+            tipHoverColor:       '#AF808B',
+            nodeHoverColor:  '#88B2BA',
         },
   };
 
@@ -332,6 +369,10 @@ import { AxisRenderer  } from './axisrenderer.js';
       nodeShapeBgColor: nodeShapeBgEl.value,
       axisColor:        axisColorEl.value,
       legendTextColor:  legendTextColorEl.value,
+      selectedTipColor:   selectedTipColorEl.value,
+      selectedNodeColor:       selectedNodeColorEl.value,
+      tipHoverColor:       tipHoverColorEl.value,
+      nodeHoverColor:  nodeHoverColorEl.value,
     };
   }
 
@@ -357,24 +398,29 @@ import { AxisRenderer  } from './axisrenderer.js';
 
   const DEFAULTS = {
     theme:            'Artic',
-    canvasBgColor:    '#fff',
-    branchColor:      '#000',
+    canvasBgColor:    '#ffffff',
+    branchColor:      '#444444',
     branchWidth:      '1',
     fontSize:         '11',
-    labelColor:       '#000',
-    tipSize:          '3',
-    tipHaloSize:      '2',
-    tipShapeColor:    '#464646',
-    tipShapeBgColor:  '#000',
+    labelColor:       '#000000',
+    tipSize:          '2',
+    tipHaloSize:      '1',
+    tipShapeColor:    '#ffffff',
+    tipShapeBgColor:  '#000000',
     nodeSize:         '0',
-    nodeHaloSize:     '2',
-    nodeShapeColor:   '#636363',
-    nodeShapeBgColor: '#000',
-    axisColor:        '#f2f1e6',
+    nodeHaloSize:     '1',
+    nodeShapeColor:   '#000000',
+    nodeShapeBgColor: '#000000',
+    axisColor:        '#444444',
+    legendTextColor:  '#444444',
+    selectedLabelStyle:   'bold',
+    selectedTipColor:    '#E06961',
+    selectedNodeColor:        '#19A699',
+    tipHoverColor:        '#BF4B43',
+    nodeHoverColor:   '#19A699',
     axisFontSize:     '9',
     axisLineWidth:    '1',
     legendShow:         'right',
-    legendTextColor:    '#f7eeca',
     legendFontSize:     '11',
     axisShow:           'off',
     axisDateAnnotation: '',
@@ -397,6 +443,11 @@ import { AxisRenderer  } from './axisrenderer.js';
       branchWidth:      branchWidthSlider.value,
       fontSize:         fontSlider.value,
       labelColor:       labelColorEl.value,
+      selectedLabelStyle: selectedLabelStyleEl.value,
+      selectedTipColor:  selectedTipColorEl.value,
+      selectedNodeColor:      selectedNodeColorEl.value,
+      tipHoverColor:      tipHoverColorEl.value,
+      nodeHoverColor: nodeHoverColorEl.value,
       tipSize:          tipSlider.value,
       tipHaloSize:      tipHaloSlider.value,
       tipShapeColor:    tipShapeColorEl.value,
@@ -438,6 +489,11 @@ import { AxisRenderer  } from './axisrenderer.js';
       branchWidth:      branchWidthSlider.value,
       fontSize:         fontSlider.value,
       labelColor:       labelColorEl.value,
+      selectedLabelStyle: selectedLabelStyleEl.value,
+      selectedTipColor:  selectedTipColorEl.value,
+      selectedNodeColor:      selectedNodeColorEl.value,
+      tipHoverColor:      tipHoverColorEl.value,
+      nodeHoverColor: nodeHoverColorEl.value,
       tipSize:          tipSlider.value,
       tipHaloSize:      tipHaloSlider.value,
       tipShapeColor:    tipShapeColorEl.value,
@@ -486,6 +542,11 @@ import { AxisRenderer  } from './axisrenderer.js';
       document.getElementById('font-size-value').textContent = s.fontSize;
     }
     if (s.labelColor)            labelColorEl.value       = s.labelColor;
+    if (s.selectedLabelStyle)    selectedLabelStyleEl.value = s.selectedLabelStyle;
+    if (s.selectedTipColor)     selectedTipColorEl.value  = s.selectedTipColor;
+    if (s.selectedNodeColor)         selectedNodeColorEl.value      = s.selectedNodeColor;
+    if (s.tipHoverColor)         tipHoverColorEl.value      = s.tipHoverColor;
+    if (s.nodeHoverColor)    nodeHoverColorEl.value = s.nodeHoverColor;
     if (s.tipSize        != null) {
       tipSlider.value = s.tipSize;
       document.getElementById('tip-size-value').textContent = s.tipSize;
@@ -529,6 +590,11 @@ import { AxisRenderer  } from './axisrenderer.js';
       if (s.branchWidth    != null) renderer.setBranchWidth(parseFloat(s.branchWidth));
       if (s.fontSize       != null) renderer.setFontSize(parseInt(s.fontSize));
       if (s.labelColor)            renderer.setLabelColor(s.labelColor);
+      if (s.selectedLabelStyle)    renderer.setSelectedLabelStyle(s.selectedLabelStyle);
+      if (s.selectedTipColor)     renderer.setSelectedTipColor(s.selectedTipColor);
+      if (s.selectedNodeColor)         renderer.setSelectedNodeColor(s.selectedNodeColor);
+      if (s.tipHoverColor)         renderer.setTipHoverColor(s.tipHoverColor);
+      if (s.nodeHoverColor)    renderer.setNodeHoverColor(s.nodeHoverColor);
       if (s.tipSize        != null) renderer.setTipRadius(parseInt(s.tipSize));
       if (s.tipHaloSize    != null) renderer.setTipHaloSize(parseInt(s.tipHaloSize));
       if (s.tipShapeColor)         renderer.setTipShapeColor(s.tipShapeColor);
@@ -602,6 +668,11 @@ import { AxisRenderer  } from './axisrenderer.js';
     fontSlider.value        = t.fontSize;
     document.getElementById('font-size-value').textContent    = t.fontSize;
     labelColorEl.value      = t.labelColor;
+    selectedLabelStyleEl.value = t.selectedLabelStyle || 'bold';
+    selectedTipColorEl.value  = t.selectedTipColor   || '#E06961';
+    selectedNodeColorEl.value      = t.selectedNodeColor        || '#19A699';
+    tipHoverColorEl.value      = t.tipHoverColor        || '#BF4B43';
+    nodeHoverColorEl.value = t.nodeHoverColor   || '#19A699';
     tipSlider.value         = t.tipSize;
     document.getElementById('tip-size-value').textContent     = t.tipSize;
     tipHaloSlider.value     = t.tipHaloSize;
@@ -626,6 +697,11 @@ import { AxisRenderer  } from './axisrenderer.js';
       renderer.setBranchWidth(parseFloat(t.branchWidth));
       renderer.setFontSize(parseInt(t.fontSize));
       renderer.setLabelColor(t.labelColor);
+      renderer.setSelectedLabelStyle(t.selectedLabelStyle || 'bold');
+      renderer.setSelectedTipColor(t.selectedTipColor  || '#E06961');
+      renderer.setSelectedNodeColor(t.selectedNodeColor           || '#19A699');
+      renderer.setTipHoverColor(t.tipHoverColor           || '#BF4B43');
+      renderer.setNodeHoverColor(t.nodeHoverColor || '#19A699');
       renderer.setTipRadius(parseInt(t.tipSize));
       renderer.setTipHaloSize(parseInt(t.tipHaloSize));
       renderer.setTipShapeColor(t.tipShapeColor);
@@ -674,6 +750,11 @@ import { AxisRenderer  } from './axisrenderer.js';
     document.getElementById('font-size-value').textContent = _saved.fontSize;
   }
   if (_saved.labelColor)           labelColorEl.value       = _saved.labelColor;
+  if (_saved.selectedLabelStyle)   selectedLabelStyleEl.value = _saved.selectedLabelStyle;
+  if (_saved.selectedTipColor)    selectedTipColorEl.value  = _saved.selectedTipColor;
+  if (_saved.selectedNodeColor)        selectedNodeColorEl.value      = _saved.selectedNodeColor;
+  if (_saved.tipHoverColor)        tipHoverColorEl.value      = _saved.tipHoverColor;
+  if (_saved.nodeHoverColor)   nodeHoverColorEl.value = _saved.nodeHoverColor;
   if (_saved.tipSize        != null) {
     tipSlider.value = _saved.tipSize;
     document.getElementById('tip-size-value').textContent = _saved.tipSize;
@@ -749,6 +830,11 @@ import { AxisRenderer  } from './axisrenderer.js';
     renderer.setBranchWidth(parseFloat(branchWidthSlider.value));
     renderer.setFontSize(parseInt(fontSlider.value));
     renderer.setLabelColor(labelColorEl.value);
+    renderer.setSelectedLabelStyle(selectedLabelStyleEl.value);
+    renderer.setSelectedTipColor(selectedTipColorEl.value);
+    renderer.setSelectedNodeColor(selectedNodeColorEl.value);
+    renderer.setTipHoverColor(tipHoverColorEl.value);
+    renderer.setNodeHoverColor(nodeHoverColorEl.value);
     renderer.setTipRadius(parseInt(tipSlider.value));
     renderer.setTipHaloSize(parseInt(tipHaloSlider.value));
     renderer.setTipShapeColor(tipShapeColorEl.value);
@@ -3227,6 +3313,36 @@ import { AxisRenderer  } from './axisrenderer.js';
   labelColorEl.addEventListener('input', () => {
     _markCustomTheme();
     renderer.setLabelColor(labelColorEl.value);
+    saveSettings();
+  });
+
+  selectedLabelStyleEl.addEventListener('change', () => {
+    _markCustomTheme();
+    renderer.setSelectedLabelStyle(selectedLabelStyleEl.value);
+    saveSettings();
+  });
+
+  selectedTipColorEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setSelectedTipColor(selectedTipColorEl.value);
+    saveSettings();
+  });
+
+  selectedNodeColorEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setSelectedNodeColor(selectedNodeColorEl.value);
+    saveSettings();
+  });
+
+  tipHoverColorEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setTipHoverColor(tipHoverColorEl.value);
+    saveSettings();
+  });
+
+  nodeHoverColorEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setNodeHoverColor(nodeHoverColorEl.value);
     saveSettings();
   });
 

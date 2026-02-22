@@ -20,8 +20,8 @@ export class Theme {
     branchWidth      = 1,
     tipColor         = '#BF4B43',
     internalColor    = '#19A699',
-    selectedRingColor  = '#E06961',
-    mrcaRingColor      = '#19A699',
+    selectedTipColor  = '#E06961',
+    selectedNodeColor      = '#19A699',
     labelColor         = '#F7EECA',
     dimLabelColor      = '#E6D595',
     selectedLabelColor = '#F2F1E6',
@@ -50,11 +50,12 @@ export class Theme {
     this.branchWidth       = branchWidth;
     this.tipColor          = tipColor;
     this.internalColor     = internalColor;
-    this.selectedRingColor = selectedRingColor;
-    this.mrcaRingColor     = mrcaRingColor;
+    this.selectedTipColor = selectedTipColor;
+    this.selectedNodeColor     = selectedNodeColor;
     this.labelColor        = labelColor;
     this.dimLabelColor     = dimLabelColor;
     this.selectedLabelColor = selectedLabelColor;
+    this.selectedLabelStyle = 'bold'; // 'normal' | 'bold' | 'italic' | 'bold italic'
     this.bgColor           = bgColor;
     this.paddingLeft       = paddingLeft;
     this.paddingTop        = paddingTop;
@@ -209,8 +210,8 @@ export class TreeRenderer {
     this.branchWidth       = theme.branchWidth;
     this.tipColor          = theme.tipColor;
     this.internalColor     = theme.internalColor;
-    this.selectedRingColor = theme.selectedRingColor;
-    this.mrcaRingColor     = theme.mrcaRingColor;
+    this.selectedTipColor = theme.selectedTipColor;
+    this.selectedNodeColor     = theme.selectedNodeColor;
     this.labelColor        = theme.labelColor;
     this.dimLabelColor     = theme.dimLabelColor;
     this.selectedLabelColor = theme.selectedLabelColor;
@@ -412,6 +413,36 @@ export class TreeRenderer {
     this.labelColor        = hex;
     this.dimLabelColor     = TreeRenderer._hslToHex(h, s * 0.70, l * 0.83);
     this.selectedLabelColor = TreeRenderer._hslToHex(h, s * 0.50, Math.min(97, l * 1.08));
+    this._dirty = true;
+  }
+
+  /** Set the font style applied to selected tip labels: 'normal' | 'bold' | 'italic' | 'bold italic'. */
+  setSelectedLabelStyle(style) {
+    this.selectedLabelStyle = style || 'bold';
+    this._dirty = true;
+  }
+
+  /** Colour of the ring drawn around selected tip nodes. */
+  setSelectedTipColor(c) {
+    this.selectedTipColor = c;
+    this._dirty = true;
+  }
+
+  /** Colour of the ring drawn around the MRCA node. */
+  setSelectedNodeColor(c) {
+    this.selectedNodeColor = c;
+    this._dirty = true;
+  }
+
+  /** Fill colour used for a hovered tip node. */
+  setTipHoverColor(c) {
+    this.tipColor = c;
+    this._dirty = true;
+  }
+
+  /** Fill colour used for a hovered internal node (and MRCA node fill). */
+  setNodeHoverColor(c) {
+    this.internalColor = c;
     this._dirty = true;
   }
 
@@ -1609,7 +1640,7 @@ export class TreeRenderer {
         }
         // Sub-pass 3b: selected labels in bold + selected colour
         ctx.fillStyle = this.selectedLabelColor;
-        ctx.font = `bold ${this.fontSize}px monospace`;
+        ctx.font = `${this.selectedLabelStyle} ${this.fontSize}px monospace`;
         for (const node of this.nodes) {
           if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
@@ -1658,7 +1689,7 @@ export class TreeRenderer {
         ctx.fill();
 
         // Selection ring stroke
-        ctx.strokeStyle = this.selectedRingColor;
+        ctx.strokeStyle = this.selectedTipColor;
         ctx.lineWidth   = selRingW;
         ctx.beginPath();
         for (const node of this.nodes) {
@@ -1721,7 +1752,7 @@ export class TreeRenderer {
         ctx.fill();
 
         // Selection ring
-        ctx.strokeStyle = this.selectedRingColor;
+        ctx.strokeStyle = this.selectedTipColor;
         ctx.lineWidth   = selRingW;
         ctx.beginPath();
         for (const node of this.nodes) {
@@ -1751,7 +1782,7 @@ export class TreeRenderer {
           ctx.fill();
           ctx.beginPath();
           ctx.arc(mnx, mny, nodeR + ringW * 0.5, 0, Math.PI * 2);
-          ctx.strokeStyle = this.mrcaRingColor;
+          ctx.strokeStyle = this.selectedNodeColor;
           ctx.lineWidth   = ringW;
           ctx.stroke();
           ctx.lineWidth   = 1;
@@ -1769,7 +1800,7 @@ export class TreeRenderer {
           ctx.fill();
           ctx.beginPath();
           ctx.arc(mnx, mny, mrcaR + ringW * 0.5, 0, Math.PI * 2);
-          ctx.strokeStyle = this.mrcaRingColor;
+          ctx.strokeStyle = this.selectedNodeColor;
           ctx.lineWidth   = ringW;
           ctx.stroke();
           ctx.lineWidth   = 1;
@@ -1836,7 +1867,7 @@ export class TreeRenderer {
         // Coloured ring
         ctx.beginPath();
         ctx.arc(bx, by, br + ringW * 0.5, 0, Math.PI * 2);
-        ctx.strokeStyle = this.mrcaRingColor;
+        ctx.strokeStyle = this.selectedNodeColor;
         ctx.lineWidth   = ringW;
         ctx.stroke();
         ctx.lineWidth = 1;

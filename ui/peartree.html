@@ -1211,6 +1211,15 @@
           <option value="user_colour">user colour</option>
         </select>
       </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Selected style</span>
+        <select class="pt-palette-select" id="selected-label-style">
+          <option value="bold">Bold</option>
+          <option value="italic">Italic</option>
+          <option value="bold italic">Bold + Italic</option>
+          <option value="normal">Normal</option>
+        </select>
+      </div>
     </div>
 
     <div class="pt-palette-section">
@@ -1368,6 +1377,26 @@
           <option value="yyyy-MMM-dd">yyyy-MMM-dd</option>
           <option value="dd MMM yyyy">dd MMM yyyy</option>
         </select>
+      </div>
+    </div>
+
+    <div class="pt-palette-section">
+      <h3><i class="bi bi-cursor-fill"></i> Selection &amp; Hover</h3>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Selection ring</span>
+        <input type="color" class="pt-palette-color" id="selected-ring-color" value="#e06961" />
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">MRCA ring</span>
+        <input type="color" class="pt-palette-color" id="mrca-ring-color" value="#19a699" />
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Tip hover</span>
+        <input type="color" class="pt-palette-color" id="tip-hover-color" value="#bf4b43" />
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Node hover</span>
+        <input type="color" class="pt-palette-color" id="internal-hover-color" value="#19a699" />
       </div>
     </div>
 
