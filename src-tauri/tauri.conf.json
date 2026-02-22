@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PearTree",
   "version": "0.1.0",
-  "identifier": "org.articnetwork.peartree",
+  "identifier": "network.artic.peartree",
   "build": {
     "frontendDist": "../ui"
   },

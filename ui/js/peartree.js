@@ -1,9 +1,12 @@
-import { parseNexus, parseNewick, graphToNewick } from './treeio.js';
-import { computeLayoutFromGraph } from './treeutils.js';
+import { parseNexus, parseNewick, graphToNewick, parseDelimited } from './treeio.js';
+import { computeLayoutFromGraph, graphVisibleTipCount, graphSubtreeHasHidden } from './treeutils.js';
 import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, buildAnnotationSchema } from './phylograph.js';
 import { TreeRenderer } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
+import { THEMES, DEFAULTS, SETTINGS_KEY, USER_THEMES_KEY } from './themes.js';
+import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
+import { createAnnotImporter } from './annotationsio.js';
 
 (async () => {
   const canvas            = document.getElementById('tree-canvas');
@@ -87,245 +90,9 @@ import { AxisRenderer  } from './axisrenderer.js';
   const tipFilterCnt           = document.getElementById('tip-filter-count');
 
   // ── Settings persistence ──────────────────────────────────────────────────
+  // SETTINGS_KEY, USER_THEMES_KEY, THEMES, DEFAULTS imported from ./themes.js
 
-  const SETTINGS_KEY    = 'peartree-settings';
-  const USER_THEMES_KEY = 'peartree-user-themes';
   let currentOrder = null;  // null | 'asc' | 'desc' — declared early so saveSettings() is safe to call during init
-
-  const THEMES = {
-        "Minimal": {
-            canvasBgColor:    '#ffffff',
-            branchColor:      '#444444',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#000000',
-            tipSize:          '2',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#ffffff',
-            tipShapeBgColor:  '#000000',
-            nodeSize:         '0',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#000000',
-            nodeShapeBgColor: '#000000',
-            axisColor:        '#444444',
-            legendTextColor:  '#444444',
-            selectedTipStrokeColor:       '#E06961',
-            selectedTipFillColor:         '#E06961',
-            selectedNodeStrokeColor:      '#19A699',
-            selectedNodeFillColor:        '#19A699',
-            tipHoverStrokeColor:          '#f5a700',
-            tipHoverFillColor:            '#f5a700',
-            nodeHoverStrokeColor:         '#f5a700',
-            nodeHoverFillColor:           '#f5a700',
-        },
-        "Artic": {
-            canvasBgColor:    '#02292e',
-            branchColor:      '#19A699',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#f7eeca',
-            tipSize:          '3',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#B58901',
-            tipShapeBgColor:  '#02292e',
-            nodeSize:         '0',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#E06961',
-            nodeShapeBgColor: '#02292e',
-            axisColor:        '#f7eeca',
-            legendTextColor:  '#f7eeca',
-            selectedTipFillColor:    '#FFF4A9',
-            selectedTipStrokeColor:   '#FFF4A9',
-            selectedNodeFillColor:   '#FFC9C7',
-            selectedNodeStrokeColor:       '#FFC9C7',
-            tipHoverFillColor:       '#FFF4A9',
-            tipHoverStrokeColor:     '#FFF4A9',
-            nodeHoverFillColor:  '#FFC9C7',
-            nodeHoverStrokeColor:    '#FFC9C7',
-        },
-        "BEAST": {
-            canvasBgColor:    '#5A5F62',
-            branchColor:      '#3B6F84',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#B1CBB8',
-            tipSize:          '3',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#B58901',
-            tipShapeBgColor:  '#02292e',
-            nodeSize:         '0',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#E06961',
-            nodeShapeBgColor: '#02292e',
-            axisColor:        '#B1CBB8',
-            legendTextColor:  '#B1CBB8',
-        },
-        // // Warm pastels: Grand Budapest Hotel / Moonrise Kingdom palette
-        // "Wes": {
-        //     canvasBgColor:    '#f5edd6',
-        //     branchColor:      '#7b3b5e',
-        //     branchWidth:      '1',
-        //     fontSize:         '11',
-        //     labelColor:       '#4a2040',
-        //     tipSize:          '4',
-        //     tipHaloSize:      '2',
-        //     tipShapeColor:    '#d4614b',
-        //     tipShapeBgColor:  '#f5edd6',
-        //     nodeSize:         '0',
-        //     nodeHaloSize:     '2',
-        //     nodeShapeColor:   '#b8962e',
-        //     nodeShapeBgColor: '#f5edd6',
-        //     axisColor:        '#4a2040',
-        // },
-        // Deep jewel tones: The Life Aquatic / Isle of Dogs palette
-        "MCM": {
-            canvasBgColor:    '#1e2d3a',
-            branchColor:      '#edd59c',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#f4c9a8',
-            tipSize:          '4',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#e07b65',
-            tipShapeBgColor:  '#1e2d3a',
-            nodeSize:         '3',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#7dbfcc',
-            nodeShapeBgColor: '#1e2d3a',
-            axisColor:        '#edd59c',
-            legendTextColor:  '#edd59c',
-        },
-        // Royal Tenenbaums: aged plaster, forest green, burgundy, tennis-ball gold
-        "Tenenbaums": {
-            canvasBgColor:    '#f0e8d8',
-            branchColor:      '#2b4a2a',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#1c3220',
-            tipSize:          '4',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#a01830',
-            tipShapeBgColor:  '#f0e8d8',
-            nodeSize:         '2',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#c8a020',
-            nodeShapeBgColor: '#f0e8d8',
-            axisColor:        '#2b4a2a',
-            legendTextColor:  '#2b4a2a',
-        },
-        // Fantastic Mr Fox: night earth, fox orange, rust, harvest green
-        "Mr Fox": {
-            canvasBgColor:    '#1a0d00',
-            branchColor:      '#e87830',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#f0c060',
-            tipSize:          '3',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#c84a18',
-            tipShapeBgColor:  '#1a0d00',
-            nodeSize:         '3',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#508a28',
-            nodeShapeBgColor: '#1a0d00',
-            axisColor:        '#f0c060',
-            legendTextColor:  '#f0c060',  
-        },
-        // The Darjeeling Limited: warm cream, saffron, cerulean, rust
-        "Darjeeling": {
-            canvasBgColor:    '#faf0d8',
-            branchColor:      '#c87010',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#3a2010',
-            tipSize:          '4',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#1a5878',
-            tipShapeBgColor:  '#faf0d8',
-            nodeSize:         '0',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#c04428',
-            nodeShapeBgColor: '#faf0d8',
-            axisColor:        '#3a2010',
-            legendTextColor:  '#3a2010',
-        },
-        // // Mid Century Modern – Birch: warm white, teak, avocado, harvest gold
-        // "MCM Birch": {
-        //     canvasBgColor:    '#f2ede0',
-        //     branchColor:      '#5c3a1e',
-        //     branchWidth:      '1',
-        //     fontSize:         '11',
-        //     labelColor:       '#2a1c10',
-        //     tipSize:          '4',
-        //     tipHaloSize:      '2',
-        //     tipShapeColor:    '#5a7a2a',
-        //     tipShapeBgColor:  '#f2ede0',
-        //     nodeSize:         '0',
-        //     nodeHaloSize:     '2',
-        //     nodeShapeColor:   '#c88c24',
-        //     nodeShapeBgColor: '#f2ede0',
-        //     axisColor:        '#2a1c10',
-        // },
-        // // Mid Century Modern – Walnut: warm sand, burnt sienna, mustard, teal
-        // "MCM Walnut": {
-        //     canvasBgColor:    '#e8dcc8',
-        //     branchColor:      '#8c4822',
-        //     branchWidth:      '1',
-        //     fontSize:         '11',
-        //     labelColor:       '#3a1c0a',
-        //     tipSize:          '4',
-        //     tipHaloSize:      '2',
-        //     tipShapeColor:    '#c89520',
-        //     tipShapeBgColor:  '#e8dcc8',
-        //     nodeSize:         '0',
-        //     nodeHaloSize:     '2',
-        //     nodeShapeColor:   '#2a6870',
-        //     nodeShapeBgColor: '#e8dcc8',
-        //     axisColor:        '#3a1c0a',
-        // },
-        // // Mid Century Modern – Eames: dark walnut, warm amber, turquoise, coral
-        // "MCM Eames": {
-        //     canvasBgColor:    '#1a1208',
-        //     branchColor:      '#d08830',
-        //     branchWidth:      '1',
-        //     fontSize:         '11',
-        //     labelColor:       '#f0d890',
-        //     tipSize:          '4',
-        //     tipHaloSize:      '2',
-        //     tipShapeColor:    '#2a8878',
-        //     tipShapeBgColor:  '#1a1208',
-        //     nodeSize:         '0',
-        //     nodeHaloSize:     '2',
-        //     nodeShapeColor:   '#c44030',
-        //     nodeShapeBgColor: '#1a1208',
-        //     axisColor:        '#f0d890',
-        // },
-        "O'Toole": {
-            canvasBgColor:    '#D8D4D3',
-            branchColor:      '#7984BC',
-            branchWidth:      '1',
-            fontSize:         '11',
-            labelColor:       '#7984BC',
-            tipSize:          '4',
-            tipHaloSize:      '1',
-            tipShapeColor:    '#AF808B',
-            tipShapeBgColor:  '#D8D4D3',
-            nodeSize:         '3',
-            nodeHaloSize:     '1',
-            nodeShapeColor:   '#88B2BA',
-            nodeShapeBgColor: '#D8D4D3',
-            axisColor:        '#7984BC',
-            legendTextColor:  '#7984BC',
-            selectedTipFillColor:    '#7f3e4d',
-            selectedTipStrokeColor:   '#7f3e4d',
-            selectedNodeFillColor:   '#263b3f',
-            selectedNodeStrokeColor:       '#263b3f',
-            tipHoverFillColor:       '#7f3e4d',
-            tipHoverStrokeColor:     '#7f3e4d',
-            nodeHoverFillColor:  '#263b3f',
-            nodeHoverStrokeColor:    '#263b3f',
-        },
-  };
 
   // Live theme registry: built-ins first, then any user-saved themes added on top.
   const themeRegistry = new Map(Object.entries(THEMES));
@@ -417,63 +184,6 @@ import { AxisRenderer  } from './axisrenderer.js';
     saveSettings();
   }
 
-  const DEFAULTS = {
-    theme:            'Artic',
-    canvasBgColor:    '#ffffff',
-    branchColor:      '#444444',
-    branchWidth:      '1',
-    fontSize:         '11',
-    labelColor:       '#000000',
-    tipSize:          '2',
-    tipHaloSize:      '1',
-    tipShapeColor:    '#ffffff',
-    tipShapeBgColor:  '#000000',
-    nodeSize:         '0',
-    nodeHaloSize:     '1',
-    nodeShapeColor:   '#000000',
-    nodeShapeBgColor: '#000000',
-    axisColor:        '#444444',
-    legendTextColor:  '#444444',
-    selectedLabelStyle:   'bold',
-    selectedTipStrokeColor:       '#E06961',
-    selectedTipFillColor:         '#E06961',
-    selectedTipGrowthFactor:      '1',
-    selectedTipMinSize:           '4',
-    selectedTipFillOpacity:       '0',
-    selectedTipStrokeWidth:       '4.5',
-    selectedTipStrokeOpacity:     '0.75',
-    selectedNodeStrokeColor:      '#19A699',
-    selectedNodeFillColor:        '#19A699',
-    selectedNodeGrowthFactor:     '1',
-    selectedNodeMinSize:          '4',
-    selectedNodeFillOpacity:      '0',
-    selectedNodeStrokeWidth:      '4.5',
-    selectedNodeStrokeOpacity:    '0.75',
-    tipHoverStrokeColor:          '#f5a700',
-    tipHoverFillColor:            '#f5a700',
-    tipHoverGrowthFactor:         '1.2',
-    tipHoverMinSize:              '5',
-    tipHoverFillOpacity:          '0.5',
-    tipHoverStrokeWidth:          '2',
-    tipHoverStrokeOpacity:        '0.5',
-    nodeHoverStrokeColor:         '#f5a700',
-    nodeHoverFillColor:           '#f5a700',
-    nodeHoverGrowthFactor:        '1.2',
-    nodeHoverMinSize:             '5',
-    nodeHoverFillOpacity:         '0.5',
-    nodeHoverStrokeWidth:         '2',
-    nodeHoverStrokeOpacity:       '0.5',
-    axisFontSize:     '9',
-    axisLineWidth:    '1',
-    legendShow:         'right',
-    legendFontSize:     '11',
-    axisShow:           'off',
-    axisDateAnnotation: '',
-    axisMajorInterval:    'auto',
-    axisMinorInterval:    'off',
-    axisMajorLabelFormat: 'auto',
-    axisMinorLabelFormat: 'off',
-  };
 
   function loadSettings() {
     try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); }
@@ -1443,375 +1153,22 @@ import { AxisRenderer  } from './axisrenderer.js';
   });
 
   // ── Import Annotations ──────────────────────────────────────────────────
-
-  const importOverlay = document.getElementById('import-annot-overlay');
-  const importBody    = document.getElementById('import-annot-body');
-  const importFooter  = document.getElementById('import-annot-footer');
-  const importTitleEl = document.getElementById('import-annot-title');
-
-  function _openAnnotDialog() {
-    if (!graph) return;
-    _showAnnotPicker();
-    importOverlay.classList.add('open');
-  }
-  function _closeAnnotDialog() {
-    importOverlay.classList.remove('open');
-  }
-
-  document.getElementById('import-annot-close').addEventListener('click', _closeAnnotDialog);
-  btnImportAnnot.addEventListener('click', _openAnnotDialog);
+  const annotImporter = createAnnotImporter({
+    getGraph: () => graph,
+    onApply: (g) => {
+      _refreshAnnotationUIs(g.annotationSchema);
+      renderer.setAnnotationSchema(g.annotationSchema);
+      renderer.setTipColourBy(tipColourBy.value      || null);
+      renderer.setNodeColourBy(nodeColourBy.value    || null);
+      renderer.setLabelColourBy(labelColourBy.value  || null);
+      applyLegend();
+      renderer._dirty = true;
+    },
+  });
+  btnImportAnnot.addEventListener('click', () => annotImporter.open());
 
   document.getElementById('export-tree-close').addEventListener('click', _closeExportDialog);
   btnExportTree.addEventListener('click', _openExportDialog);
-
-  /** Phase 1: render the File/URL picker UI into the dialog body. */
-  function _showAnnotPicker(errorMsg) {
-    importTitleEl.innerHTML = '<i class="bi bi-file-earmark-plus me-2"></i>Import Annotations';
-    importFooter.innerHTML  = `<button id="imp-picker-cancel-btn" class="btn btn-sm btn-secondary">Cancel</button>`;
-    document.getElementById('imp-picker-cancel-btn').addEventListener('click', _closeAnnotDialog);
-    importBody.innerHTML = `
-      <div class="pt-tabs">
-        <button class="pt-tab-btn active" data-imp-tab="file"><i class="bi bi-folder2-open me-1"></i>File</button>
-        <button class="pt-tab-btn"        data-imp-tab="url" ><i class="bi bi-link-45deg me-1"></i>URL</button>
-      </div>
-      <div class="pt-tab-panel active" id="imp-tab-file">
-        <div id="annot-drop-zone" class="pt-drop-zone">
-          <div class="pt-drop-icon"><i class="bi bi-file-earmark-arrow-down"></i></div>
-          <p>Drag and drop your annotation file here</p>
-          <p class="text-secondary" style="font-size:0.8rem;margin-bottom:1rem">CSV (.csv) &nbsp;or&nbsp; Tab-separated (.tsv)</p>
-          <input type="file" id="annot-file-input" accept=".csv,.tsv,.txt" style="position:absolute;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none">
-          <button class="btn btn-sm btn-outline-primary" id="btn-annot-file-choose"><i class="bi bi-folder2-open me-1"></i>Choose File</button>
-        </div>
-      </div>
-      <div class="pt-tab-panel" id="imp-tab-url">
-        <label class="form-label">Annotation file URL</label>
-        <input type="url" class="pt-modal-url-input" id="annot-url-input"
-          placeholder="https://example.com/annotations.csv" />
-        <div style="text-align:center;margin-top:0.5rem">
-          <button class="btn btn-sm btn-outline-primary" id="btn-annot-load-url"
-            ><i class="bi bi-cloud-download me-1"></i>Load from URL</button>
-        </div>
-      </div>
-      <div id="imp-loading" class="pt-modal-loading" style="display:none">
-        <div class="pt-spinner"></div>Loading&hellip;
-      </div>
-      ${errorMsg ? `<div class="pt-modal-error">${_esc(errorMsg)}</div>` : ''}`;
-
-    // Tab switching
-    importBody.querySelectorAll('[data-imp-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        importBody.querySelectorAll('[data-imp-tab]').forEach(b => b.classList.remove('active'));
-        importBody.querySelectorAll('.pt-tab-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(`imp-tab-${btn.dataset.impTab}`).classList.add('active');
-      });
-    });
-
-    // File picker + drag-and-drop
-    const annotFileInput = document.getElementById('annot-file-input');
-    const annotDropZone  = document.getElementById('annot-drop-zone');
-    document.getElementById('btn-annot-file-choose').addEventListener('click', () => annotFileInput.click());
-    annotFileInput.addEventListener('change', () => {
-      const file = annotFileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => _showImportConfig(file.name, e.target.result);
-      reader.readAsText(file);
-    });
-    annotDropZone.addEventListener('dragover',  e  => { e.preventDefault(); annotDropZone.classList.add('drag-over'); });
-    annotDropZone.addEventListener('dragleave', () => annotDropZone.classList.remove('drag-over'));
-    annotDropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      annotDropZone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => _showImportConfig(file.name, ev.target.result);
-      reader.readAsText(file);
-    });
-
-    // URL load
-    document.getElementById('btn-annot-load-url').addEventListener('click', async () => {
-      const url = document.getElementById('annot-url-input').value.trim();
-      if (!url) return;
-      const loadingEl = document.getElementById('imp-loading');
-      loadingEl.style.display = '';
-      try {
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} \u2013 ${url}`);
-        const text = await resp.text();
-        _showImportConfig(url.split('/').pop() || 'annotations', text);
-      } catch (err) {
-        loadingEl.style.display = 'none';
-        _showAnnotPicker(err.message);
-      }
-    });
-  }
-
-  /** Parse a CSV or TSV string into { headers, rows[] }. */
-  function _parseDelimited(text) {
-    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-    if (lines.length === 0) return { headers: [], rows: [] };
-
-    const firstLine  = lines[0];
-    const tabCount   = (firstLine.match(/\t/g)  || []).length;
-    const commaCount = (firstLine.match(/,/g)   || []).length;
-    const delimiter  = tabCount >= commaCount ? '\t' : ',';
-
-    function parseLine(line) {
-      if (delimiter === '\t') return line.split('\t').map(v => v.trim());
-      const result = []; let cur = '', inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ;
-        } else if (ch === ',' && !inQ) {
-          result.push(cur.trim()); cur = '';
-        } else { cur += ch; }
-      }
-      result.push(cur.trim());
-      return result;
-    }
-
-    const headers = parseLine(lines[0]);
-    const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const vals = parseLine(lines[i]);
-      if (vals.every(v => !v)) continue;
-      const obj = {};
-      headers.forEach((h, j) => { obj[h] = vals[j] ?? ''; });
-      rows.push(obj);
-    }
-    return { headers, rows };
-  }
-
-  /** Show the import configuration dialog. */
-  function _showImportConfig(filename, text) {
-    let parsed;
-    try { parsed = _parseDelimited(text); }
-    catch (err) { _showImportError(`Parse error: ${err.message}`); return; }
-    const { headers, rows } = parsed;
-    if (headers.length < 2) {
-      _showImportError('File must have at least 2 columns (one to match tips and at least one annotation column).');
-      return;
-    }
-    if (rows.length === 0) {
-      _showImportError('No data rows found (file appears to have only a header row).');
-      return;
-    }
-
-    const headerOpts = headers.map((h, i) =>
-      `<option value="${i}">${_esc(h)}</option>`).join('');
-
-    const colChecks = headers.map((h, i) =>
-      `<label><input type="checkbox" class="imp-col-chk" data-idx="${i}" checked> ${_esc(h)}</label>`
-    ).join('');
-
-    importTitleEl.innerHTML = `<i class="bi bi-file-earmark-text me-2"></i>${_esc(filename)}`;
-    importBody.innerHTML = `
-      <p style="margin:0 0 0.8rem;color:var(--bs-secondary-color)">
-        ${rows.length}&nbsp;row${rows.length !== 1 ? 's' : ''},
-        ${headers.length}&nbsp;column${headers.length !== 1 ? 's' : ''}
-      </p>
-
-      <div class="imp-section">
-        <label class="imp-section-label">Match column</label>
-        <div class="imp-row">
-          <select class="imp-select" id="imp-match-col">${headerOpts}</select>
-        </div>
-      </div>
-
-      <div class="imp-section">
-        <label class="imp-section-label">Match mode</label>
-        <div style="display:flex;flex-direction:column;gap:0.3rem;">
-          <label class="imp-row" style="cursor:pointer">
-            <input type="radio" name="imp-mode" id="imp-mode-full" value="full" checked>
-            Full taxon label
-          </label>
-          <label class="imp-row" style="cursor:pointer">
-            <input type="radio" name="imp-mode" id="imp-mode-field" value="field">
-            Pipe-delimited field:&nbsp;
-            <input type="number" id="imp-field-num" min="1" value="1"
-              style="width:52px;background:#02292e;color:var(--bs-body-color);border:1px solid #235b62;border-radius:0.25rem;padding:0.1rem 0.3rem;font-size:0.82rem;"
-              title="Which |-delimited field (1 = first)">
-          </label>
-        </div>
-      </div>
-
-      <div class="imp-section">
-        <label class="imp-section-label">Columns to import</label>
-        <div class="imp-col-grid" id="imp-col-grid">${colChecks}</div>
-        <button id="imp-toggle-all" class="btn btn-sm btn-outline-secondary"
-          style="margin-top:0.4rem;font-size:0.75rem;padding:0.1rem 0.5rem">Deselect all</button>
-      </div>
-
-      <div class="imp-section">
-        <label class="imp-row" style="cursor:pointer;gap:0.4rem;align-items:flex-start">
-          <input type="checkbox" id="imp-replace" style="margin-top:0.1rem;flex-shrink:0">
-          <span>Replace existing annotations with the same name
-            <span style="display:block;color:var(--bs-secondary-color);font-size:0.75rem">
-              Clears matching annotation keys from all nodes before applying new values.
-            </span>
-          </span>
-        </label>
-      </div>`;
-
-    importFooter.innerHTML = `
-      <button id="imp-cancel-btn" class="btn btn-sm btn-outline-secondary">Cancel</button>
-      <button id="imp-apply-btn" class="btn btn-sm btn-primary">Import &#x2192;</button>`;
-
-    // When match column changes, disable that column in the import grid.
-    function _syncMatchColDisabled() {
-      const matchIdx = document.getElementById('imp-match-col').value;
-      document.querySelectorAll('.imp-col-chk').forEach(el => {
-        const isMatch = el.dataset.idx === matchIdx;
-        el.disabled = isMatch;
-        if (isMatch) el.checked = false;
-        el.closest('label').style.opacity = isMatch ? '0.4' : '';
-      });
-    }
-    document.getElementById('imp-match-col').addEventListener('change', _syncMatchColDisabled);
-    _syncMatchColDisabled(); // init
-
-    // Clicking the field-number input switches to field mode.
-    document.getElementById('imp-field-num').addEventListener('focus', () => {
-      document.getElementById('imp-mode-field').checked = true;
-    });
-
-    // Toggle-all button.
-    document.getElementById('imp-toggle-all').addEventListener('click', () => {
-      const matchIdx = document.getElementById('imp-match-col').value;
-      const eligible = [...document.querySelectorAll('.imp-col-chk')]
-        .filter(el => el.dataset.idx !== matchIdx);
-      const anyUnchecked = eligible.some(el => !el.checked);
-      eligible.forEach(el => { el.checked = anyUnchecked; });
-      document.getElementById('imp-toggle-all').textContent =
-        anyUnchecked ? 'Deselect all' : 'Select all';
-    });
-
-    document.getElementById('imp-cancel-btn').addEventListener('click', () => _showAnnotPicker());
-
-    document.getElementById('imp-apply-btn').addEventListener('click', () => {
-      const matchIdx   = parseInt(document.getElementById('imp-match-col').value, 10);
-      const matchCol   = headers[matchIdx];
-      const modeField  = document.getElementById('imp-mode-field').checked;
-      const fieldIndex = Math.max(1, parseInt(document.getElementById('imp-field-num').value, 10) || 1) - 1;
-      const doReplace  = document.getElementById('imp-replace').checked;
-      const importCols = headers.filter((_, i) => {
-        if (i === matchIdx) return false;
-        const el = document.querySelector(`.imp-col-chk[data-idx="${i}"]`);
-        return el && el.checked;
-      });
-      if (importCols.length === 0) {
-        const grid = document.getElementById('imp-col-grid');
-        grid.style.outline = '1px solid var(--bs-danger)';
-        setTimeout(() => { grid.style.outline = ''; }, 1500);
-        return;
-      }
-      _applyAnnotations({ rows, matchCol, matchMode: modeField ? 'field' : 'full',
-                          fieldIndex, importCols, doReplace, filename });
-    });
-  }
-
-  /** Write parsed annotations onto graph nodes, rebuild schema, refresh UI. */
-  function _applyAnnotations({ rows, matchCol, matchMode, fieldIndex, importCols, doReplace, filename }) {
-    const tips = graph.nodes.filter(n => n.adjacents.length === 1);
-
-    // Build lookup: matchValue → first matching row
-    const rowLookup = new Map();
-    for (const row of rows) {
-      const key = (row[matchCol] ?? '').trim();
-      if (key && !rowLookup.has(key)) rowLookup.set(key, row);
-    }
-
-    // Optionally clear existing annotation keys from all nodes
-    if (doReplace) {
-      for (const colName of importCols)
-        for (const node of graph.nodes) delete node.annotations[colName];
-    }
-
-    let matched = 0;
-    const matchedRowKeys = new Set();
-    const unmatchedTipExamples = [];
-    for (const node of tips) {
-      const label    = node.name ?? node.origId ?? '';
-      const matchKey = matchMode === 'field'
-        ? (label.split('|')[fieldIndex] ?? '').trim()
-        : label.trim();
-      const row = rowLookup.get(matchKey);
-      if (!row) {
-        if (unmatchedTipExamples.length < 5) unmatchedTipExamples.push(matchKey || label);
-        continue;
-      }
-      matched++;
-      matchedRowKeys.add(matchKey);
-      for (const colName of importCols) {
-        const raw = (row[colName] ?? '').trim();
-        if (raw === '') continue;
-        const num = Number(raw);
-        node.annotations[colName] = Number.isNaN(num) ? raw : num;
-      }
-    }
-
-    const unmatchedTips = tips.length - matched;
-    const unmatchedRows = rowLookup.size - matchedRowKeys.size;
-
-    // Rebuild schema and refresh all annotation-dependent UI.
-    graph.annotationSchema = buildAnnotationSchema(graph.nodes);
-    _refreshAnnotationUIs(graph.annotationSchema);
-    renderer.setAnnotationSchema(graph.annotationSchema);
-    renderer.setTipColourBy(tipColourBy.value      || null);
-    renderer.setNodeColourBy(nodeColourBy.value    || null);
-    renderer.setLabelColourBy(labelColourBy.value  || null);
-    applyLegend();
-    renderer._dirty = true;
-
-    _showImportResults({ matched, unmatchedTips, unmatchedRows, unmatchedTipExamples,
-                         importCols, filename, totalTips: tips.length });
-  }
-
-  /** Switch the import dialog to a results view. */
-  function _showImportResults({ matched, unmatchedTips, unmatchedRows, unmatchedTipExamples = [], importCols, filename, totalTips }) {
-    const pct       = totalTips > 0 ? Math.round(100 * matched / totalTips) : 0;
-    const okCls  = matched       > 0 ? 'imp-ok'   : 'imp-warn';
-    const tipCls = unmatchedTips > 0 ? 'imp-warn' : 'imp-ok';
-    const rowCls = unmatchedRows > 0 ? 'imp-warn' : 'imp-ok';
-    importTitleEl.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>Import Results';
-    importBody.innerHTML = `
-      <div class="imp-result-row">
-        <span class="imp-result-icon ${okCls}"><i class="bi bi-check-circle-fill"></i></span>
-        <span><strong>${matched}</strong> of <strong>${totalTips}</strong> tips matched (${pct}%)</span>
-      </div>
-      <div class="imp-result-row">
-        <span class="imp-result-icon ${tipCls}">
-          <i class="bi bi-${unmatchedTips > 0 ? 'exclamation-triangle-fill' : 'check-circle-fill'}"></i>
-        </span>
-        <span><strong>${unmatchedTips}</strong> tip${unmatchedTips !== 1 ? 's' : ''} unmatched${unmatchedTips > 0 && unmatchedTipExamples.length > 0 ? ` <span style="color:var(--bs-secondary-color);font-size:0.78rem">(e.g. ${unmatchedTipExamples.map(n => `<code style="background:#02292e;padding:0 3px;border-radius:3px">${_esc(n)}</code>`).join(', ')}${unmatchedTips > unmatchedTipExamples.length ? ', …' : ''})</span>` : ''}</span>
-      </div>
-      <div class="imp-result-row">
-        <span class="imp-result-icon ${rowCls}">
-          <i class="bi bi-${unmatchedRows > 0 ? 'exclamation-triangle-fill' : 'check-circle-fill'}"></i>
-        </span>
-        <span><strong>${unmatchedRows}</strong> annotation row${unmatchedRows !== 1 ? 's' : ''} unmatched</span>
-      </div>
-      ${importCols.length > 0 ? `
-      <div style="margin-top:0.75rem;padding-top:0.6rem;border-top:1px solid #235b62;">
-        <span style="color:var(--bs-secondary-color)">Annotations imported:</span>
-        ${importCols.map(c => `<code style="background:#02292e;padding:0 3px;border-radius:3px;margin:0 2px">${_esc(c)}</code>`).join('')}
-      </div>` : ''}`;
-    importFooter.innerHTML = `<button id="imp-close-btn" class="btn btn-sm btn-primary">Close</button>`;
-    document.getElementById('imp-close-btn').addEventListener('click', _closeAnnotDialog);
-  }
-
-  /** Show an error inside the import dialog (phase 2 parse errors). */
-  function _showImportError(msg) {
-    importTitleEl.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Import Error';
-    importBody.innerHTML = `<div style="color:var(--bs-danger);padding:0.5rem 0">${_esc(msg)}</div>`;
-    importFooter.innerHTML = `<button id="imp-back-btn" class="btn btn-sm btn-outline-secondary me-auto">&#x2190; Back</button>
-      <button id="imp-close-err-btn" class="btn btn-sm btn-secondary">Close</button>`;
-    document.getElementById('imp-back-btn').addEventListener('click',      () => _showAnnotPicker());
-    document.getElementById('imp-close-err-btn').addEventListener('click', _closeAnnotDialog);
-  }
 
   /** HTML-escape a string for safe insertion. */
   function _esc(s) {
@@ -2008,22 +1365,8 @@ import { AxisRenderer  } from './axisrenderer.js';
     exportGraphicOverlay.classList.remove('open');
   }
 
-  /** Return CSS-pixel dimensions of the full composite viewport. */
-  function _viewportDims() {
-    const llVisible = legendLeftCanvas.style.display !== 'none';
-    const lrVisible = legendRightCanvas.style.display !== 'none';
-    const axVisible = axisCanvas.style.display        !== 'none';
-    const llW = llVisible ? legendLeftCanvas.clientWidth  : 0;
-    const lrW = lrVisible ? legendRightCanvas.clientWidth : 0;
-    const ttW = canvas.clientWidth;
-    const ttH = canvas.clientHeight;
-    const axH = axVisible ? axisCanvas.clientHeight : 0;
-    return { totalW: llW + ttW + lrW, totalH: ttH + axH,
-             llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible };
-  }
-
   function _buildGraphicsDialog() {
-    const { totalW, totalH } = _viewportDims();
+    const { totalW, totalH } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
     const defPx = Math.round(totalW * 2);
     const defH  = Math.round(totalH * 2);
 
@@ -2062,7 +1405,7 @@ import { AxisRenderer  } from './axisrenderer.js';
       <button id="expg-download-btn" class="btn btn-sm btn-primary"><i class="bi bi-download me-1"></i>Download</button>`;
 
     const _updateExpgHint = () => {
-      const { totalW, totalH, axH, axVisible } = _viewportDims();
+      const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
       const isFull = document.querySelector('input[name="expg-view"]:checked')?.value === 'full';
       const ph = isFull
         ? Math.round((renderer.paddingTop + renderer.paddingBottom +
@@ -2091,21 +1434,21 @@ import { AxisRenderer  } from './axisrenderer.js';
     const transparent = !(document.getElementById('expg-bg')?.checked ?? true);
 
     if (fmt === 'png') {
-      const { totalW, totalH, axH, axVisible } = _viewportDims();
+      const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
       const targetW = Math.round(totalW * 2);
       const targetH = fullTree
         ? Math.round((renderer.paddingTop + renderer.paddingBottom +
             (renderer.maxY + 1) * renderer.scaleY + (axVisible ? axH : 0)) * 2)
         : Math.round(totalH * 2);
 
-      _compositeViewPng(targetW, targetH, fullTree, transparent).convertToBlob({ type: 'image/png' }).then(blob => {
+      compositeViewPng({ renderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, axisRenderer }, targetW, targetH, fullTree, transparent).convertToBlob({ type: 'image/png' }).then(blob => {
         const url = URL.createObjectURL(blob);
         const a   = Object.assign(document.createElement('a'), { href: url, download: `${filename}.png` });
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
       });
     } else {
-      const svgStr = _buildGraphicSVG(fullTree, transparent);
+      const svgStr = buildGraphicSVG({ renderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, axisRenderer }, fullTree, transparent);
       if (!svgStr) return;
       const blob = new Blob([svgStr], { type: 'image/svg+xml' });
       const url  = URL.createObjectURL(blob);
@@ -2116,361 +1459,6 @@ import { AxisRenderer  } from './axisrenderer.js';
     _closeGraphicsDialog();
   }
 
-  /** Composite all visible canvases onto an OffscreenCanvas at target pixel size. */
-  function _compositeViewPng(targetW, targetH, fullTree = false, transparent = false) {
-    const { totalW, totalH, llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible } = _viewportDims();
-    // Full tree: panel height is determined by current scaleY over all tips.
-    const ttH_eff    = fullTree
-      ? (renderer.paddingTop + renderer.paddingBottom + (renderer.maxY + 1) * renderer.scaleY)
-      : ttH;
-    const totalH_eff = ttH_eff + (axVisible ? axH : 0);
-    const sx = targetW / totalW;
-    const sy = targetH / totalH_eff;
-    const oc  = new OffscreenCanvas(targetW, targetH);
-    const ctx = oc.getContext('2d');
-
-    if (!transparent) {
-      ctx.fillStyle = renderer.bgColor;
-      ctx.fillRect(0, 0, targetW, targetH);
-    }
-
-    if (llVisible) {
-      if (transparent) {
-        // Re-render legend without background fill.
-        renderer._skipBg = true;
-        renderer._drawLegend();
-        renderer._skipBg = false;
-      }
-      ctx.drawImage(legendLeftCanvas, 0, 0,
-        Math.round(llW * sx), Math.round(ttH_eff * sy));
-      if (transparent) {
-        // Restore legend with background for the live view.
-        renderer._drawLegend();
-      }
-    }
-    if (fullTree) {
-      // Re-render tree panel at current scaleY with full unclipped height.
-      const treeW = Math.round(ttW * sx);
-      const treeH = Math.round(ttH_eff * sy);
-      const toc = new OffscreenCanvas(treeW, treeH);
-      renderer.renderFull(toc, treeW, treeH, transparent);
-      ctx.drawImage(toc, Math.round(llW * sx), 0);
-    } else if (transparent) {
-      // Re-render current viewport at screen dimensions without background,
-      // then let drawImage scale it to the export target (same as the normal
-      // path does with the live canvas, but without the pre-painted background).
-      const toc = new OffscreenCanvas(Math.round(ttW), Math.round(ttH_eff));
-      renderer.renderViewToOffscreen(toc, true);
-      ctx.drawImage(toc,
-        Math.round(llW * sx), 0,
-        Math.round(ttW * sx), Math.round(ttH_eff * sy));
-    } else {
-      ctx.drawImage(canvas,
-        Math.round(llW * sx), 0,
-        Math.round(ttW * sx), Math.round(ttH_eff * sy));
-    }
-    if (axVisible) {
-      ctx.drawImage(axisCanvas,
-        Math.round(llW * sx), Math.round(ttH_eff * sy),
-        Math.round(ttW * sx), Math.round(axH * sy));
-    }
-    if (lrVisible) {
-      if (transparent) {
-        renderer._skipBg = true;
-        renderer._drawLegend();
-        renderer._skipBg = false;
-      }
-      ctx.drawImage(legendRightCanvas,
-        Math.round((llW + ttW) * sx), 0,
-        Math.round(lrW * sx), Math.round(ttH_eff * sy));
-      if (transparent) {
-        renderer._drawLegend();
-      }
-    }
-    return oc;
-  }
-
-  /** Escape a string for SVG text content. */
-  function _svgTextEsc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  /**
-   * Build a fully-vector composite SVG: three panels arranged as on screen —
-   *   legend (left) | tree | legend (right)   [with axis below the tree panel]
-   *
-   * No raster embeds — axis ticks and legend entries are SVG elements.
-   */
-  function _buildGraphicSVG(fullTree = false, transparent = false) {
-    const nm = renderer.nodeMap;
-    if (!nm || !nm.size) return null;
-
-    const { totalW, totalH, llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible } = _viewportDims();
-    const sx  = renderer.scaleX,  ox = renderer.offsetX;
-    // Full tree: keep current scaleY so zoom level is preserved; shift oy so root sits at top.
-    const sy  = renderer.scaleY;
-    const oy  = fullTree ? renderer.paddingTop + renderer.scaleY * 0.5 : renderer.offsetY;
-    // Effective tree-panel height and total SVG height.
-    const ttH_eff    = fullTree
-      ? Math.round(renderer.paddingTop + renderer.paddingBottom + (renderer.maxY + 1) * renderer.scaleY)
-      : ttH;
-    const totalH_eff = ttH_eff + (axVisible ? axH : 0);
-    const bg  = renderer.bgColor;
-    const bc  = renderer.branchColor;
-    const bw  = Math.max(0.5, renderer.branchWidth);
-    const lc  = renderer.labelColor;
-    const fs  = renderer.fontSize;
-    const tr  = renderer.tipRadius;
-    const nr  = renderer.nodeRadius;
-
-    const toSX = wx => wx * sx + ox + llW;
-    const toSY = wy => wy * sy + oy;
-    const f    = n  => n.toFixed(2);
-    // When drawing full tree all nodes are in range; use Infinity to skip y-culling.
-    const MARGIN = fullTree ? Infinity : 20;
-
-    // ── defs: clip paths, gradients ──────────────────────────────────────
-    const defs = [];
-    // Clip for the main tree area (excludes legend panels)
-    defs.push(`<clipPath id="tc"><rect x="${llW}" y="0" width="${ttW}" height="${ttH_eff}"/></clipPath>`);
-
-    // ── Background panels ─────────────────────────────────────────────────
-    const bgParts = [];
-    if (!transparent) {
-      bgParts.push(`<rect width="${totalW}" height="${totalH_eff}" fill="${_esc(bg)}"/>`);
-    }
-
-    // ── Legend panels (vector) ────────────────────────────────────────────
-    const legendParts = [];
-    const legendPos = renderer._legendPosition;
-    const legendKey = renderer._legendAnnotation;
-    if (legendPos && legendKey && renderer._annotationSchema) {
-      const def = renderer._annotationSchema.get(legendKey);
-      if (def) {
-        const lx = legendPos === 'left' ? 0 : llW + ttW;
-        const lw = legendPos === 'left' ? llW : lrW;
-        const PAD = 12;
-        let   ly  = PAD;
-
-        // Title
-        legendParts.push(`<text x="${lx + PAD}" y="${ly}" dominant-baseline="hanging" font-family="monospace" font-size="${fs}px" font-weight="700" fill="#b58900">${_svgTextEsc(legendKey)}</text>`);
-        ly += fs + 10;
-
-        if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-          const PALETTE = ['#2aa198','#cb4b16','#268bd2','#d33682','#6c71c4','#b58900','#859900','#dc322f'];
-          const SWATCH  = 12;
-          const ROW_H   = Math.max(SWATCH + 4, fs + 4);
-          (def.values || []).forEach((val, i) => {
-            if (ly + SWATCH > ttH_eff - PAD) return;
-            const colour = PALETTE[i % PALETTE.length];
-            legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${SWATCH}" height="${SWATCH}" fill="${_esc(colour)}"/>`);
-            legendParts.push(`<text x="${lx + PAD + SWATCH + 6}" y="${ly + SWATCH / 2}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="#F7EECA">${_svgTextEsc(String(val))}</text>`);
-            ly += ROW_H;
-          });
-        } else if (def.dataType === 'real' || def.dataType === 'integer') {
-          const BAR_W = lw - PAD * 2;
-          const BAR_H = 14;
-          const gid   = 'lgrd';
-          defs.push(`<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2aa198"/><stop offset="100%" stop-color="#dc322f"/></linearGradient>`);
-          legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${BAR_W}" height="${BAR_H}" fill="url(#${gid})"/>`);
-          ly += BAR_H + 4;
-          const min = def.min ?? 0, max = def.max ?? 1;
-          legendParts.push(`<text x="${lx + PAD}" y="${ly}" dominant-baseline="hanging" font-family="monospace" font-size="${fs}px" fill="#F7EECA">${_svgTextEsc(String(min))}</text>`);
-          legendParts.push(`<text x="${lx + PAD + BAR_W}" y="${ly}" text-anchor="end" dominant-baseline="hanging" font-family="monospace" font-size="${fs}px" fill="#F7EECA">${_svgTextEsc(String(max))}</text>`);
-        }
-      }
-    }
-
-    // ── Tree branches ─────────────────────────────────────────────────────
-    const branchParts = [];
-    const bgNodeParts = [];  // background halo circles for node shapes
-    const bgTipParts  = [];  // background halo circles for tip shapes
-    const fgNodeParts = [];  // foreground fill circles for node shapes
-    const fgTipParts  = [];  // foreground fill circles for tip shapes
-    const labelParts  = [];
-    // Stroke width for the bg halo: uses renderer.tipHaloSize directly
-    const tipHaloSW  = renderer.tipHaloSize * 2;
-    const nodeHaloSW = renderer.nodeHaloSize * 2;
-    const tipBgColor  = renderer.tipShapeBgColor || bg;
-    const nodeBgColor = renderer.nodeShapeBgColor || bg;
-
-    const rootNode = [...nm.values()].find(n => n.parentId === null);
-    if (rootNode) {
-      const rx = toSX(rootNode.x), ry = toSY(rootNode.y);
-      const stub = renderer.rootStubLength ?? 20;
-      branchParts.push(`<line x1="${f(rx - stub)}" y1="${f(ry)}" x2="${f(rx)}" y2="${f(ry)}"/>`);
-    }
-
-    for (const [, node] of nm) {
-      const nx = toSX(node.x), ny = toSY(node.y);
-
-      if (node.parentId !== null) {
-        const parent = nm.get(node.parentId);
-        if (parent && ny > -MARGIN && ny < ttH + MARGIN) {
-          branchParts.push(`<line x1="${f(toSX(parent.x))}" y1="${f(ny)}" x2="${f(nx)}" y2="${f(ny)}"/>`);
-        }
-      }
-
-      if (!node.isTip && node.children.length >= 2) {
-        const childYs = node.children.map(cid => { const c = nm.get(cid); return c ? toSY(c.y) : null; }).filter(y => y !== null);
-        if (childYs.length >= 2) {
-          const minY = Math.min(...childYs), maxY = Math.max(...childYs);
-          if (maxY > -MARGIN && minY < ttH + MARGIN)
-            branchParts.push(`<line x1="${f(nx)}" y1="${f(minY)}" x2="${f(nx)}" y2="${f(maxY)}"/>`);
-        }
-      }
-
-      if (ny > -MARGIN && ny < ttH + MARGIN) {
-        if (node.isTip && tr > 0) {
-          const fill = renderer._tipColourScale?.get(node.annotations?.[renderer._tipColourBy]) || renderer.tipShapeColor;
-          if (tipHaloSW > 0)
-            bgTipParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${tr}" fill="${_esc(tipBgColor)}" stroke="${_esc(tipBgColor)}" stroke-width="${tipHaloSW}"/>`);
-          fgTipParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${tr}" fill="${_esc(fill)}"/>`);
-        } else if (!node.isTip && nr > 0) {
-          const fill = renderer._nodeColourScale?.get(node.annotations?.[renderer._nodeColourBy]) || renderer.nodeShapeColor;
-          if (nodeHaloSW > 0)
-            bgNodeParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${nr}" fill="${_esc(nodeBgColor)}" stroke="${_esc(nodeBgColor)}" stroke-width="${nodeHaloSW}"/>`);
-          fgNodeParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${nr}" fill="${_esc(fill)}"/>`);
-        }
-        if (node.isTip && node.name) {
-          const lx2 = nx + (tr > 0 ? tr + 4 : 4);
-          const labelFill = (renderer._labelColourBy && renderer._labelColourScale)
-            ? (renderer._labelColourForValue(node.annotations?.[renderer._labelColourBy]) ?? lc)
-            : lc;
-          labelParts.push(`<text x="${f(lx2)}" y="${f(ny)}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="${_esc(labelFill)}">${_svgTextEsc(node.name)}</text>`);
-        } else if (!node.isTip && node.label) {
-          labelParts.push(`<text x="${f(nx + 3)}" y="${f(ny - 3)}" font-family="monospace" font-size="${Math.round(fs * 0.85)}px" fill="${_esc(lc)}" opacity="0.7">${_svgTextEsc(node.label)}</text>`);
-        }
-      }
-    }
-
-    // ── Axis (vector) ────────────────────────────────────────────────────
-    const axisParts = [];
-    if (axVisible && axisRenderer._visible && axisRenderer._scaleX && axisRenderer._maxX !== 0) {
-      const ar        = axisRenderer;
-      const plotLeft  = ar._offsetX;
-      const plotRight = ar._offsetX + ar._maxX * ar._scaleX;
-      const AX        = llW;          // SVG x-offset for the axis canvas origin
-      const AY        = ttH_eff;      // SVG y-offset for the axis canvas origin
-      const Y_BASE    = 3;
-      const MAJOR_H   = 9;
-      const MINOR_H   = 5;
-      const TICK_C    = 'rgba(255,255,255,0.45)';
-      const MINOR_C   = 'rgba(255,255,255,0.25)';
-      const TEXT_C    = 'rgba(242,241,230,0.80)';
-      const TEXT_DIM  = 'rgba(242,241,230,0.45)';
-      const afs       = ar._fontSize;
-      const afsMinor  = Math.max(6, afs - 2);
-      // Approximate monospace character width for overlap guard
-      const approxW   = (label, fsize) => label.length * fsize * 0.57;
-
-      const { leftVal, rightVal } = ar._valueDomain();
-      const minVal = Math.min(leftVal, rightVal);
-      const maxVal = Math.max(leftVal, rightVal);
-      const targetMajor = Math.max(2, Math.round((plotRight - plotLeft) / 90));
-
-      let majorTicks, minorTicks;
-      if (ar._dateMode) {
-        const majI = ar._majorInterval, minI = ar._minorInterval;
-        majorTicks = majI === 'auto'
-          ? AxisRenderer._niceCalendarTicks(minVal, maxVal, targetMajor)
-          : AxisRenderer._calendarTicksForInterval(minVal, maxVal, majI);
-        if (minI === 'off') {
-          minorTicks = [];
-        } else {
-          const all = minI === 'auto'
-            ? AxisRenderer._niceCalendarTicks(minVal, maxVal, targetMajor * 5)
-            : AxisRenderer._calendarTicksForInterval(minVal, maxVal, minI);
-          const ms = new Set(majorTicks.map(t => t.toFixed(8)));
-          minorTicks = all.filter(t => !ms.has(t.toFixed(8)));
-        }
-      } else {
-        majorTicks = AxisRenderer._niceTicks(leftVal, rightVal, targetMajor);
-        const minorAll = majorTicks.length > 1
-          ? AxisRenderer._niceTicks(leftVal, rightVal, targetMajor * 5) : [];
-        const ms = new Set(majorTicks.map(t => t.toPrecision(10)));
-        minorTicks = minorAll.filter(t => !ms.has(t.toPrecision(10)));
-      }
-
-      // Baseline
-      axisParts.push(`<line x1="${f(plotLeft + AX)}" y1="${f(AY + Y_BASE + 0.5)}" x2="${f(plotRight + AX)}" y2="${f(AY + Y_BASE + 0.5)}" stroke="${TICK_C}" stroke-width="1"/>`);
-
-      const minorLabelFmt  = ar._dateMode ? ar._minorLabelFormat : 'off';
-      const showMinorLabel = minorLabelFmt !== 'off';
-      let minorLabelRight  = -Infinity;
-
-      for (const val of minorTicks) {
-        const sx = ar._valToScreenX(val) + AX;
-        if (sx < plotLeft + AX - 1 || sx > plotRight + AX + 1) continue;
-        axisParts.push(`<line x1="${f(sx)}" y1="${f(AY + Y_BASE + 1)}" x2="${f(sx)}" y2="${f(AY + Y_BASE + 1 + MINOR_H)}" stroke="${MINOR_C}" stroke-width="1"/>`);
-        if (showMinorLabel) {
-          const label = ar._formatDateVal(val, minorLabelFmt, ar._minorInterval);
-          const tw    = approxW(label, afsMinor);
-          const lx2   = Math.max(plotLeft + AX + tw / 2 + 1, Math.min(plotRight + AX - tw / 2 - 1, sx));
-          if (lx2 - tw / 2 > minorLabelRight + 2) {
-            axisParts.push(`<text x="${f(lx2)}" y="${f(AY + Y_BASE + 1 + MINOR_H + 2)}" dominant-baseline="hanging" text-anchor="middle" font-family="monospace" font-size="${afsMinor}px" fill="${TEXT_DIM}">${_svgTextEsc(label)}</text>`);
-            minorLabelRight = lx2 + tw / 2;
-          }
-        }
-      }
-
-      const majorLabelFmt  = ar._dateMode ? ar._majorLabelFormat : 'auto';
-      const showMajorLabel = majorLabelFmt !== 'off';
-      let majorLabelRight  = -Infinity;
-
-      for (const val of majorTicks) {
-        const sx = ar._valToScreenX(val) + AX;
-        if (sx < plotLeft + AX - 1 || sx > plotRight + AX + 1) continue;
-        axisParts.push(`<line x1="${f(sx)}" y1="${f(AY + Y_BASE + 1)}" x2="${f(sx)}" y2="${f(AY + Y_BASE + 1 + MAJOR_H)}" stroke="${TICK_C}" stroke-width="1"/>`);
-        if (showMajorLabel) {
-          let label;
-          if (ar._dateMode) {
-            label = majorLabelFmt === 'auto'
-              ? AxisRenderer._formatDecYear(val, majorTicks)
-              : ar._formatDateVal(val, majorLabelFmt, ar._majorInterval);
-          } else {
-            label = AxisRenderer._formatValue(val);
-          }
-          const tw  = approxW(label, afs);
-          const lx2 = Math.max(plotLeft + AX + tw / 2 + 1, Math.min(plotRight + AX - tw / 2 - 1, sx));
-          if (lx2 - tw / 2 > majorLabelRight + 2) {
-            axisParts.push(`<text x="${f(lx2)}" y="${f(AY + Y_BASE + 1 + MAJOR_H + 2)}" dominant-baseline="hanging" text-anchor="middle" font-family="monospace" font-size="${afs}px" fill="${TEXT_C}">${_svgTextEsc(label)}</text>`);
-            majorLabelRight = lx2 + tw / 2;
-          }
-        }
-      }
-    }
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="${totalW}" height="${totalH_eff}" viewBox="0 0 ${totalW} ${totalH_eff}">
-  <defs>
-    ${defs.join('\n    ')}
-  </defs>
-  ${bgParts.join('\n  ')}
-  ${legendParts.join('\n  ')}
-  <g clip-path="url(#tc)" stroke="${_esc(bc)}" stroke-width="${bw}" fill="none" stroke-linecap="round">
-    ${branchParts.join('\n    ')}
-  </g>
-  <g clip-path="url(#tc)">
-    ${bgNodeParts.join('\n    ')}
-  </g>
-  <g clip-path="url(#tc)">
-    ${bgTipParts.join('\n    ')}
-  </g>
-  <g clip-path="url(#tc)">
-    ${fgNodeParts.join('\n    ')}
-  </g>
-  <g clip-path="url(#tc)">
-    ${fgTipParts.join('\n    ')}
-  </g>
-  <g clip-path="url(#tc)">
-    ${labelParts.join('\n    ')}
-  </g>
-  ${axisParts.join('\n  ')}
-</svg>`;
-  }
 
   /** Repopulate annotation dropdowns (tipColourBy, nodeColourBy, legendAnnotEl) after schema change. */
   function _refreshAnnotationUIs(schema) {
@@ -2846,25 +1834,6 @@ import { AxisRenderer  } from './axisrenderer.js';
       return null;
     }
 
-    // Graph DFS: count visible (non-hidden) tips in the subtree rooted at gStartIdx,
-    // treating extraHiddenId as additionally hidden (used to test a hypothetical hide).
-    function _graphVisibleTipCount(gStartIdx, gFromIdx, extraHiddenId) {
-      let count = 0;
-      const stack = [{ ni: gStartIdx, fi: gFromIdx }];
-      while (stack.length) {
-        const { ni, fi } = stack.pop();
-        const gnode = graph.nodes[ni];
-        if (graph.hiddenNodeIds.has(gnode.origId) || gnode.origId === extraHiddenId) continue;
-        const children = gnode.adjacents.filter(a => a !== fi);
-        if (children.length === 0) {
-          count++;
-        } else {
-          for (const c of children) stack.push({ ni: c, fi: ni });
-        }
-      }
-      return count;
-    }
-
     function canHide() {
       if (!graph) return false;
       const nodeId = _selectedNodeId();
@@ -2882,7 +1851,7 @@ import { AxisRenderer  } from './axisrenderer.js';
         const subtreeIdx = graph.origIdToIdx.get(viewSubtreeRootId);
         if (subtreeIdx !== undefined) {
           for (const adjIdx of graph.nodes[subtreeIdx].adjacents.slice(1)) {
-            if (_graphVisibleTipCount(adjIdx, subtreeIdx, nodeId) === 0) return false;
+            if (graphVisibleTipCount(graph, adjIdx, subtreeIdx, nodeId) === 0) return false;
           }
         }
         return true;
@@ -2894,32 +1863,17 @@ import { AxisRenderer  } from './axisrenderer.js';
         // nodeA is the real root; side A = all subtrees of nodeA except nodeB's branch.
         countA = 0;
         for (const adj of graph.nodes[nodeA].adjacents) {
-          if (adj !== nodeB) countA += _graphVisibleTipCount(adj, nodeA, nodeId);
+          if (adj !== nodeB) countA += graphVisibleTipCount(graph, adj, nodeA, nodeId);
         }
-        countB = _graphVisibleTipCount(nodeB, nodeA, nodeId);
+        countB = graphVisibleTipCount(graph, nodeB, nodeA, nodeId);
       } else {
         // Virtual root between nodeA and nodeB.
-        countA = _graphVisibleTipCount(nodeA, nodeB, nodeId);
-        countB = _graphVisibleTipCount(nodeB, nodeA, nodeId);
+        countA = graphVisibleTipCount(graph, nodeA, nodeB, nodeId);
+        countB = graphVisibleTipCount(graph, nodeB, nodeA, nodeId);
       }
       // Allow hiding an entire side of the root: only require ≥ 2 visible tips remain in total.
       if (countA + countB < 2) return false;
       return true;
-    }
-
-    // Graph DFS: does the subtree of graphNode (going away from fromIdx) contain
-    // any entry in hiddenNodeIds?
-    function _graphSubtreeHasHidden(gStartIdx, gFromIdx) {
-      const stack = [{ ni: gStartIdx, fi: gFromIdx }];
-      while (stack.length) {
-        const { ni, fi } = stack.pop();
-        for (const adjIdx of graph.nodes[ni].adjacents) {
-          if (adjIdx === fi) continue;
-          if (graph.hiddenNodeIds.has(graph.nodes[adjIdx].origId)) return true;
-          stack.push({ ni: adjIdx, fi: ni });
-        }
-      }
-      return false;
     }
 
     function _resolveGraphStart(nodeId) {
@@ -2966,16 +1920,16 @@ import { AxisRenderer  } from './axisrenderer.js';
         const subtreeIdx = graph.origIdToIdx.get(viewSubtreeRootId);
         if (subtreeIdx === undefined) return false;
         const fromIdx = graph.nodes[subtreeIdx].adjacents[0] ?? -1;
-        if (!nodeId) return _graphSubtreeHasHidden(subtreeIdx, fromIdx);
+        if (!nodeId) return graphSubtreeHasHidden(graph, subtreeIdx, fromIdx);
         const gs = _resolveGraphStart(nodeId);
         if (!gs) return false;
-        return _graphSubtreeHasHidden(gs.gIdx, gs.gFromIdx);
+        return graphSubtreeHasHidden(graph, gs.gIdx, gs.gFromIdx);
       }
       // Full tree view.
       if (!nodeId) return true; // no selection — any hidden nodes count
       const gs = _resolveGraphStart(nodeId);
       if (!gs) return graph.hiddenNodeIds.size > 0; // virtual root — any hidden counts
-      return _graphSubtreeHasHidden(gs.gIdx, gs.gFromIdx);
+      return graphSubtreeHasHidden(graph, gs.gIdx, gs.gFromIdx);
     }
     const btnMidpointRoot  = document.getElementById('btn-midpoint-root');
     // isExplicitlyRooted is read dynamically (closured from outer scope) so

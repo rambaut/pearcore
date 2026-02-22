@@ -1371,12 +1371,31 @@ export class TreeRenderer {
     const yWorldMin = this._worldYfromScreen(-this.fontSize * 2);
     const yWorldMax = this._worldYfromScreen(H + this.fontSize * 2);
 
-    ctx.font = `${this.fontSize}px monospace`;
-    ctx.lineWidth = this.branchWidth;
-    ctx.strokeStyle = this.branchColor;
+    this._drawBranches(yWorldMin, yWorldMax);
+    this._drawNodesAndLabels(yWorldMin, yWorldMax);
+    this._drawSelectionAndHover(yWorldMin, yWorldMax);
 
+    // ── Cross-fade overlay: draw old snapshot fading out ──
+    if (this._crossfadeSnapshot && this._crossfadeAlpha > 0) {
+      const cW = this.canvas.clientWidth;
+      const cH = this.canvas.clientHeight;
+      // Ease-out: start fast, decelerate at end
+      const t = this._crossfadeAlpha;
+      const a = t * t;
+      ctx.globalAlpha = a;
+      ctx.drawImage(this._crossfadeSnapshot, 0, 0, cW, cH);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** Draw all branches: horizontal segments, rounded-elbow arcs, root stub, vertical connectors. */
+  _drawBranches(yWorldMin, yWorldMax) {
+    const ctx     = this.ctx;
     const nodeMap = this.nodeMap;
-    const er = this.elbowRadius;
+    const er      = this.elbowRadius;
+
+    ctx.lineWidth   = this.branchWidth;
+    ctx.strokeStyle = this.branchColor;
 
     // Draw branches: horizontal segments.  Start each one 'er' px right of the
     // corner so the arc pass can fill the gap with a rounded elbow.
@@ -1431,9 +1450,9 @@ export class TreeRenderer {
     // nodes[0] is always the layout root (DFS in computeLayoutFromGraph pushes root first).
     const rootNode = this.nodes[0];
     if (rootNode) {
-      const rx        = this._wx(rootNode.x);
-      const ry        = this._wy(rootNode.y);
-      const stubLen   = this.rootStubLength;
+      const rx      = this._wx(rootNode.x);
+      const ry      = this._wy(rootNode.y);
+      const stubLen = this.rootStubLength;
       ctx.beginPath();
       ctx.moveTo(rx - stubLen, ry);
       ctx.lineTo(rx, ry);
@@ -1476,6 +1495,11 @@ export class TreeRenderer {
       ctx.lineTo(nx, ny_bot - cer_bot); // just above bottommost child's arc start
     }
     ctx.stroke();
+  }
+
+  /** Draw node/tip shapes (halos + fills) and tip labels. */
+  _drawNodesAndLabels(yWorldMin, yWorldMax) {
+    const ctx = this.ctx;
 
     // ── Node shape rendering ───────────────────────────────────────────────────
     const r     = this.tipRadius;       // tip shape radius  (0 = invisible)
@@ -1488,6 +1512,7 @@ export class TreeRenderer {
     // Label x-offset: leave at least 5 px even when tip shapes are hidden.
     const outlineR = Math.max(r + tipHalo, 5);
 
+    ctx.font         = `${this.fontSize}px monospace`;
     ctx.textBaseline = 'middle';
     // Show labels only when tips are spaced at least half a label-height apart.
     // In hyperbolic-stretch mode labels are assessed per-node (see _showLabelAt).
@@ -1622,6 +1647,13 @@ export class TreeRenderer {
         }
       }
     }
+  }
+
+  /** Draw selection markers, MRCA indicator, hover state, branch-mode hit markers and drag-select rect. */
+  _drawSelectionAndHover(yWorldMin, yWorldMax) {
+    const ctx   = this.ctx;
+    const r     = this.tipRadius;
+    const nodeR = this.nodeRadius;
 
     // Pass 3.5 – selected tips (drawn above labels)
     if (this._selectedTipIds.size > 0) {
@@ -1831,18 +1863,6 @@ export class TreeRenderer {
       ctx.setLineDash([]);
       ctx.restore();
     }
-
-    // ── Cross-fade overlay: draw old snapshot fading out ──
-    if (this._crossfadeSnapshot && this._crossfadeAlpha > 0) {
-      const cW = this.canvas.clientWidth;
-      const cH = this.canvas.clientHeight;
-      // Ease-out: start fast, decelerate at end
-      const t = this._crossfadeAlpha;
-      const a = t * t;
-      ctx.globalAlpha = a;
-      ctx.drawImage(this._crossfadeSnapshot, 0, 0, cW, cH);
-      ctx.globalAlpha = 1;
-    }
   }
 
   /**
@@ -2030,7 +2050,14 @@ export class TreeRenderer {
 
   _setupEvents() {
     const canvas = this.canvas;
+    this._setupClickEvents(canvas);
+    this._setupScrollAndZoomEvents(canvas);
+    this._setupPointerEvents(canvas);
+    this._setupKeyEvents(canvas);
+  }
 
+  /** Register dblclick and click event listeners on the canvas. */
+  _setupClickEvents(canvas) {
     // ── Double-click on internal node: drill into subtree.
     canvas.addEventListener('dblclick', e => {
       if (this._spaceDown || !this.graph) return;
@@ -2103,7 +2130,10 @@ export class TreeRenderer {
       this._notifyStats();
       this._dirty = true;
     });
+  }
 
+  /** Register wheel event listener for pinch-zoom, option-scroll zoom and pan. */
+  _setupScrollAndZoomEvents(canvas) {
     // ── Wheel: pinch (ctrlKey=true on Mac trackpad) → zoom;
     //          option+scroll (altKey=true) → vertical zoom centred on mouse Y;
     //          scroll (ctrlKey=false, altKey=false) → pan vertically.
@@ -2153,7 +2183,10 @@ export class TreeRenderer {
         this._snapTimer = setTimeout(() => this._snapToTip(scrolledDown), 150);
       }
     }, { passive: false });
+  }
 
+  /** Register mousedown, mousemove, mouseleave and mouseup listeners for pan and drag-select. */
+  _setupPointerEvents(canvas) {
     // ── mousedown: space held = pan; otherwise = begin drag-select in nodes-mode.
     canvas.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
@@ -2333,7 +2366,10 @@ export class TreeRenderer {
         this.canvas.style.cursor = this._hoveredNodeId ? 'pointer' : 'default';
       }
     });
+  }
 
+  /** Register keydown, keyup and resize listeners for keyboard navigation and canvas resize. */
+  _setupKeyEvents(canvas) {
     // ── Spacebar: enable drag-scroll cursor / mode.
     window.addEventListener('keydown', e => {
       if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey) {

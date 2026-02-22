@@ -363,5 +363,43 @@ export function midpointRootTree() {}
 /** @deprecated – use rerootOnGraph() from phylograph.js instead. */
 export function rerootTree() {}
 
+/**
+ * DFS on a PhyloGraph: count visible (non-hidden) tips in the subtree rooted at
+ * gStartIdx (going away from gFromIdx), treating extraHiddenId as additionally hidden.
+ */
+export function graphVisibleTipCount(graph, gStartIdx, gFromIdx, extraHiddenId) {
+  let count = 0;
+  const stack = [{ ni: gStartIdx, fi: gFromIdx }];
+  while (stack.length) {
+    const { ni, fi } = stack.pop();
+    const gnode = graph.nodes[ni];
+    if (graph.hiddenNodeIds.has(gnode.origId) || gnode.origId === extraHiddenId) continue;
+    const children = gnode.adjacents.filter(a => a !== fi);
+    if (children.length === 0) {
+      count++;
+    } else {
+      for (const c of children) stack.push({ ni: c, fi: ni });
+    }
+  }
+  return count;
+}
+
+/**
+ * DFS on a PhyloGraph: returns true if any node in the subtree of gStartIdx
+ * (going away from gFromIdx) is in hiddenNodeIds.
+ */
+export function graphSubtreeHasHidden(graph, gStartIdx, gFromIdx) {
+  const stack = [{ ni: gStartIdx, fi: gFromIdx }];
+  while (stack.length) {
+    const { ni, fi } = stack.pop();
+    for (const adjIdx of graph.nodes[ni].adjacents) {
+      if (adjIdx === fi) continue;
+      if (graph.hiddenNodeIds.has(graph.nodes[adjIdx].origId)) return true;
+      stack.push({ ni: adjIdx, fi: ni });
+    }
+  }
+  return false;
+}
+
 
 
