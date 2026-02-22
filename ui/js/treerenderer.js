@@ -18,10 +18,14 @@ export class Theme {
     tipOutlineColor  = '#033940',
     branchColor      = '#F2F1E6',
     branchWidth      = 1,
-    tipColor         = '#BF4B43',
-    internalColor    = '#19A699',
-    selectedTipColor  = '#E06961',
-    selectedNodeColor      = '#19A699',
+    tipHoverFillColor         = '#BF4B43',
+    tipHoverStrokeColor       = '#7B2820',
+    nodeHoverFillColor        = '#19A699',
+    nodeHoverStrokeColor      = '#0D6560',
+    selectedTipStrokeColor    = '#E06961',
+    selectedTipFillColor      = '#888888',
+    selectedNodeStrokeColor   = '#19A699',
+    selectedNodeFillColor     = '#19A699',
     labelColor         = '#F7EECA',
     dimLabelColor      = '#E6D595',
     selectedLabelColor = '#F2F1E6',
@@ -48,10 +52,14 @@ export class Theme {
     this.tipOutlineColor   = tipOutlineColor;
     this.branchColor       = branchColor;
     this.branchWidth       = branchWidth;
-    this.tipColor          = tipColor;
-    this.internalColor     = internalColor;
-    this.selectedTipColor = selectedTipColor;
-    this.selectedNodeColor     = selectedNodeColor;
+    this.tipHoverFillColor       = tipHoverFillColor;
+    this.tipHoverStrokeColor     = tipHoverStrokeColor;
+    this.nodeHoverFillColor      = nodeHoverFillColor;
+    this.nodeHoverStrokeColor    = nodeHoverStrokeColor;
+    this.selectedTipStrokeColor  = selectedTipStrokeColor;
+    this.selectedTipFillColor    = selectedTipFillColor;
+    this.selectedNodeStrokeColor = selectedNodeStrokeColor;
+    this.selectedNodeFillColor   = selectedNodeFillColor;
     this.labelColor        = labelColor;
     this.dimLabelColor     = dimLabelColor;
     this.selectedLabelColor = selectedLabelColor;
@@ -92,6 +100,28 @@ export class TreeRenderer {
 
     // Apply theme (sets all rendering option properties)
     this.setTheme(theme, /*redraw*/ false);
+
+    // Non-theme selection/hover settings (not part of any theme, persisted as settings)
+    this.tipHoverGrowthFactor    = 1.5;
+    this.tipHoverMinSize         = 6;
+    this.tipHoverFillOpacity     = 0.6;
+    this.tipHoverStrokeWidth     = 2;
+    this.tipHoverStrokeOpacity   = 1;
+    this.nodeHoverGrowthFactor   = 1.5;
+    this.nodeHoverMinSize        = 6;
+    this.nodeHoverFillOpacity    = 0.6;
+    this.nodeHoverStrokeWidth    = 2;
+    this.nodeHoverStrokeOpacity  = 1;
+    this.selectedTipGrowthFactor   = 2;
+    this.selectedTipMinSize        = 6;
+    this.selectedTipFillOpacity    = 0.5;
+    this.selectedTipStrokeWidth    = 3;
+    this.selectedTipStrokeOpacity  = 1;
+    this.selectedNodeGrowthFactor  = 2;
+    this.selectedNodeMinSize       = 6;
+    this.selectedNodeFillOpacity   = 0.5;
+    this.selectedNodeStrokeWidth   = 3;
+    this.selectedNodeStrokeOpacity = 1;
 
     // X scale: always fills the viewport width – recomputed on resize / font change.
     this.scaleX = 1;
@@ -208,10 +238,14 @@ export class TreeRenderer {
     this.tipOutlineColor   = theme.tipOutlineColor;
     this.branchColor       = theme.branchColor;
     this.branchWidth       = theme.branchWidth;
-    this.tipColor          = theme.tipColor;
-    this.internalColor     = theme.internalColor;
-    this.selectedTipColor = theme.selectedTipColor;
-    this.selectedNodeColor     = theme.selectedNodeColor;
+    this.tipHoverFillColor       = theme.tipHoverFillColor;
+    this.tipHoverStrokeColor     = theme.tipHoverStrokeColor     ?? '#7B2820';
+    this.nodeHoverFillColor      = theme.nodeHoverFillColor;
+    this.nodeHoverStrokeColor    = theme.nodeHoverStrokeColor    ?? '#0D6560';
+    this.selectedTipStrokeColor  = theme.selectedTipStrokeColor;
+    this.selectedTipFillColor    = theme.selectedTipFillColor    ?? '#888888';
+    this.selectedNodeStrokeColor = theme.selectedNodeStrokeColor;
+    this.selectedNodeFillColor   = theme.selectedNodeFillColor   ?? '#19A699';
     this.labelColor        = theme.labelColor;
     this.dimLabelColor     = theme.dimLabelColor;
     this.selectedLabelColor = theme.selectedLabelColor;
@@ -423,30 +457,81 @@ export class TreeRenderer {
   }
 
   /** Colour of the ring drawn around selected tip nodes. */
-  setSelectedTipColor(c) {
-    this.selectedTipColor = c;
+  setSelectedTipStrokeColor(c) {
+    this.selectedTipStrokeColor = c;
     this._dirty = true;
   }
 
   /** Colour of the ring drawn around the MRCA node. */
-  setSelectedNodeColor(c) {
-    this.selectedNodeColor = c;
+  setSelectedNodeStrokeColor(c) {
+    this.selectedNodeStrokeColor = c;
     this._dirty = true;
   }
 
   /** Fill colour used for a hovered tip node. */
-  setTipHoverColor(c) {
-    this.tipColor = c;
+  setTipHoverFillColor(c) {
+    this.tipHoverFillColor = c;
     this._dirty = true;
   }
 
   /** Fill colour used for a hovered internal node (and MRCA node fill). */
-  setNodeHoverColor(c) {
-    this.internalColor = c;
+  setNodeHoverFillColor(c) {
+    this.nodeHoverFillColor = c;
     this._dirty = true;
   }
 
-  /** Convert a CSS hex colour (#rrggbb or #rgb) to {h: 0‑360, s: 0‑100, l: 0‑100}. */
+  /** Ring/stroke colour drawn around a hovered tip. */
+  setTipHoverStrokeColor(c)        { this.tipHoverStrokeColor = c;        this._dirty = true; }
+  /** Growth factor (marker radius = max(tipRadius × factor, minSize)). */
+  setTipHoverGrowthFactor(f)       { this.tipHoverGrowthFactor = f;       this._dirty = true; }
+  /** Minimum radius (px) of the hover indicator for tips. */
+  setTipHoverMinSize(n)            { this.tipHoverMinSize = n;            this._dirty = true; }
+  /** Opacity (0–1) of the filled circle for tip hover. */
+  setTipHoverFillOpacity(a)        { this.tipHoverFillOpacity = a;        this._dirty = true; }
+  /** Stroke width (px) of the hover ring for tips. */
+  setTipHoverStrokeWidth(w)        { this.tipHoverStrokeWidth = w;        this._dirty = true; }
+  /** Opacity (0–1) of the ring stroke for tip hover. */
+  setTipHoverStrokeOpacity(a)      { this.tipHoverStrokeOpacity = a;      this._dirty = true; }
+
+  /** Ring/stroke colour drawn around a hovered internal node. */
+  setNodeHoverStrokeColor(c)       { this.nodeHoverStrokeColor = c;       this._dirty = true; }
+  /** Growth factor for the node hover indicator. */
+  setNodeHoverGrowthFactor(f)      { this.nodeHoverGrowthFactor = f;      this._dirty = true; }
+  /** Minimum radius (px) of the hover indicator for internal nodes. */
+  setNodeHoverMinSize(n)           { this.nodeHoverMinSize = n;           this._dirty = true; }
+  /** Opacity (0–1) of the filled circle for node hover. */
+  setNodeHoverFillOpacity(a)       { this.nodeHoverFillOpacity = a;       this._dirty = true; }
+  /** Stroke width (px) of the hover ring for internal nodes. */
+  setNodeHoverStrokeWidth(w)       { this.nodeHoverStrokeWidth = w;       this._dirty = true; }
+  /** Opacity (0–1) of the ring stroke for node hover. */
+  setNodeHoverStrokeOpacity(a)     { this.nodeHoverStrokeOpacity = a;     this._dirty = true; }
+
+  /** Fill colour of the selection indicator for selected tips. */
+  setSelectedTipFillColor(c)       { this.selectedTipFillColor = c;       this._dirty = true; }
+  /** Growth factor for the selected-tip indicator. */
+  setSelectedTipGrowthFactor(f)    { this.selectedTipGrowthFactor = f;    this._dirty = true; }
+  /** Minimum radius (px) of the selected-tip indicator. */
+  setSelectedTipMinSize(n)         { this.selectedTipMinSize = n;         this._dirty = true; }
+  /** Opacity (0–1) of the filled circle for selected tips. */
+  setSelectedTipFillOpacity(a)     { this.selectedTipFillOpacity = a;     this._dirty = true; }
+  /** Stroke width (px) of the selection ring for tips. */
+  setSelectedTipStrokeWidth(w)     { this.selectedTipStrokeWidth = w;     this._dirty = true; }
+  /** Opacity (0–1) of the ring stroke for selected tips. */
+  setSelectedTipStrokeOpacity(a)   { this.selectedTipStrokeOpacity = a;   this._dirty = true; }
+
+  /** Fill colour of the MRCA/selection indicator for internal nodes. */
+  setSelectedNodeFillColor(c)      { this.selectedNodeFillColor = c;      this._dirty = true; }
+  /** Growth factor for the selected-node / MRCA indicator. */
+  setSelectedNodeGrowthFactor(f)   { this.selectedNodeGrowthFactor = f;   this._dirty = true; }
+  /** Minimum radius (px) of the MRCA indicator. */
+  setSelectedNodeMinSize(n)        { this.selectedNodeMinSize = n;        this._dirty = true; }
+  /** Opacity (0–1) of the filled circle for selected/MRCA node. */
+  setSelectedNodeFillOpacity(a)    { this.selectedNodeFillOpacity = a;    this._dirty = true; }
+  /** Stroke width (px) of the MRCA/selection ring for internal nodes. */
+  setSelectedNodeStrokeWidth(w)    { this.selectedNodeStrokeWidth = w;    this._dirty = true; }
+  /** Opacity (0–1) of the ring stroke for selected/MRCA node. */
+  setSelectedNodeStrokeOpacity(a)  { this.selectedNodeStrokeOpacity = a;  this._dirty = true; }
+
   static _hexToHsl(hex) {
     // Expand 3-char shorthand (#rgb → #rrggbb)
     if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
@@ -1672,36 +1757,28 @@ export class TreeRenderer {
 
     // Pass 3.5 – selected tips (drawn above labels)
     if (this._selectedTipIds.size > 0) {
-      const selRingW = Math.max(1.5, Math.max(r, 5) * 0.45);
+      const gf      = this.selectedTipGrowthFactor;
+      const minR    = this.selectedTipMinSize;
+      const markerR = Math.max(r * gf, minR);
+      const sw      = this.selectedTipStrokeWidth;
+
+      // Ring (drawn first, underneath everything)
+      ctx.globalAlpha = this.selectedTipStrokeOpacity;
+      ctx.strokeStyle = this.selectedTipStrokeColor;
+      ctx.lineWidth   = sw;
+      ctx.beginPath();
+      for (const node of this.nodes) {
+        if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
+        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        ctx.moveTo(this._wx(node.x) + markerR, this._wy(node.y));
+        ctx.arc(this._wx(node.x), this._wy(node.y), markerR, 0, Math.PI * 2);
+      }
+      ctx.stroke();
+      ctx.lineWidth   = 1;
+      ctx.globalAlpha = 1;
+
+      // Re-draw original tip shape (above ring, below filled disk)
       if (r > 0) {
-        // Shape visible → ring stroke drawn on top of existing shape.
-        const selBackR = r + selRingW + 1;
-
-        // Background backing behind the ring
-        ctx.fillStyle = this.tipShapeBgColor;
-        ctx.beginPath();
-        for (const node of this.nodes) {
-          if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          ctx.moveTo(this._wx(node.x) + selBackR, this._wy(node.y));
-          ctx.arc(this._wx(node.x), this._wy(node.y), selBackR, 0, Math.PI * 2);
-        }
-        ctx.fill();
-
-        // Selection ring stroke
-        ctx.strokeStyle = this.selectedTipColor;
-        ctx.lineWidth   = selRingW;
-        ctx.beginPath();
-        for (const node of this.nodes) {
-          if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          ctx.moveTo(this._wx(node.x) + r + selRingW * 0.5, this._wy(node.y));
-          ctx.arc(this._wx(node.x), this._wy(node.y), r + selRingW * 0.5, 0, Math.PI * 2);
-        }
-        ctx.stroke();
-        ctx.lineWidth = 1;
-
-        // Tip fill redraw on top (keeps annotation colour)
         if (this._tipColourBy && this._tipColourScale) {
           const key = this._tipColourBy;
           for (const node of this.nodes) {
@@ -1724,91 +1801,58 @@ export class TreeRenderer {
           }
           ctx.fill();
         }
-      } else {
-        // Shape invisible → ghost selection circle (fill + ring)
-        const ghostR   = 5;
-        const selBackR = ghostR + selRingW + 1;
-
-        // Background backing
-        ctx.fillStyle = this.tipShapeBgColor;
-        ctx.beginPath();
-        for (const node of this.nodes) {
-          if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          ctx.moveTo(this._wx(node.x) + selBackR, this._wy(node.y));
-          ctx.arc(this._wx(node.x), this._wy(node.y), selBackR, 0, Math.PI * 2);
-        }
-        ctx.fill();
-
-        // Ghost fill
-        ctx.fillStyle = this.tipShapeColor;
-        ctx.beginPath();
-        for (const node of this.nodes) {
-          if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          ctx.moveTo(this._wx(node.x) + ghostR, this._wy(node.y));
-          ctx.arc(this._wx(node.x), this._wy(node.y), ghostR, 0, Math.PI * 2);
-        }
-        ctx.fill();
-
-        // Selection ring
-        ctx.strokeStyle = this.selectedTipColor;
-        ctx.lineWidth   = selRingW;
-        ctx.beginPath();
-        for (const node of this.nodes) {
-          if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          ctx.moveTo(this._wx(node.x) + ghostR + selRingW * 0.5, this._wy(node.y));
-          ctx.arc(this._wx(node.x), this._wy(node.y), ghostR + selRingW * 0.5, 0, Math.PI * 2);
-        }
-        ctx.stroke();
-        ctx.lineWidth = 1;
       }
+
+      // Filled disk on top
+      ctx.globalAlpha = this.selectedTipFillOpacity;
+      ctx.fillStyle   = this.selectedTipFillColor;
+      ctx.beginPath();
+      for (const node of this.nodes) {
+        if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
+        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        ctx.moveTo(this._wx(node.x) + markerR, this._wy(node.y));
+        ctx.arc(this._wx(node.x), this._wy(node.y), markerR, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
     // Pass 3.6 – MRCA circle: shown when 2+ tips are selected (drawn above labels)
     if (this._mrcaNodeId && this._selectedTipIds.size >= 2) {
       const mn = this.nodeMap.get(this._mrcaNodeId);
       if (mn) {
-        const mnx   = this._wx(mn.x);
-        const mny   = this._wy(mn.y);
-        const ringW = Math.max(1.5, Math.max(nodeR, 4) * 0.5);
+        const mnx     = this._wx(mn.x);
+        const mny     = this._wy(mn.y);
+        const gf      = this.selectedNodeGrowthFactor;
+        const minR    = this.selectedNodeMinSize;
+        const markerR = Math.max(nodeR * gf, minR);
+        const sw      = this.selectedNodeStrokeWidth;
+
+        // Ring (drawn first, underneath everything)
+        ctx.globalAlpha = this.selectedNodeStrokeOpacity;
+        ctx.beginPath();
+        ctx.arc(mnx, mny, markerR, 0, Math.PI * 2);
+        ctx.strokeStyle = this.selectedNodeStrokeColor;
+        ctx.lineWidth   = sw;
+        ctx.stroke();
+        ctx.lineWidth   = 1;
+        ctx.globalAlpha = 1;
+
+        // Re-draw original node shape (above ring, below filled disk)
         if (nodeR > 0) {
-          // Ring on top of visible internal node shape
-          const backR = nodeR + ringW + 1;
-          ctx.beginPath();
-          ctx.arc(mnx, mny, backR, 0, Math.PI * 2);
-          ctx.fillStyle = this.nodeShapeBgColor;
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(mnx, mny, nodeR + ringW * 0.5, 0, Math.PI * 2);
-          ctx.strokeStyle = this.selectedNodeColor;
-          ctx.lineWidth   = ringW;
-          ctx.stroke();
-          ctx.lineWidth   = 1;
           ctx.beginPath();
           ctx.arc(mnx, mny, nodeR, 0, Math.PI * 2);
           ctx.fillStyle = this.nodeShapeColor;
           ctx.fill();
-        } else {
-          // Ghost MRCA circle (internal node shape hidden)
-          const mrcaR = 5;
-          const backR = mrcaR + ringW + 1;
-          ctx.beginPath();
-          ctx.arc(mnx, mny, backR, 0, Math.PI * 2);
-          ctx.fillStyle = this.nodeShapeBgColor;
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(mnx, mny, mrcaR + ringW * 0.5, 0, Math.PI * 2);
-          ctx.strokeStyle = this.selectedNodeColor;
-          ctx.lineWidth   = ringW;
-          ctx.stroke();
-          ctx.lineWidth   = 1;
-          ctx.beginPath();
-          ctx.arc(mnx, mny, mrcaR, 0, Math.PI * 2);
-          ctx.fillStyle = this.internalColor;
-          ctx.fill();
         }
+
+        // Filled disk on top
+        ctx.globalAlpha = this.selectedNodeFillOpacity;
+        ctx.beginPath();
+        ctx.arc(mnx, mny, markerR, 0, Math.PI * 2);
+        ctx.fillStyle = this.selectedNodeFillColor;
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -1816,76 +1860,91 @@ export class TreeRenderer {
     if (this._mode === 'nodes' && this._hoveredNodeId) {
       const hn = this.nodeMap.get(this._hoveredNodeId);
       if (hn) {
-        const MIN_HOVER_R = 4;
-        const hx          = this._wx(hn.x);
-        const hy          = this._wy(hn.y);
-        const baseColor   = hn.isTip ? this.tipColor : this.internalColor;
-        const shapeR      = hn.isTip ? r : nodeR;
-        const hr          = Math.max(MIN_HOVER_R, hn.isTip ? r * 1.4 : nodeR * 1.7);
-        const darkColor   = this._darkenColor(baseColor, 0.55);
-        const ringW       = Math.max(1.5, Math.max(shapeR, MIN_HOVER_R) * 0.5);
-        const ringR       = hr + ringW * 0.5;
-        const bgColor     = hn.isTip ? this.tipShapeBgColor : this.nodeShapeBgColor;
+        const hx           = this._wx(hn.x);
+        const hy           = this._wy(hn.y);
+        const baseR        = hn.isTip ? r : nodeR;
+        const gf           = hn.isTip ? this.tipHoverGrowthFactor   : this.nodeHoverGrowthFactor;
+        const minR         = hn.isTip ? this.tipHoverMinSize        : this.nodeHoverMinSize;
+        const hr           = Math.max(baseR * gf, minR);
+        const fillColor    = hn.isTip ? this.tipHoverFillColor      : this.nodeHoverFillColor;
+        const fillOpacity  = hn.isTip ? this.tipHoverFillOpacity    : this.nodeHoverFillOpacity;
+        const ringColor    = hn.isTip ? this.tipHoverStrokeColor    : this.nodeHoverStrokeColor;
+        const ringW        = hn.isTip ? this.tipHoverStrokeWidth    : this.nodeHoverStrokeWidth;
+        const ringOpacity  = hn.isTip ? this.tipHoverStrokeOpacity  : this.nodeHoverStrokeOpacity;
 
-        // Backing circle
-        ctx.beginPath();
-        ctx.arc(hx, hy, ringR + 1, 0, Math.PI * 2);
-        ctx.fillStyle = bgColor;
-        ctx.fill();
-
-        // Dark ring
-        ctx.beginPath();
-        ctx.arc(hx, hy, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = darkColor;
-        ctx.lineWidth   = ringW;
-        ctx.stroke();
-
-        // Filled circle
+        // Ring (drawn first, underneath everything)
+        ctx.globalAlpha = ringOpacity;
         ctx.beginPath();
         ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-        ctx.fillStyle = baseColor;
-        ctx.fill();
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth   = ringW;
+        ctx.stroke();
+        ctx.lineWidth   = 1;
+        ctx.globalAlpha = 1;
 
-        ctx.lineWidth = 1;
+        // Re-draw original node/tip shape (above ring, below filled disk)
+        if (baseR > 0) {
+          if (hn.isTip) {
+            if (this._tipColourBy && this._tipColourScale) {
+              const val = hn.annotations ? hn.annotations[this._tipColourBy] : undefined;
+              ctx.fillStyle = this._tipColourForValue(val) ?? this.tipShapeColor;
+            } else {
+              ctx.fillStyle = this.tipShapeColor;
+            }
+          } else {
+            ctx.fillStyle = this.nodeShapeColor;
+          }
+          ctx.beginPath();
+          ctx.arc(hx, hy, baseR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Filled disk on top
+        ctx.globalAlpha = fillOpacity;
+        ctx.beginPath();
+        ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
 
     // Pass 5 – branches mode: draw hover and/or selection marker on branch
     if (this._mode === 'branches') {
-      const br    = Math.max(nodeR, 4);             // minimum visible size
-      const ringW = Math.max(1.5, br * 0.45);       // matches MRCA ring width
+      const gf  = this.selectedNodeGrowthFactor;
+      const br  = Math.max(nodeR * gf, this.selectedNodeMinSize);
+      const sw  = this.selectedNodeStrokeWidth;
 
-      const drawBranchMarker = (node, worldX, alpha) => {
+      const drawBranchMarker = (node, worldX, fillAlpha, strokeAlpha) => {
         const bx = this._wx(worldX);
         const by = this._wy(node.y);
-        ctx.globalAlpha = alpha;
-        // Background backing
-        ctx.beginPath();
-        ctx.arc(bx, by, br + ringW + 1, 0, Math.PI * 2);
-        ctx.fillStyle = this.nodeShapeBgColor;
-        ctx.fill();
-        // Coloured ring
-        ctx.beginPath();
-        ctx.arc(bx, by, br + ringW * 0.5, 0, Math.PI * 2);
-        ctx.strokeStyle = this.selectedNodeColor;
-        ctx.lineWidth   = ringW;
-        ctx.stroke();
-        ctx.lineWidth = 1;
-        // Inner fill
+        // Ring (drawn first, underneath)
+        ctx.globalAlpha = strokeAlpha;
         ctx.beginPath();
         ctx.arc(bx, by, br, 0, Math.PI * 2);
-        ctx.fillStyle = this.internalColor;
+        ctx.strokeStyle = this.selectedNodeStrokeColor;
+        ctx.lineWidth   = sw;
+        ctx.stroke();
+        ctx.lineWidth   = 1;
+        ctx.globalAlpha = 1;
+        // Filled disk on top
+        ctx.globalAlpha = fillAlpha;
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fillStyle = this.selectedNodeFillColor;
         ctx.fill();
         ctx.globalAlpha = 1;
       };
 
       // Hover preview (semi-transparent)
       if (this._branchHoverNode) {
-        drawBranchMarker(this._branchHoverNode, this._branchHoverX, 0.5);
+        drawBranchMarker(this._branchHoverNode, this._branchHoverX,
+          this.selectedNodeFillOpacity * 0.5, this.selectedNodeStrokeOpacity * 0.5);
       }
       // Fixed selection (opaque)
       if (this._branchSelectNode) {
-        drawBranchMarker(this._branchSelectNode, this._branchSelectX, 1);
+        drawBranchMarker(this._branchSelectNode, this._branchSelectX,
+          this.selectedNodeFillOpacity, this.selectedNodeStrokeOpacity);
       }
     }
 

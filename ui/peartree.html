@@ -585,6 +585,15 @@
       align-items: center;
       gap: 5px;
     }
+    .pt-palette-subhead {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: rgba(255,255,255,0.45);
+      margin: 10px 0 4px;
+    }
+    .pt-palette-subhead:first-child { margin-top: 0; }
     .pt-palette-row {
       display: flex;
       align-items: center;
@@ -1382,21 +1391,145 @@
 
     <div class="pt-palette-section">
       <h3><i class="bi bi-cursor-fill"></i> Selection &amp; Hover</h3>
+
+      <div class="pt-palette-subhead">Selected Tips</div>
       <div class="pt-palette-row">
-        <span class="pt-palette-label">Selection ring</span>
-        <input type="color" class="pt-palette-color" id="selected-ring-color" value="#e06961" />
+        <span class="pt-palette-label">Stroke</span>
+        <input type="color" class="pt-palette-color" id="selected-tip-stroke" value="#e06961" />
       </div>
       <div class="pt-palette-row">
-        <span class="pt-palette-label">MRCA ring</span>
-        <input type="color" class="pt-palette-color" id="mrca-ring-color" value="#19a699" />
+        <span class="pt-palette-label">Fill</span>
+        <input type="color" class="pt-palette-color" id="selected-tip-fill" value="#888888" />
       </div>
       <div class="pt-palette-row">
-        <span class="pt-palette-label">Tip hover</span>
-        <input type="color" class="pt-palette-color" id="tip-hover-color" value="#bf4b43" />
+        <i class="bi bi-zoom-in form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-tip-growth" min="1" max="5" step="0.1" value="2" />
+        <span class="pt-val" id="selected-tip-growth-value">2</span>
       </div>
       <div class="pt-palette-row">
-        <span class="pt-palette-label">Node hover</span>
-        <input type="color" class="pt-palette-color" id="internal-hover-color" value="#19a699" />
+        <i class="bi bi-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-tip-min-size" min="0" max="20" step="0.5" value="6" />
+        <span class="pt-val" id="selected-tip-min-size-value">6</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet-fill form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-tip-fill-opacity" min="0" max="1" step="0.05" value="0.5" />
+        <span class="pt-val" id="selected-tip-fill-opacity-value">0.5</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-record-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-tip-stroke-width" min="0.5" max="10" step="0.5" value="3" />
+        <span class="pt-val" id="selected-tip-stroke-width-value">3</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-tip-stroke-opacity" min="0" max="1" step="0.05" value="1" />
+        <span class="pt-val" id="selected-tip-stroke-opacity-value">1</span>
+      </div>
+
+      <div class="pt-palette-subhead">MRCA Node</div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Stroke</span>
+        <input type="color" class="pt-palette-color" id="selected-node-stroke" value="#19a699" />
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Fill</span>
+        <input type="color" class="pt-palette-color" id="selected-node-fill" value="#19a699" />
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-zoom-in form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-node-growth" min="1" max="5" step="0.1" value="2" />
+        <span class="pt-val" id="selected-node-growth-value">2</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-node-min-size" min="0" max="20" step="0.5" value="6" />
+        <span class="pt-val" id="selected-node-min-size-value">6</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet-fill form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-node-fill-opacity" min="0" max="1" step="0.05" value="0.5" />
+        <span class="pt-val" id="selected-node-fill-opacity-value">0.5</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-record-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-node-stroke-width" min="0.5" max="10" step="0.5" value="3" />
+        <span class="pt-val" id="selected-node-stroke-width-value">3</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet form-label-sm"></i>
+        <input type="range" class="form-range" id="selected-node-stroke-opacity" min="0" max="1" step="0.05" value="1" />
+        <span class="pt-val" id="selected-node-stroke-opacity-value">1</span>
+      </div>
+
+      <div class="pt-palette-subhead">Tip Hover</div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Fill</span>
+        <input type="color" class="pt-palette-color" id="tip-hover-fill" value="#bf4b43" />
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Stroke</span>
+        <input type="color" class="pt-palette-color" id="tip-hover-stroke" value="#7b2820" />
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-zoom-in form-label-sm"></i>
+        <input type="range" class="form-range" id="tip-hover-growth" min="1" max="5" step="0.1" value="1.5" />
+        <span class="pt-val" id="tip-hover-growth-value">1.5</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="tip-hover-min-size" min="0" max="20" step="0.5" value="6" />
+        <span class="pt-val" id="tip-hover-min-size-value">6</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet-fill form-label-sm"></i>
+        <input type="range" class="form-range" id="tip-hover-fill-opacity" min="0" max="1" step="0.05" value="0.6" />
+        <span class="pt-val" id="tip-hover-fill-opacity-value">0.6</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-record-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="tip-hover-stroke-width" min="0.5" max="10" step="0.5" value="2" />
+        <span class="pt-val" id="tip-hover-stroke-width-value">2</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet form-label-sm"></i>
+        <input type="range" class="form-range" id="tip-hover-stroke-opacity" min="0" max="1" step="0.05" value="1" />
+        <span class="pt-val" id="tip-hover-stroke-opacity-value">1</span>
+      </div>
+
+      <div class="pt-palette-subhead">Node Hover</div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Fill</span>
+        <input type="color" class="pt-palette-color" id="node-hover-fill" value="#19a699" />
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Stroke</span>
+        <input type="color" class="pt-palette-color" id="node-hover-stroke" value="#0d6560" />
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-zoom-in form-label-sm"></i>
+        <input type="range" class="form-range" id="node-hover-growth" min="1" max="5" step="0.1" value="1.5" />
+        <span class="pt-val" id="node-hover-growth-value">1.5</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="node-hover-min-size" min="0" max="20" step="0.5" value="6" />
+        <span class="pt-val" id="node-hover-min-size-value">6</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet-fill form-label-sm"></i>
+        <input type="range" class="form-range" id="node-hover-fill-opacity" min="0" max="1" step="0.05" value="0.6" />
+        <span class="pt-val" id="node-hover-fill-opacity-value">0.6</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-record-circle form-label-sm"></i>
+        <input type="range" class="form-range" id="node-hover-stroke-width" min="0.5" max="10" step="0.5" value="2" />
+        <span class="pt-val" id="node-hover-stroke-width-value">2</span>
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-droplet form-label-sm"></i>
+        <input type="range" class="form-range" id="node-hover-stroke-opacity" min="0" max="1" step="0.05" value="1" />
+        <span class="pt-val" id="node-hover-stroke-opacity-value">1</span>
       </div>
     </div>
 

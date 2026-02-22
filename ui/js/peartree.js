@@ -19,10 +19,34 @@ import { AxisRenderer  } from './axisrenderer.js';
   const tipShapeBgEl      = document.getElementById('tip-shape-bg-color');
   const labelColorEl      = document.getElementById('label-color');
   const selectedLabelStyleEl = document.getElementById('selected-label-style');
-  const selectedTipColorEl   = document.getElementById('selected-ring-color');
-  const selectedNodeColorEl       = document.getElementById('mrca-ring-color');
-  const tipHoverColorEl       = document.getElementById('tip-hover-color');
-  const nodeHoverColorEl  = document.getElementById('internal-hover-color');
+  const selectedTipStrokeEl   = document.getElementById('selected-tip-stroke');
+  const selectedNodeStrokeEl       = document.getElementById('selected-node-stroke');
+  const tipHoverFillEl       = document.getElementById('tip-hover-fill');
+  const nodeHoverFillEl  = document.getElementById('node-hover-fill');
+  const selectedTipFillEl                = document.getElementById('selected-tip-fill');
+  const selectedTipGrowthSlider          = document.getElementById('selected-tip-growth');
+  const selectedTipMinSizeSlider         = document.getElementById('selected-tip-min-size');
+  const selectedTipFillOpacitySlider     = document.getElementById('selected-tip-fill-opacity');
+  const selectedTipStrokeWidthSlider     = document.getElementById('selected-tip-stroke-width');
+  const selectedTipStrokeOpacitySlider   = document.getElementById('selected-tip-stroke-opacity');
+  const selectedNodeFillEl               = document.getElementById('selected-node-fill');
+  const selectedNodeGrowthSlider         = document.getElementById('selected-node-growth');
+  const selectedNodeMinSizeSlider        = document.getElementById('selected-node-min-size');
+  const selectedNodeFillOpacitySlider    = document.getElementById('selected-node-fill-opacity');
+  const selectedNodeStrokeWidthSlider    = document.getElementById('selected-node-stroke-width');
+  const selectedNodeStrokeOpacitySlider  = document.getElementById('selected-node-stroke-opacity');
+  const tipHoverStrokeEl                 = document.getElementById('tip-hover-stroke');
+  const tipHoverGrowthSlider             = document.getElementById('tip-hover-growth');
+  const tipHoverMinSizeSlider            = document.getElementById('tip-hover-min-size');
+  const tipHoverFillOpacitySlider        = document.getElementById('tip-hover-fill-opacity');
+  const tipHoverStrokeWidthSlider        = document.getElementById('tip-hover-stroke-width');
+  const tipHoverStrokeOpacitySlider      = document.getElementById('tip-hover-stroke-opacity');
+  const nodeHoverStrokeEl                = document.getElementById('node-hover-stroke');
+  const nodeHoverGrowthSlider            = document.getElementById('node-hover-growth');
+  const nodeHoverMinSizeSlider           = document.getElementById('node-hover-min-size');
+  const nodeHoverFillOpacitySlider       = document.getElementById('node-hover-fill-opacity');
+  const nodeHoverStrokeWidthSlider       = document.getElementById('node-hover-stroke-width');
+  const nodeHoverStrokeOpacitySlider     = document.getElementById('node-hover-stroke-opacity');
   const nodeShapeColorEl  = document.getElementById('node-shape-color');
   const nodeShapeBgEl     = document.getElementById('node-shape-bg-color');
   const tipColourBy       = document.getElementById('tip-colour-by');
@@ -84,10 +108,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#000000',
             axisColor:        '#444444',
             legendTextColor:  '#444444',
-            selectedTipColor:   '#43bfa6',
-            selectedNodeColor:       '#1964a6',
-            tipHoverColor:       '#43bfa6',
-            nodeHoverColor:  '#1964a6',
+            selectedTipStrokeColor:   '#43bfa6',
+            selectedNodeStrokeColor:       '#1964a6',
+            tipHoverFillColor:       '#43bfa6',
+            nodeHoverFillColor:  '#1964a6',
+            selectedTipFillColor:    '#ffffff',
+            selectedNodeFillColor:   '#1964a6',
+            tipHoverStrokeColor:     '#1B7564',
+            nodeHoverStrokeColor:    '#0E3C63',
         },
         "Artic": {
             canvasBgColor:    '#02292e',
@@ -105,10 +133,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#02292e',
             axisColor:        '#f7eeca',
             legendTextColor:  '#f7eeca',
-            selectedTipColor:   '#E06961',
-            selectedNodeColor:       '#19A699',
-            tipHoverColor:       '#BF4B43',
-            nodeHoverColor:  '#19A699',
+            selectedTipStrokeColor:   '#E06961',
+            selectedNodeStrokeColor:       '#19A699',
+            tipHoverFillColor:       '#BF4B43',
+            nodeHoverFillColor:  '#19A699',
+            selectedTipFillColor:    '#B58901',
+            selectedNodeFillColor:   '#19A699',
+            tipHoverStrokeColor:     '#7B2820',
+            nodeHoverStrokeColor:    '#0D6560',
         },
         "BEAST": {
             canvasBgColor:    '#5A5F62',
@@ -126,10 +158,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#02292e',
             axisColor:        '#B1CBB8',
             legendTextColor:  '#B1CBB8',
-            selectedTipColor:   '#E06961',
-            selectedNodeColor:       '#19A699',
-            tipHoverColor:       '#BF4B43',
-            nodeHoverColor:  '#19A699',
+            selectedTipStrokeColor:   '#E06961',
+            selectedNodeStrokeColor:       '#19A699',
+            tipHoverFillColor:       '#BF4B43',
+            nodeHoverFillColor:  '#19A699',
+            selectedTipFillColor:    '#B58901',
+            selectedNodeFillColor:   '#19A699',
+            tipHoverStrokeColor:     '#7B2820',
+            nodeHoverStrokeColor:    '#0D6560',
         },
         // // Warm pastels: Grand Budapest Hotel / Moonrise Kingdom palette
         // "Wes": {
@@ -165,10 +201,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#1e2d3a',
             axisColor:        '#edd59c',
             legendTextColor:  '#edd59c',
-            selectedTipColor:   '#e07b65',
-            selectedNodeColor:       '#7dbfcc',
-            tipHoverColor:       '#e07b65',
-            nodeHoverColor:  '#7dbfcc',
+            selectedTipStrokeColor:   '#e07b65',
+            selectedNodeStrokeColor:       '#7dbfcc',
+            tipHoverFillColor:       '#e07b65',
+            nodeHoverFillColor:  '#7dbfcc',
+            selectedTipFillColor:    '#e07b65',
+            selectedNodeFillColor:   '#7dbfcc',
+            tipHoverStrokeColor:     '#8B3520',
+            nodeHoverStrokeColor:    '#32849D',
         },
         // Royal Tenenbaums: aged plaster, forest green, burgundy, tennis-ball gold
         "Tenenbaums": {
@@ -187,10 +227,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#f0e8d8',
             axisColor:        '#2b4a2a',
             legendTextColor:  '#2b4a2a',
-            selectedTipColor:   '#a01830',
-            selectedNodeColor:       '#c8a020',
-            tipHoverColor:       '#a01830',
-            nodeHoverColor:  '#c8a020',
+            selectedTipStrokeColor:   '#a01830',
+            selectedNodeStrokeColor:       '#c8a020',
+            tipHoverFillColor:       '#a01830',
+            nodeHoverFillColor:  '#c8a020',
+            selectedTipFillColor:    '#a01830',
+            selectedNodeFillColor:   '#c8a020',
+            tipHoverStrokeColor:     '#5C0E1C',
+            nodeHoverStrokeColor:    '#705A12',
         },
         // Fantastic Mr Fox: night earth, fox orange, rust, harvest green
         "Mr Fox": {
@@ -209,10 +253,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#1a0d00',
             axisColor:        '#f0c060',
             legendTextColor:  '#f0c060',  
-            selectedTipColor:   '#c84a18',
-            selectedNodeColor:       '#508a28',
-            tipHoverColor:       '#c84a18',
-            nodeHoverColor:  '#508a28',
+            selectedTipStrokeColor:   '#c84a18',
+            selectedNodeStrokeColor:       '#508a28',
+            tipHoverFillColor:       '#c84a18',
+            nodeHoverFillColor:  '#508a28',
+            selectedTipFillColor:    '#c84a18',
+            selectedNodeFillColor:   '#508a28',
+            tipHoverStrokeColor:     '#702810',
+            nodeHoverStrokeColor:    '#2D5016',
         },
         // The Darjeeling Limited: warm cream, saffron, cerulean, rust
         "Darjeeling": {
@@ -231,10 +279,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#faf0d8',
             axisColor:        '#3a2010',
             legendTextColor:  '#3a2010',
-            selectedTipColor:   '#c04428',
-            selectedNodeColor:       '#c87010',
-            tipHoverColor:       '#c04428',
-            nodeHoverColor:  '#c87010',
+            selectedTipStrokeColor:   '#c04428',
+            selectedNodeStrokeColor:       '#c87010',
+            tipHoverFillColor:       '#c04428',
+            nodeHoverFillColor:  '#c87010',
+            selectedTipFillColor:    '#1a5878',
+            selectedNodeFillColor:   '#c87010',
+            tipHoverStrokeColor:     '#6E2718',
+            nodeHoverStrokeColor:    '#723F0A',
         },
         // // Mid Century Modern – Birch: warm white, teak, avocado, harvest gold
         // "MCM Birch": {
@@ -303,10 +355,14 @@ import { AxisRenderer  } from './axisrenderer.js';
             nodeShapeBgColor: '#D8D4D3',
             axisColor:        '#7984BC',
             legendTextColor:  '#7984BC',
-            selectedTipColor:   '#AF808B',
-            selectedNodeColor:       '#88B2BA',
-            tipHoverColor:       '#AF808B',
-            nodeHoverColor:  '#88B2BA',
+            selectedTipStrokeColor:   '#AF808B',
+            selectedNodeStrokeColor:       '#88B2BA',
+            tipHoverFillColor:       '#AF808B',
+            nodeHoverFillColor:  '#88B2BA',
+            selectedTipFillColor:    '#AF808B',
+            selectedNodeFillColor:   '#88B2BA',
+            tipHoverStrokeColor:     '#6B3D47',
+            nodeHoverStrokeColor:    '#35646C',
         },
   };
 
@@ -369,10 +425,14 @@ import { AxisRenderer  } from './axisrenderer.js';
       nodeShapeBgColor: nodeShapeBgEl.value,
       axisColor:        axisColorEl.value,
       legendTextColor:  legendTextColorEl.value,
-      selectedTipColor:   selectedTipColorEl.value,
-      selectedNodeColor:       selectedNodeColorEl.value,
-      tipHoverColor:       tipHoverColorEl.value,
-      nodeHoverColor:  nodeHoverColorEl.value,
+      selectedTipStrokeColor:   selectedTipStrokeEl.value,
+      selectedNodeStrokeColor:       selectedNodeStrokeEl.value,
+      tipHoverFillColor:       tipHoverFillEl.value,
+      nodeHoverFillColor:      nodeHoverFillEl.value,
+      selectedTipFillColor:    selectedTipFillEl.value,
+      selectedNodeFillColor:   selectedNodeFillEl.value,
+      tipHoverStrokeColor:     tipHoverStrokeEl.value,
+      nodeHoverStrokeColor:    nodeHoverStrokeEl.value,
     };
   }
 
@@ -414,10 +474,34 @@ import { AxisRenderer  } from './axisrenderer.js';
     axisColor:        '#444444',
     legendTextColor:  '#444444',
     selectedLabelStyle:   'bold',
-    selectedTipColor:    '#E06961',
-    selectedNodeColor:        '#19A699',
-    tipHoverColor:        '#BF4B43',
-    nodeHoverColor:   '#19A699',
+    selectedTipStrokeColor:    '#E06961',
+    selectedNodeStrokeColor:        '#19A699',
+    tipHoverFillColor:        '#BF4B43',
+    nodeHoverFillColor:   '#19A699',
+    selectedTipFillColor:         '#888888',
+    selectedTipGrowthFactor:      '2',
+    selectedTipMinSize:           '6',
+    selectedTipFillOpacity:       '0.5',
+    selectedTipStrokeWidth:       '3',
+    selectedTipStrokeOpacity:     '1',
+    selectedNodeFillColor:        '#19A699',
+    selectedNodeGrowthFactor:     '2',
+    selectedNodeMinSize:          '6',
+    selectedNodeFillOpacity:      '0.5',
+    selectedNodeStrokeWidth:      '3',
+    selectedNodeStrokeOpacity:    '1',
+    tipHoverStrokeColor:          '#7B2820',
+    tipHoverGrowthFactor:         '1.5',
+    tipHoverMinSize:              '6',
+    tipHoverFillOpacity:          '0.6',
+    tipHoverStrokeWidth:          '2',
+    tipHoverStrokeOpacity:        '1',
+    nodeHoverStrokeColor:         '#0D6560',
+    nodeHoverGrowthFactor:        '1.5',
+    nodeHoverMinSize:             '6',
+    nodeHoverFillOpacity:         '0.6',
+    nodeHoverStrokeWidth:         '2',
+    nodeHoverStrokeOpacity:       '1',
     axisFontSize:     '9',
     axisLineWidth:    '1',
     legendShow:         'right',
@@ -444,10 +528,34 @@ import { AxisRenderer  } from './axisrenderer.js';
       fontSize:         fontSlider.value,
       labelColor:       labelColorEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
-      selectedTipColor:  selectedTipColorEl.value,
-      selectedNodeColor:      selectedNodeColorEl.value,
-      tipHoverColor:      tipHoverColorEl.value,
-      nodeHoverColor: nodeHoverColorEl.value,
+      selectedTipStrokeColor:  selectedTipStrokeEl.value,
+      selectedNodeStrokeColor:      selectedNodeStrokeEl.value,
+      tipHoverFillColor:      tipHoverFillEl.value,
+      nodeHoverFillColor: nodeHoverFillEl.value,
+      selectedTipFillColor:      selectedTipFillEl.value,
+      selectedTipGrowthFactor:   selectedTipGrowthSlider.value,
+      selectedTipMinSize:        selectedTipMinSizeSlider.value,
+      selectedTipFillOpacity:    selectedTipFillOpacitySlider.value,
+      selectedTipStrokeWidth:    selectedTipStrokeWidthSlider.value,
+      selectedTipStrokeOpacity:  selectedTipStrokeOpacitySlider.value,
+      selectedNodeFillColor:     selectedNodeFillEl.value,
+      selectedNodeGrowthFactor:  selectedNodeGrowthSlider.value,
+      selectedNodeMinSize:       selectedNodeMinSizeSlider.value,
+      selectedNodeFillOpacity:   selectedNodeFillOpacitySlider.value,
+      selectedNodeStrokeWidth:   selectedNodeStrokeWidthSlider.value,
+      selectedNodeStrokeOpacity: selectedNodeStrokeOpacitySlider.value,
+      tipHoverStrokeColor:       tipHoverStrokeEl.value,
+      tipHoverGrowthFactor:      tipHoverGrowthSlider.value,
+      tipHoverMinSize:           tipHoverMinSizeSlider.value,
+      tipHoverFillOpacity:       tipHoverFillOpacitySlider.value,
+      tipHoverStrokeWidth:       tipHoverStrokeWidthSlider.value,
+      tipHoverStrokeOpacity:     tipHoverStrokeOpacitySlider.value,
+      nodeHoverStrokeColor:      nodeHoverStrokeEl.value,
+      nodeHoverGrowthFactor:     nodeHoverGrowthSlider.value,
+      nodeHoverMinSize:          nodeHoverMinSizeSlider.value,
+      nodeHoverFillOpacity:      nodeHoverFillOpacitySlider.value,
+      nodeHoverStrokeWidth:      nodeHoverStrokeWidthSlider.value,
+      nodeHoverStrokeOpacity:    nodeHoverStrokeOpacitySlider.value,
       tipSize:          tipSlider.value,
       tipHaloSize:      tipHaloSlider.value,
       tipShapeColor:    tipShapeColorEl.value,
@@ -490,10 +598,34 @@ import { AxisRenderer  } from './axisrenderer.js';
       fontSize:         fontSlider.value,
       labelColor:       labelColorEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
-      selectedTipColor:  selectedTipColorEl.value,
-      selectedNodeColor:      selectedNodeColorEl.value,
-      tipHoverColor:      tipHoverColorEl.value,
-      nodeHoverColor: nodeHoverColorEl.value,
+      selectedTipStrokeColor:  selectedTipStrokeEl.value,
+      selectedNodeStrokeColor:      selectedNodeStrokeEl.value,
+      tipHoverFillColor:      tipHoverFillEl.value,
+      nodeHoverFillColor: nodeHoverFillEl.value,
+      selectedTipFillColor:      selectedTipFillEl.value,
+      selectedTipGrowthFactor:   selectedTipGrowthSlider.value,
+      selectedTipMinSize:        selectedTipMinSizeSlider.value,
+      selectedTipFillOpacity:    selectedTipFillOpacitySlider.value,
+      selectedTipStrokeWidth:    selectedTipStrokeWidthSlider.value,
+      selectedTipStrokeOpacity:  selectedTipStrokeOpacitySlider.value,
+      selectedNodeFillColor:     selectedNodeFillEl.value,
+      selectedNodeGrowthFactor:  selectedNodeGrowthSlider.value,
+      selectedNodeMinSize:       selectedNodeMinSizeSlider.value,
+      selectedNodeFillOpacity:   selectedNodeFillOpacitySlider.value,
+      selectedNodeStrokeWidth:   selectedNodeStrokeWidthSlider.value,
+      selectedNodeStrokeOpacity: selectedNodeStrokeOpacitySlider.value,
+      tipHoverStrokeColor:       tipHoverStrokeEl.value,
+      tipHoverGrowthFactor:      tipHoverGrowthSlider.value,
+      tipHoverMinSize:           tipHoverMinSizeSlider.value,
+      tipHoverFillOpacity:       tipHoverFillOpacitySlider.value,
+      tipHoverStrokeWidth:       tipHoverStrokeWidthSlider.value,
+      tipHoverStrokeOpacity:     tipHoverStrokeOpacitySlider.value,
+      nodeHoverStrokeColor:      nodeHoverStrokeEl.value,
+      nodeHoverGrowthFactor:     nodeHoverGrowthSlider.value,
+      nodeHoverMinSize:          nodeHoverMinSizeSlider.value,
+      nodeHoverFillOpacity:      nodeHoverFillOpacitySlider.value,
+      nodeHoverStrokeWidth:      nodeHoverStrokeWidthSlider.value,
+      nodeHoverStrokeOpacity:    nodeHoverStrokeOpacitySlider.value,
       tipSize:          tipSlider.value,
       tipHaloSize:      tipHaloSlider.value,
       tipShapeColor:    tipShapeColorEl.value,
@@ -543,10 +675,94 @@ import { AxisRenderer  } from './axisrenderer.js';
     }
     if (s.labelColor)            labelColorEl.value       = s.labelColor;
     if (s.selectedLabelStyle)    selectedLabelStyleEl.value = s.selectedLabelStyle;
-    if (s.selectedTipColor)     selectedTipColorEl.value  = s.selectedTipColor;
-    if (s.selectedNodeColor)         selectedNodeColorEl.value      = s.selectedNodeColor;
-    if (s.tipHoverColor)         tipHoverColorEl.value      = s.tipHoverColor;
-    if (s.nodeHoverColor)    nodeHoverColorEl.value = s.nodeHoverColor;
+    if (s.selectedTipStrokeColor)     selectedTipStrokeEl.value  = s.selectedTipStrokeColor;
+    if (s.selectedNodeStrokeColor)         selectedNodeStrokeEl.value      = s.selectedNodeStrokeColor;
+    if (s.tipHoverFillColor)         tipHoverFillEl.value      = s.tipHoverFillColor;
+    if (s.nodeHoverFillColor)    nodeHoverFillEl.value = s.nodeHoverFillColor;
+    if (s.selectedTipFillColor)  selectedTipFillEl.value = s.selectedTipFillColor;
+    if (s.selectedTipGrowthFactor != null) {
+      selectedTipGrowthSlider.value = s.selectedTipGrowthFactor;
+      document.getElementById('selected-tip-growth-value').textContent = s.selectedTipGrowthFactor;
+    }
+    if (s.selectedTipMinSize != null) {
+      selectedTipMinSizeSlider.value = s.selectedTipMinSize;
+      document.getElementById('selected-tip-min-size-value').textContent = s.selectedTipMinSize;
+    }
+    if (s.selectedTipFillOpacity != null) {
+      selectedTipFillOpacitySlider.value = s.selectedTipFillOpacity;
+      document.getElementById('selected-tip-fill-opacity-value').textContent = s.selectedTipFillOpacity;
+    }
+    if (s.selectedTipStrokeWidth != null) {
+      selectedTipStrokeWidthSlider.value = s.selectedTipStrokeWidth;
+      document.getElementById('selected-tip-stroke-width-value').textContent = s.selectedTipStrokeWidth;
+    }
+    if (s.selectedTipStrokeOpacity != null) {
+      selectedTipStrokeOpacitySlider.value = s.selectedTipStrokeOpacity;
+      document.getElementById('selected-tip-stroke-opacity-value').textContent = s.selectedTipStrokeOpacity;
+    }
+    if (s.selectedNodeFillColor) selectedNodeFillEl.value = s.selectedNodeFillColor;
+    if (s.selectedNodeGrowthFactor != null) {
+      selectedNodeGrowthSlider.value = s.selectedNodeGrowthFactor;
+      document.getElementById('selected-node-growth-value').textContent = s.selectedNodeGrowthFactor;
+    }
+    if (s.selectedNodeMinSize != null) {
+      selectedNodeMinSizeSlider.value = s.selectedNodeMinSize;
+      document.getElementById('selected-node-min-size-value').textContent = s.selectedNodeMinSize;
+    }
+    if (s.selectedNodeFillOpacity != null) {
+      selectedNodeFillOpacitySlider.value = s.selectedNodeFillOpacity;
+      document.getElementById('selected-node-fill-opacity-value').textContent = s.selectedNodeFillOpacity;
+    }
+    if (s.selectedNodeStrokeWidth != null) {
+      selectedNodeStrokeWidthSlider.value = s.selectedNodeStrokeWidth;
+      document.getElementById('selected-node-stroke-width-value').textContent = s.selectedNodeStrokeWidth;
+    }
+    if (s.selectedNodeStrokeOpacity != null) {
+      selectedNodeStrokeOpacitySlider.value = s.selectedNodeStrokeOpacity;
+      document.getElementById('selected-node-stroke-opacity-value').textContent = s.selectedNodeStrokeOpacity;
+    }
+    if (s.tipHoverStrokeColor)   tipHoverStrokeEl.value = s.tipHoverStrokeColor;
+    if (s.tipHoverGrowthFactor != null) {
+      tipHoverGrowthSlider.value = s.tipHoverGrowthFactor;
+      document.getElementById('tip-hover-growth-value').textContent = s.tipHoverGrowthFactor;
+    }
+    if (s.tipHoverMinSize != null) {
+      tipHoverMinSizeSlider.value = s.tipHoverMinSize;
+      document.getElementById('tip-hover-min-size-value').textContent = s.tipHoverMinSize;
+    }
+    if (s.tipHoverFillOpacity != null) {
+      tipHoverFillOpacitySlider.value = s.tipHoverFillOpacity;
+      document.getElementById('tip-hover-fill-opacity-value').textContent = s.tipHoverFillOpacity;
+    }
+    if (s.tipHoverStrokeWidth != null) {
+      tipHoverStrokeWidthSlider.value = s.tipHoverStrokeWidth;
+      document.getElementById('tip-hover-stroke-width-value').textContent = s.tipHoverStrokeWidth;
+    }
+    if (s.tipHoverStrokeOpacity != null) {
+      tipHoverStrokeOpacitySlider.value = s.tipHoverStrokeOpacity;
+      document.getElementById('tip-hover-stroke-opacity-value').textContent = s.tipHoverStrokeOpacity;
+    }
+    if (s.nodeHoverStrokeColor)  nodeHoverStrokeEl.value = s.nodeHoverStrokeColor;
+    if (s.nodeHoverGrowthFactor != null) {
+      nodeHoverGrowthSlider.value = s.nodeHoverGrowthFactor;
+      document.getElementById('node-hover-growth-value').textContent = s.nodeHoverGrowthFactor;
+    }
+    if (s.nodeHoverMinSize != null) {
+      nodeHoverMinSizeSlider.value = s.nodeHoverMinSize;
+      document.getElementById('node-hover-min-size-value').textContent = s.nodeHoverMinSize;
+    }
+    if (s.nodeHoverFillOpacity != null) {
+      nodeHoverFillOpacitySlider.value = s.nodeHoverFillOpacity;
+      document.getElementById('node-hover-fill-opacity-value').textContent = s.nodeHoverFillOpacity;
+    }
+    if (s.nodeHoverStrokeWidth != null) {
+      nodeHoverStrokeWidthSlider.value = s.nodeHoverStrokeWidth;
+      document.getElementById('node-hover-stroke-width-value').textContent = s.nodeHoverStrokeWidth;
+    }
+    if (s.nodeHoverStrokeOpacity != null) {
+      nodeHoverStrokeOpacitySlider.value = s.nodeHoverStrokeOpacity;
+      document.getElementById('node-hover-stroke-opacity-value').textContent = s.nodeHoverStrokeOpacity;
+    }
     if (s.tipSize        != null) {
       tipSlider.value = s.tipSize;
       document.getElementById('tip-size-value').textContent = s.tipSize;
@@ -591,10 +807,34 @@ import { AxisRenderer  } from './axisrenderer.js';
       if (s.fontSize       != null) renderer.setFontSize(parseInt(s.fontSize));
       if (s.labelColor)            renderer.setLabelColor(s.labelColor);
       if (s.selectedLabelStyle)    renderer.setSelectedLabelStyle(s.selectedLabelStyle);
-      if (s.selectedTipColor)     renderer.setSelectedTipColor(s.selectedTipColor);
-      if (s.selectedNodeColor)         renderer.setSelectedNodeColor(s.selectedNodeColor);
-      if (s.tipHoverColor)         renderer.setTipHoverColor(s.tipHoverColor);
-      if (s.nodeHoverColor)    renderer.setNodeHoverColor(s.nodeHoverColor);
+      if (s.selectedTipStrokeColor)     renderer.setSelectedTipStrokeColor(s.selectedTipStrokeColor);
+      if (s.selectedNodeStrokeColor)         renderer.setSelectedNodeStrokeColor(s.selectedNodeStrokeColor);
+      if (s.tipHoverFillColor)         renderer.setTipHoverFillColor(s.tipHoverFillColor);
+      if (s.nodeHoverFillColor)    renderer.setNodeHoverFillColor(s.nodeHoverFillColor);
+      if (s.selectedTipFillColor)  renderer.setSelectedTipFillColor(s.selectedTipFillColor);
+      if (s.selectedTipGrowthFactor != null) renderer.setSelectedTipGrowthFactor(parseFloat(s.selectedTipGrowthFactor));
+      if (s.selectedTipMinSize != null) renderer.setSelectedTipMinSize(parseFloat(s.selectedTipMinSize));
+      if (s.selectedTipFillOpacity != null) renderer.setSelectedTipFillOpacity(parseFloat(s.selectedTipFillOpacity));
+      if (s.selectedTipStrokeWidth != null) renderer.setSelectedTipStrokeWidth(parseFloat(s.selectedTipStrokeWidth));
+      if (s.selectedTipStrokeOpacity != null) renderer.setSelectedTipStrokeOpacity(parseFloat(s.selectedTipStrokeOpacity));
+      if (s.selectedNodeFillColor) renderer.setSelectedNodeFillColor(s.selectedNodeFillColor);
+      if (s.selectedNodeGrowthFactor != null) renderer.setSelectedNodeGrowthFactor(parseFloat(s.selectedNodeGrowthFactor));
+      if (s.selectedNodeMinSize != null) renderer.setSelectedNodeMinSize(parseFloat(s.selectedNodeMinSize));
+      if (s.selectedNodeFillOpacity != null) renderer.setSelectedNodeFillOpacity(parseFloat(s.selectedNodeFillOpacity));
+      if (s.selectedNodeStrokeWidth != null) renderer.setSelectedNodeStrokeWidth(parseFloat(s.selectedNodeStrokeWidth));
+      if (s.selectedNodeStrokeOpacity != null) renderer.setSelectedNodeStrokeOpacity(parseFloat(s.selectedNodeStrokeOpacity));
+      if (s.tipHoverStrokeColor)   renderer.setTipHoverStrokeColor(s.tipHoverStrokeColor);
+      if (s.tipHoverGrowthFactor != null) renderer.setTipHoverGrowthFactor(parseFloat(s.tipHoverGrowthFactor));
+      if (s.tipHoverMinSize != null) renderer.setTipHoverMinSize(parseFloat(s.tipHoverMinSize));
+      if (s.tipHoverFillOpacity != null) renderer.setTipHoverFillOpacity(parseFloat(s.tipHoverFillOpacity));
+      if (s.tipHoverStrokeWidth != null) renderer.setTipHoverStrokeWidth(parseFloat(s.tipHoverStrokeWidth));
+      if (s.tipHoverStrokeOpacity != null) renderer.setTipHoverStrokeOpacity(parseFloat(s.tipHoverStrokeOpacity));
+      if (s.nodeHoverStrokeColor)  renderer.setNodeHoverStrokeColor(s.nodeHoverStrokeColor);
+      if (s.nodeHoverGrowthFactor != null) renderer.setNodeHoverGrowthFactor(parseFloat(s.nodeHoverGrowthFactor));
+      if (s.nodeHoverMinSize != null) renderer.setNodeHoverMinSize(parseFloat(s.nodeHoverMinSize));
+      if (s.nodeHoverFillOpacity != null) renderer.setNodeHoverFillOpacity(parseFloat(s.nodeHoverFillOpacity));
+      if (s.nodeHoverStrokeWidth != null) renderer.setNodeHoverStrokeWidth(parseFloat(s.nodeHoverStrokeWidth));
+      if (s.nodeHoverStrokeOpacity != null) renderer.setNodeHoverStrokeOpacity(parseFloat(s.nodeHoverStrokeOpacity));
       if (s.tipSize        != null) renderer.setTipRadius(parseInt(s.tipSize));
       if (s.tipHaloSize    != null) renderer.setTipHaloSize(parseInt(s.tipHaloSize));
       if (s.tipShapeColor)         renderer.setTipShapeColor(s.tipShapeColor);
@@ -669,10 +909,14 @@ import { AxisRenderer  } from './axisrenderer.js';
     document.getElementById('font-size-value').textContent    = t.fontSize;
     labelColorEl.value      = t.labelColor;
     selectedLabelStyleEl.value = t.selectedLabelStyle || 'bold';
-    selectedTipColorEl.value  = t.selectedTipColor   || '#E06961';
-    selectedNodeColorEl.value      = t.selectedNodeColor        || '#19A699';
-    tipHoverColorEl.value      = t.tipHoverColor        || '#BF4B43';
-    nodeHoverColorEl.value = t.nodeHoverColor   || '#19A699';
+    selectedTipStrokeEl.value  = t.selectedTipStrokeColor   || '#E06961';
+    selectedNodeStrokeEl.value      = t.selectedNodeStrokeColor        || '#19A699';
+    tipHoverFillEl.value      = t.tipHoverFillColor        || '#BF4B43';
+    nodeHoverFillEl.value = t.nodeHoverFillColor   || '#19A699';
+    selectedTipFillEl.value = t.selectedTipFillColor || '#888888';
+    selectedNodeFillEl.value = t.selectedNodeFillColor || '#19A699';
+    tipHoverStrokeEl.value = t.tipHoverStrokeColor || '#7B2820';
+    nodeHoverStrokeEl.value = t.nodeHoverStrokeColor || '#0D6560';
     tipSlider.value         = t.tipSize;
     document.getElementById('tip-size-value').textContent     = t.tipSize;
     tipHaloSlider.value     = t.tipHaloSize;
@@ -698,10 +942,14 @@ import { AxisRenderer  } from './axisrenderer.js';
       renderer.setFontSize(parseInt(t.fontSize));
       renderer.setLabelColor(t.labelColor);
       renderer.setSelectedLabelStyle(t.selectedLabelStyle || 'bold');
-      renderer.setSelectedTipColor(t.selectedTipColor  || '#E06961');
-      renderer.setSelectedNodeColor(t.selectedNodeColor           || '#19A699');
-      renderer.setTipHoverColor(t.tipHoverColor           || '#BF4B43');
-      renderer.setNodeHoverColor(t.nodeHoverColor || '#19A699');
+      renderer.setSelectedTipStrokeColor(t.selectedTipStrokeColor  || '#E06961');
+      renderer.setSelectedNodeStrokeColor(t.selectedNodeStrokeColor           || '#19A699');
+      renderer.setTipHoverFillColor(t.tipHoverFillColor           || '#BF4B43');
+      renderer.setNodeHoverFillColor(t.nodeHoverFillColor || '#19A699');
+      renderer.setSelectedTipFillColor(t.selectedTipFillColor || '#888888');
+      renderer.setSelectedNodeFillColor(t.selectedNodeFillColor || '#19A699');
+      renderer.setTipHoverStrokeColor(t.tipHoverStrokeColor || '#7B2820');
+      renderer.setNodeHoverStrokeColor(t.nodeHoverStrokeColor || '#0D6560');
       renderer.setTipRadius(parseInt(t.tipSize));
       renderer.setTipHaloSize(parseInt(t.tipHaloSize));
       renderer.setTipShapeColor(t.tipShapeColor);
@@ -751,10 +999,94 @@ import { AxisRenderer  } from './axisrenderer.js';
   }
   if (_saved.labelColor)           labelColorEl.value       = _saved.labelColor;
   if (_saved.selectedLabelStyle)   selectedLabelStyleEl.value = _saved.selectedLabelStyle;
-  if (_saved.selectedTipColor)    selectedTipColorEl.value  = _saved.selectedTipColor;
-  if (_saved.selectedNodeColor)        selectedNodeColorEl.value      = _saved.selectedNodeColor;
-  if (_saved.tipHoverColor)        tipHoverColorEl.value      = _saved.tipHoverColor;
-  if (_saved.nodeHoverColor)   nodeHoverColorEl.value = _saved.nodeHoverColor;
+  if (_saved.selectedTipStrokeColor)    selectedTipStrokeEl.value  = _saved.selectedTipStrokeColor;
+  if (_saved.selectedNodeStrokeColor)        selectedNodeStrokeEl.value      = _saved.selectedNodeStrokeColor;
+  if (_saved.tipHoverFillColor)        tipHoverFillEl.value      = _saved.tipHoverFillColor;
+  if (_saved.nodeHoverFillColor)   nodeHoverFillEl.value = _saved.nodeHoverFillColor;
+  if (_saved.selectedTipFillColor)  selectedTipFillEl.value = _saved.selectedTipFillColor;
+  if (_saved.selectedTipGrowthFactor != null) {
+    selectedTipGrowthSlider.value = _saved.selectedTipGrowthFactor;
+    document.getElementById('selected-tip-growth-value').textContent = _saved.selectedTipGrowthFactor;
+  }
+  if (_saved.selectedTipMinSize != null) {
+    selectedTipMinSizeSlider.value = _saved.selectedTipMinSize;
+    document.getElementById('selected-tip-min-size-value').textContent = _saved.selectedTipMinSize;
+  }
+  if (_saved.selectedTipFillOpacity != null) {
+    selectedTipFillOpacitySlider.value = _saved.selectedTipFillOpacity;
+    document.getElementById('selected-tip-fill-opacity-value').textContent = _saved.selectedTipFillOpacity;
+  }
+  if (_saved.selectedTipStrokeWidth != null) {
+    selectedTipStrokeWidthSlider.value = _saved.selectedTipStrokeWidth;
+    document.getElementById('selected-tip-stroke-width-value').textContent = _saved.selectedTipStrokeWidth;
+  }
+  if (_saved.selectedTipStrokeOpacity != null) {
+    selectedTipStrokeOpacitySlider.value = _saved.selectedTipStrokeOpacity;
+    document.getElementById('selected-tip-stroke-opacity-value').textContent = _saved.selectedTipStrokeOpacity;
+  }
+  if (_saved.selectedNodeFillColor) selectedNodeFillEl.value = _saved.selectedNodeFillColor;
+  if (_saved.selectedNodeGrowthFactor != null) {
+    selectedNodeGrowthSlider.value = _saved.selectedNodeGrowthFactor;
+    document.getElementById('selected-node-growth-value').textContent = _saved.selectedNodeGrowthFactor;
+  }
+  if (_saved.selectedNodeMinSize != null) {
+    selectedNodeMinSizeSlider.value = _saved.selectedNodeMinSize;
+    document.getElementById('selected-node-min-size-value').textContent = _saved.selectedNodeMinSize;
+  }
+  if (_saved.selectedNodeFillOpacity != null) {
+    selectedNodeFillOpacitySlider.value = _saved.selectedNodeFillOpacity;
+    document.getElementById('selected-node-fill-opacity-value').textContent = _saved.selectedNodeFillOpacity;
+  }
+  if (_saved.selectedNodeStrokeWidth != null) {
+    selectedNodeStrokeWidthSlider.value = _saved.selectedNodeStrokeWidth;
+    document.getElementById('selected-node-stroke-width-value').textContent = _saved.selectedNodeStrokeWidth;
+  }
+  if (_saved.selectedNodeStrokeOpacity != null) {
+    selectedNodeStrokeOpacitySlider.value = _saved.selectedNodeStrokeOpacity;
+    document.getElementById('selected-node-stroke-opacity-value').textContent = _saved.selectedNodeStrokeOpacity;
+  }
+  if (_saved.tipHoverStrokeColor)   tipHoverStrokeEl.value = _saved.tipHoverStrokeColor;
+  if (_saved.tipHoverGrowthFactor != null) {
+    tipHoverGrowthSlider.value = _saved.tipHoverGrowthFactor;
+    document.getElementById('tip-hover-growth-value').textContent = _saved.tipHoverGrowthFactor;
+  }
+  if (_saved.tipHoverMinSize != null) {
+    tipHoverMinSizeSlider.value = _saved.tipHoverMinSize;
+    document.getElementById('tip-hover-min-size-value').textContent = _saved.tipHoverMinSize;
+  }
+  if (_saved.tipHoverFillOpacity != null) {
+    tipHoverFillOpacitySlider.value = _saved.tipHoverFillOpacity;
+    document.getElementById('tip-hover-fill-opacity-value').textContent = _saved.tipHoverFillOpacity;
+  }
+  if (_saved.tipHoverStrokeWidth != null) {
+    tipHoverStrokeWidthSlider.value = _saved.tipHoverStrokeWidth;
+    document.getElementById('tip-hover-stroke-width-value').textContent = _saved.tipHoverStrokeWidth;
+  }
+  if (_saved.tipHoverStrokeOpacity != null) {
+    tipHoverStrokeOpacitySlider.value = _saved.tipHoverStrokeOpacity;
+    document.getElementById('tip-hover-stroke-opacity-value').textContent = _saved.tipHoverStrokeOpacity;
+  }
+  if (_saved.nodeHoverStrokeColor)  nodeHoverStrokeEl.value = _saved.nodeHoverStrokeColor;
+  if (_saved.nodeHoverGrowthFactor != null) {
+    nodeHoverGrowthSlider.value = _saved.nodeHoverGrowthFactor;
+    document.getElementById('node-hover-growth-value').textContent = _saved.nodeHoverGrowthFactor;
+  }
+  if (_saved.nodeHoverMinSize != null) {
+    nodeHoverMinSizeSlider.value = _saved.nodeHoverMinSize;
+    document.getElementById('node-hover-min-size-value').textContent = _saved.nodeHoverMinSize;
+  }
+  if (_saved.nodeHoverFillOpacity != null) {
+    nodeHoverFillOpacitySlider.value = _saved.nodeHoverFillOpacity;
+    document.getElementById('node-hover-fill-opacity-value').textContent = _saved.nodeHoverFillOpacity;
+  }
+  if (_saved.nodeHoverStrokeWidth != null) {
+    nodeHoverStrokeWidthSlider.value = _saved.nodeHoverStrokeWidth;
+    document.getElementById('node-hover-stroke-width-value').textContent = _saved.nodeHoverStrokeWidth;
+  }
+  if (_saved.nodeHoverStrokeOpacity != null) {
+    nodeHoverStrokeOpacitySlider.value = _saved.nodeHoverStrokeOpacity;
+    document.getElementById('node-hover-stroke-opacity-value').textContent = _saved.nodeHoverStrokeOpacity;
+  }
   if (_saved.tipSize        != null) {
     tipSlider.value = _saved.tipSize;
     document.getElementById('tip-size-value').textContent = _saved.tipSize;
@@ -831,10 +1163,34 @@ import { AxisRenderer  } from './axisrenderer.js';
     renderer.setFontSize(parseInt(fontSlider.value));
     renderer.setLabelColor(labelColorEl.value);
     renderer.setSelectedLabelStyle(selectedLabelStyleEl.value);
-    renderer.setSelectedTipColor(selectedTipColorEl.value);
-    renderer.setSelectedNodeColor(selectedNodeColorEl.value);
-    renderer.setTipHoverColor(tipHoverColorEl.value);
-    renderer.setNodeHoverColor(nodeHoverColorEl.value);
+    renderer.setSelectedTipStrokeColor(selectedTipStrokeEl.value);
+    renderer.setSelectedNodeStrokeColor(selectedNodeStrokeEl.value);
+    renderer.setTipHoverFillColor(tipHoverFillEl.value);
+    renderer.setNodeHoverFillColor(nodeHoverFillEl.value);
+    renderer.setSelectedTipFillColor(selectedTipFillEl.value);
+    renderer.setSelectedTipGrowthFactor(parseFloat(selectedTipGrowthSlider.value));
+    renderer.setSelectedTipMinSize(parseFloat(selectedTipMinSizeSlider.value));
+    renderer.setSelectedTipFillOpacity(parseFloat(selectedTipFillOpacitySlider.value));
+    renderer.setSelectedTipStrokeWidth(parseFloat(selectedTipStrokeWidthSlider.value));
+    renderer.setSelectedTipStrokeOpacity(parseFloat(selectedTipStrokeOpacitySlider.value));
+    renderer.setSelectedNodeFillColor(selectedNodeFillEl.value);
+    renderer.setSelectedNodeGrowthFactor(parseFloat(selectedNodeGrowthSlider.value));
+    renderer.setSelectedNodeMinSize(parseFloat(selectedNodeMinSizeSlider.value));
+    renderer.setSelectedNodeFillOpacity(parseFloat(selectedNodeFillOpacitySlider.value));
+    renderer.setSelectedNodeStrokeWidth(parseFloat(selectedNodeStrokeWidthSlider.value));
+    renderer.setSelectedNodeStrokeOpacity(parseFloat(selectedNodeStrokeOpacitySlider.value));
+    renderer.setTipHoverStrokeColor(tipHoverStrokeEl.value);
+    renderer.setTipHoverGrowthFactor(parseFloat(tipHoverGrowthSlider.value));
+    renderer.setTipHoverMinSize(parseFloat(tipHoverMinSizeSlider.value));
+    renderer.setTipHoverFillOpacity(parseFloat(tipHoverFillOpacitySlider.value));
+    renderer.setTipHoverStrokeWidth(parseFloat(tipHoverStrokeWidthSlider.value));
+    renderer.setTipHoverStrokeOpacity(parseFloat(tipHoverStrokeOpacitySlider.value));
+    renderer.setNodeHoverStrokeColor(nodeHoverStrokeEl.value);
+    renderer.setNodeHoverGrowthFactor(parseFloat(nodeHoverGrowthSlider.value));
+    renderer.setNodeHoverMinSize(parseFloat(nodeHoverMinSizeSlider.value));
+    renderer.setNodeHoverFillOpacity(parseFloat(nodeHoverFillOpacitySlider.value));
+    renderer.setNodeHoverStrokeWidth(parseFloat(nodeHoverStrokeWidthSlider.value));
+    renderer.setNodeHoverStrokeOpacity(parseFloat(nodeHoverStrokeOpacitySlider.value));
     renderer.setTipRadius(parseInt(tipSlider.value));
     renderer.setTipHaloSize(parseInt(tipHaloSlider.value));
     renderer.setTipShapeColor(tipShapeColorEl.value);
@@ -3322,27 +3678,191 @@ import { AxisRenderer  } from './axisrenderer.js';
     saveSettings();
   });
 
-  selectedTipColorEl.addEventListener('input', () => {
+  selectedTipStrokeEl.addEventListener('input', () => {
     _markCustomTheme();
-    renderer.setSelectedTipColor(selectedTipColorEl.value);
+    renderer.setSelectedTipStrokeColor(selectedTipStrokeEl.value);
     saveSettings();
   });
 
-  selectedNodeColorEl.addEventListener('input', () => {
+  selectedNodeStrokeEl.addEventListener('input', () => {
     _markCustomTheme();
-    renderer.setSelectedNodeColor(selectedNodeColorEl.value);
+    renderer.setSelectedNodeStrokeColor(selectedNodeStrokeEl.value);
     saveSettings();
   });
 
-  tipHoverColorEl.addEventListener('input', () => {
+  tipHoverFillEl.addEventListener('input', () => {
     _markCustomTheme();
-    renderer.setTipHoverColor(tipHoverColorEl.value);
+    renderer.setTipHoverFillColor(tipHoverFillEl.value);
     saveSettings();
   });
 
-  nodeHoverColorEl.addEventListener('input', () => {
+  nodeHoverFillEl.addEventListener('input', () => {
     _markCustomTheme();
-    renderer.setNodeHoverColor(nodeHoverColorEl.value);
+    renderer.setNodeHoverFillColor(nodeHoverFillEl.value);
+    saveSettings();
+  });
+
+  selectedTipFillEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setSelectedTipFillColor(selectedTipFillEl.value);
+    saveSettings();
+  });
+
+  selectedTipGrowthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-tip-growth-value').textContent = selectedTipGrowthSlider.value;
+    renderer.setSelectedTipGrowthFactor(parseFloat(selectedTipGrowthSlider.value));
+    saveSettings();
+  });
+
+  selectedTipMinSizeSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-tip-min-size-value').textContent = selectedTipMinSizeSlider.value;
+    renderer.setSelectedTipMinSize(parseFloat(selectedTipMinSizeSlider.value));
+    saveSettings();
+  });
+
+  selectedTipFillOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-tip-fill-opacity-value').textContent = selectedTipFillOpacitySlider.value;
+    renderer.setSelectedTipFillOpacity(parseFloat(selectedTipFillOpacitySlider.value));
+    saveSettings();
+  });
+
+  selectedTipStrokeWidthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-tip-stroke-width-value').textContent = selectedTipStrokeWidthSlider.value;
+    renderer.setSelectedTipStrokeWidth(parseFloat(selectedTipStrokeWidthSlider.value));
+    saveSettings();
+  });
+
+  selectedTipStrokeOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-tip-stroke-opacity-value').textContent = selectedTipStrokeOpacitySlider.value;
+    renderer.setSelectedTipStrokeOpacity(parseFloat(selectedTipStrokeOpacitySlider.value));
+    saveSettings();
+  });
+
+  selectedNodeFillEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setSelectedNodeFillColor(selectedNodeFillEl.value);
+    saveSettings();
+  });
+
+  selectedNodeGrowthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-node-growth-value').textContent = selectedNodeGrowthSlider.value;
+    renderer.setSelectedNodeGrowthFactor(parseFloat(selectedNodeGrowthSlider.value));
+    saveSettings();
+  });
+
+  selectedNodeMinSizeSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-node-min-size-value').textContent = selectedNodeMinSizeSlider.value;
+    renderer.setSelectedNodeMinSize(parseFloat(selectedNodeMinSizeSlider.value));
+    saveSettings();
+  });
+
+  selectedNodeFillOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-node-fill-opacity-value').textContent = selectedNodeFillOpacitySlider.value;
+    renderer.setSelectedNodeFillOpacity(parseFloat(selectedNodeFillOpacitySlider.value));
+    saveSettings();
+  });
+
+  selectedNodeStrokeWidthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-node-stroke-width-value').textContent = selectedNodeStrokeWidthSlider.value;
+    renderer.setSelectedNodeStrokeWidth(parseFloat(selectedNodeStrokeWidthSlider.value));
+    saveSettings();
+  });
+
+  selectedNodeStrokeOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('selected-node-stroke-opacity-value').textContent = selectedNodeStrokeOpacitySlider.value;
+    renderer.setSelectedNodeStrokeOpacity(parseFloat(selectedNodeStrokeOpacitySlider.value));
+    saveSettings();
+  });
+
+  tipHoverStrokeEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setTipHoverStrokeColor(tipHoverStrokeEl.value);
+    saveSettings();
+  });
+
+  tipHoverGrowthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('tip-hover-growth-value').textContent = tipHoverGrowthSlider.value;
+    renderer.setTipHoverGrowthFactor(parseFloat(tipHoverGrowthSlider.value));
+    saveSettings();
+  });
+
+  tipHoverMinSizeSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('tip-hover-min-size-value').textContent = tipHoverMinSizeSlider.value;
+    renderer.setTipHoverMinSize(parseFloat(tipHoverMinSizeSlider.value));
+    saveSettings();
+  });
+
+  tipHoverFillOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('tip-hover-fill-opacity-value').textContent = tipHoverFillOpacitySlider.value;
+    renderer.setTipHoverFillOpacity(parseFloat(tipHoverFillOpacitySlider.value));
+    saveSettings();
+  });
+
+  tipHoverStrokeWidthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('tip-hover-stroke-width-value').textContent = tipHoverStrokeWidthSlider.value;
+    renderer.setTipHoverStrokeWidth(parseFloat(tipHoverStrokeWidthSlider.value));
+    saveSettings();
+  });
+
+  tipHoverStrokeOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('tip-hover-stroke-opacity-value').textContent = tipHoverStrokeOpacitySlider.value;
+    renderer.setTipHoverStrokeOpacity(parseFloat(tipHoverStrokeOpacitySlider.value));
+    saveSettings();
+  });
+
+  nodeHoverStrokeEl.addEventListener('input', () => {
+    _markCustomTheme();
+    renderer.setNodeHoverStrokeColor(nodeHoverStrokeEl.value);
+    saveSettings();
+  });
+
+  nodeHoverGrowthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('node-hover-growth-value').textContent = nodeHoverGrowthSlider.value;
+    renderer.setNodeHoverGrowthFactor(parseFloat(nodeHoverGrowthSlider.value));
+    saveSettings();
+  });
+
+  nodeHoverMinSizeSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('node-hover-min-size-value').textContent = nodeHoverMinSizeSlider.value;
+    renderer.setNodeHoverMinSize(parseFloat(nodeHoverMinSizeSlider.value));
+    saveSettings();
+  });
+
+  nodeHoverFillOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('node-hover-fill-opacity-value').textContent = nodeHoverFillOpacitySlider.value;
+    renderer.setNodeHoverFillOpacity(parseFloat(nodeHoverFillOpacitySlider.value));
+    saveSettings();
+  });
+
+  nodeHoverStrokeWidthSlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('node-hover-stroke-width-value').textContent = nodeHoverStrokeWidthSlider.value;
+    renderer.setNodeHoverStrokeWidth(parseFloat(nodeHoverStrokeWidthSlider.value));
+    saveSettings();
+  });
+
+  nodeHoverStrokeOpacitySlider.addEventListener('input', () => {
+    _markCustomTheme();
+    document.getElementById('node-hover-stroke-opacity-value').textContent = nodeHoverStrokeOpacitySlider.value;
+    renderer.setNodeHoverStrokeOpacity(parseFloat(nodeHoverStrokeOpacitySlider.value));
     saveSettings();
   });
 
