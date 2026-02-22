@@ -195,3 +195,98 @@ export function parseNexus(nexus) {
 
   return trees;
 }
+
+// ── Newick / NEXUS serialiser ─────────────────────────────────────────────────
+
+/** Escape a Newick/NEXUS taxon name with single quotes when needed. */
+function newickEsc(name) {
+  if (!name) return '';
+  if (/[(),;:\[\]\s]/.test(name)) return `'${name.replace(/'/g, "''")}'`;
+  return name;
+}
+
+/** Format a branch length compactly (no scientific notation for typical values). */
+function fmtLen(n) {
+  if (n == null || isNaN(n)) return null;
+  if (n === 0) return '0';
+  return parseFloat(n.toPrecision(12)).toString();
+}
+
+/** Build a BEAST/FigTree-style [&key=val,...] annotation block. */
+function fmtAnnot(annotations, annotKeys) {
+  if (!annotations || annotKeys.length === 0) return '';
+  const parts = [];
+  for (const key of annotKeys) {
+    const val = annotations[key];
+    if (val === undefined || val === null) continue;
+    if (Array.isArray(val)) {
+      const elems = val.map(v => typeof v === 'string' ? `"${v.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"` : v);
+      parts.push(`${key}={${elems.join(',')}}`);
+    } else if (typeof val === 'string') {
+      parts.push(`${key}="${val.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`);
+    } else {
+      parts.push(`${key}=${val}`);
+    }
+  }
+  return parts.length > 0 ? `[&${parts.join(',')}]` : '';
+}
+
+/**
+ * Return the branch length from child index `ci` toward parent direction `pi`.
+ * Handles the special case where root-adjacent nodes store total edge length.
+ */
+function branchLen(ci, pi, g) {
+  if (pi < 0) return null;
+  const { nodeA, nodeB, lenA, lenB } = g.root;
+  if (ci === nodeA && pi === nodeB) return lenA;
+  if (ci === nodeB && pi === nodeA) return lenB;
+  return g.nodes[ci].lengths[0];
+}
+
+/**
+ * Recursively serialize the subtree rooted at `nodeIdx` (coming from direction
+ * `parentIdx`, which is excluded from children) into a Newick string fragment.
+ */
+function newickNode(nodeIdx, parentIdx, g, annotKeys) {
+  const node      = g.nodes[nodeIdx];
+  const annotStr  = fmtAnnot(node.annotations, annotKeys);
+  const safeName  = newickEsc(node.name || node.label || '');
+  const childIdxs = node.adjacents.filter(i => i !== parentIdx);
+  if (childIdxs.length === 0) {
+    return `${safeName}${annotStr}`;
+  }
+  const parts = childIdxs.map(ci => {
+    const cStr   = newickNode(ci, nodeIdx, g, annotKeys);
+    const len    = branchLen(ci, nodeIdx, g);
+    const lenStr = len != null ? `:${fmtLen(len)}` : '';
+    return `${cStr}${lenStr}`;
+  });
+  return `(${parts.join(',')})${safeName}${annotStr}`;
+}
+
+/**
+ * Serialize the PhyloGraph `g` (or a subtree rooted at `subtreeRootId`) to
+ * a Newick string ended with ';'.
+ */
+export function graphToNewick(g, subtreeRootId, annotKeys) {
+  const { nodeA, nodeB, lenA } = g.root;
+  let body;
+  if (subtreeRootId) {
+    const idx = g.origIdToIdx.get(subtreeRootId);
+    if (idx === undefined) return null;
+    const node = g.nodes[idx];
+    const parentIdx = node.adjacents.length > 0 ? node.adjacents[0] : -1;
+    body = newickNode(idx, parentIdx, g, annotKeys);
+  } else if (lenA === 0) {
+    // nodeA is the actual root (trifurcating or annotated)
+    body = newickNode(nodeA, -1, g, annotKeys);
+  } else {
+    // Virtual root between nodeA and nodeB
+    const aStr = newickNode(nodeA, nodeB, g, annotKeys);
+    const bStr = newickNode(nodeB, nodeA, g, annotKeys);
+    const aLen = lenA != null        ? `:${fmtLen(lenA)}`        : '';
+    const bLen = g.root.lenB != null ? `:${fmtLen(g.root.lenB)}` : '';
+    body = `(${aStr}${aLen},${bStr}${bLen})`;
+  }
+  return body + ';';
+}
