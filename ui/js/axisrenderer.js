@@ -13,7 +13,11 @@
  *   minorLabelFormat 'off'|'component'|'yyyy'|'yyyy-MM'|'yyyy-MMM'|'yyyy-mm-dd'|'yyyy-MMM-dd'|'dd MMM yyyy'
  */
 export class AxisRenderer {
-  constructor(canvas) {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {object}            settings  Must include axisColor, fontSize, lineWidth.
+   */
+  constructor(canvas, settings) {
     this._canvas  = canvas;
     this._ctx     = canvas.getContext('2d');
     this._visible = false;
@@ -44,6 +48,23 @@ export class AxisRenderer {
     this._axisColor          = null;   // hex string; null → use built-in default colours
     this._axisLineWidth      = 1;      // stroke width for ticks and baseline
     this._axisFontSizeManual = false;  // true once setFontSize() has been called
+
+    this.setSettings(settings, /*redraw*/ false);
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────
+
+  /**
+   * Apply rendering settings.  Recognised keys: axisColor (string), fontSize (number),
+   * lineWidth (number).
+   * @param {object}  s
+   * @param {boolean} redraw  When false (default) only stores values without repainting.
+   */
+  setSettings(s, redraw = false) {
+    if (s.axisColor  != null) this.setColor(s.axisColor);
+    if (s.fontSize   != null) this.setFontSize(s.fontSize);
+    if (s.lineWidth  != null) this.setLineWidth(s.lineWidth);
+    if (redraw) this._lastHash = '';
   }
 
   // ── Public API ──────────────────────────────────────────────────────────

@@ -5,82 +5,17 @@
 import { computeLayoutFromGraph } from './treeutils.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Theme
-// ─────────────────────────────────────────────────────────────────────────────
-
-export class Theme {
-  constructor({
-    fontSize         = 11,
-    tipRadius        = 3,
-    nodeRadius       = 0,
-    tipShapeColor    = '#888888',
-    nodeShapeColor   = '#888888',
-    tipOutlineColor  = '#033940',
-    branchColor      = '#F2F1E6',
-    branchWidth      = 1,
-    tipHoverFillColor         = '#BF4B43',
-    tipHoverStrokeColor       = '#7B2820',
-    nodeHoverFillColor        = '#19A699',
-    nodeHoverStrokeColor      = '#0D6560',
-    selectedTipStrokeColor    = '#E06961',
-    selectedTipFillColor      = '#888888',
-    selectedNodeStrokeColor   = '#19A699',
-    selectedNodeFillColor     = '#19A699',
-    labelColor         = '#F7EECA',
-    dimLabelColor      = '#E6D595',
-    selectedLabelColor = '#F2F1E6',
-    bgColor          = '#02292E',
-    tipShapeBgColor  = bgColor,
-    nodeShapeBgColor = bgColor,
-    tipHaloSize      = 2,
-    nodeHaloSize     = 2,
-    paddingLeft      = 60,
-    paddingTop       = 20,
-    paddingBottom    = 20,
-    elbowRadius      = 2,
-    rootStubLength   = 20,
-  } = {}) {
-    this.fontSize          = fontSize;
-    this.tipRadius         = tipRadius;
-    this.nodeRadius        = nodeRadius;
-    this.tipShapeColor     = tipShapeColor;
-    this.nodeShapeColor    = nodeShapeColor;
-    this.tipShapeBgColor   = tipShapeBgColor;
-    this.nodeShapeBgColor  = nodeShapeBgColor;
-    this.tipHaloSize       = tipHaloSize;
-    this.nodeHaloSize      = nodeHaloSize;
-    this.tipOutlineColor   = tipOutlineColor;
-    this.branchColor       = branchColor;
-    this.branchWidth       = branchWidth;
-    this.tipHoverFillColor       = tipHoverFillColor;
-    this.tipHoverStrokeColor     = tipHoverStrokeColor;
-    this.nodeHoverFillColor      = nodeHoverFillColor;
-    this.nodeHoverStrokeColor    = nodeHoverStrokeColor;
-    this.selectedTipStrokeColor  = selectedTipStrokeColor;
-    this.selectedTipFillColor    = selectedTipFillColor;
-    this.selectedNodeStrokeColor = selectedNodeStrokeColor;
-    this.selectedNodeFillColor   = selectedNodeFillColor;
-    this.labelColor        = labelColor;
-    this.dimLabelColor     = dimLabelColor;
-    this.selectedLabelColor = selectedLabelColor;
-    this.selectedLabelStyle = 'bold'; // 'normal' | 'bold' | 'italic' | 'bold italic'
-    this.bgColor           = bgColor;
-    this.paddingLeft       = paddingLeft;
-    this.paddingTop        = paddingTop;
-    this.paddingBottom     = paddingBottom;
-    this.elbowRadius       = elbowRadius;
-    this.rootStubLength    = rootStubLength;
-  }
-}
-
-export const DEFAULT_THEME = new Theme();
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Canvas renderer
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class TreeRenderer {
-  constructor(canvas, theme = DEFAULT_THEME) {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {object} settings  Complete settings object — see setSettings() for all recognised keys.
+   *                           peartree.js is responsible for supplying every key; the renderer
+   *                           has no built-in defaults of its own.
+   */
+  constructor(canvas, settings) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.dpr = window.devicePixelRatio || 1;
@@ -96,30 +31,8 @@ export class TreeRenderer {
     this._labelCacheKey  = null;  // invalidated when data or font/radius settings change
     this._maxLabelWidth  = 0;     // cached result of the measureText scan
 
-    // Apply theme (sets all rendering option properties)
-    this.setTheme(theme, /*redraw*/ false);
-
-    // Non-theme selection/hover settings (not part of any theme, persisted as settings)
-    this.tipHoverGrowthFactor    = 1.5;
-    this.tipHoverMinSize         = 6;
-    this.tipHoverFillOpacity     = 0.6;
-    this.tipHoverStrokeWidth     = 2;
-    this.tipHoverStrokeOpacity   = 1;
-    this.nodeHoverGrowthFactor   = 1.5;
-    this.nodeHoverMinSize        = 6;
-    this.nodeHoverFillOpacity    = 0.6;
-    this.nodeHoverStrokeWidth    = 2;
-    this.nodeHoverStrokeOpacity  = 1;
-    this.selectedTipGrowthFactor   = 2;
-    this.selectedTipMinSize        = 6;
-    this.selectedTipFillOpacity    = 0.5;
-    this.selectedTipStrokeWidth    = 3;
-    this.selectedTipStrokeOpacity  = 1;
-    this.selectedNodeGrowthFactor  = 2;
-    this.selectedNodeMinSize       = 6;
-    this.selectedNodeFillOpacity   = 0.5;
-    this.selectedNodeStrokeWidth   = 3;
-    this.selectedNodeStrokeOpacity = 1;
+    // Apply all rendering settings supplied by the caller (no built-in defaults).
+    this.setSettings(settings, /*redraw*/ false);
 
     // X scale: always fills the viewport width – recomputed on resize / font change.
     this.scaleX = 1;
@@ -217,36 +130,87 @@ export class TreeRenderer {
    * Apply a Theme instance, overwriting all rendering-option properties.
    * Pass redraw=false during construction to skip the draw call.
    */
-  setTheme(theme = DEFAULT_THEME, redraw = true) {
-    this.fontSize          = theme.fontSize;
-    this.tipRadius         = theme.tipRadius;
-    this.nodeRadius        = theme.nodeRadius;
-    this.tipShapeColor     = theme.tipShapeColor;
-    this.nodeShapeColor    = theme.nodeShapeColor;
-    this.tipShapeBgColor   = theme.tipShapeBgColor;
-    this.nodeShapeBgColor  = theme.nodeShapeBgColor;
-    this.tipHaloSize       = theme.tipHaloSize  ?? 2;
-    this.nodeHaloSize      = theme.nodeHaloSize ?? 2;
-    this.tipOutlineColor   = theme.tipOutlineColor;
-    this.branchColor       = theme.branchColor;
-    this.branchWidth       = theme.branchWidth;
-    this.tipHoverFillColor       = theme.tipHoverFillColor;
-    this.tipHoverStrokeColor     = theme.tipHoverStrokeColor     ?? '#7B2820';
-    this.nodeHoverFillColor      = theme.nodeHoverFillColor;
-    this.nodeHoverStrokeColor    = theme.nodeHoverStrokeColor    ?? '#0D6560';
-    this.selectedTipStrokeColor  = theme.selectedTipStrokeColor;
-    this.selectedTipFillColor    = theme.selectedTipFillColor    ?? '#888888';
-    this.selectedNodeStrokeColor = theme.selectedNodeStrokeColor;
-    this.selectedNodeFillColor   = theme.selectedNodeFillColor   ?? '#19A699';
-    this.labelColor        = theme.labelColor;
-    this.dimLabelColor     = theme.dimLabelColor;
-    this.selectedLabelColor = theme.selectedLabelColor;
-    this.bgColor           = theme.bgColor;
-    this.paddingLeft       = theme.paddingLeft;
-    this.paddingTop        = theme.paddingTop;
-    this.paddingBottom     = theme.paddingBottom;
-    this.elbowRadius       = theme.elbowRadius;
-    this.rootStubLength    = theme.rootStubLength;
+  /**
+   * Apply a complete set of visual and layout settings to the renderer.
+   * All property values must be correctly typed (numbers as numbers, not strings).
+   * Called by the constructor (redraw=false) and may be called externally at any time.
+   *
+   * @param {object}  s        Settings object — see property assignments below for all keys.
+   * @param {boolean} redraw   When true (default) and data is loaded, triggers a repaint.
+   */
+  setSettings(s, redraw = true) {
+    // ── Visual appearance ───────────────────────────────────────────────────
+    this.bgColor           = s.bgColor;
+    this.branchColor       = s.branchColor;
+    this.branchWidth       = s.branchWidth;
+    this.fontSize          = s.fontSize;
+
+    // ── Tip shape ───────────────────────────────────────────────────────────
+    this.tipRadius         = s.tipRadius;
+    this.tipHaloSize       = s.tipHaloSize;
+    this.tipShapeColor     = s.tipShapeColor;
+    this.tipShapeBgColor   = s.tipShapeBgColor;
+    this.tipOutlineColor   = s.tipOutlineColor;
+
+    // ── Node shape ──────────────────────────────────────────────────────────
+    this.nodeRadius        = s.nodeRadius;
+    this.nodeHaloSize      = s.nodeHaloSize;
+    this.nodeShapeColor    = s.nodeShapeColor;
+    this.nodeShapeBgColor  = s.nodeShapeBgColor;
+
+    // ── Labels ──────────────────────────────────────────────────────────────
+    // dimLabelColor and selectedLabelColor are derived from labelColor when not
+    // explicitly supplied, matching the logic in setLabelColor().
+    const _hsl              = TreeRenderer._hexToHsl(s.labelColor);
+    this.labelColor         = s.labelColor;
+    this.dimLabelColor      = s.dimLabelColor      ??
+      TreeRenderer._hslToHex(_hsl.h, _hsl.s * 0.70, _hsl.l * 0.83);
+    this.selectedLabelColor = s.selectedLabelColor ??
+      TreeRenderer._hslToHex(_hsl.h, _hsl.s * 0.50, Math.min(97, _hsl.l * 1.08));
+    this.selectedLabelStyle = s.selectedLabelStyle ?? 'bold';
+
+    // ── Layout geometry ─────────────────────────────────────────────────────
+    this.paddingLeft       = s.paddingLeft;
+    this.paddingTop        = s.paddingTop;
+    this.paddingBottom     = s.paddingBottom;
+    this.elbowRadius       = s.elbowRadius;
+    this.rootStubLength    = s.rootStubLength;
+
+    // ── Hover ───────────────────────────────────────────────────────────────
+    this.tipHoverFillColor       = s.tipHoverFillColor;
+    this.tipHoverStrokeColor     = s.tipHoverStrokeColor;
+    this.tipHoverGrowthFactor    = s.tipHoverGrowthFactor;
+    this.tipHoverMinSize         = s.tipHoverMinSize;
+    this.tipHoverFillOpacity     = s.tipHoverFillOpacity;
+    this.tipHoverStrokeWidth     = s.tipHoverStrokeWidth;
+    this.tipHoverStrokeOpacity   = s.tipHoverStrokeOpacity;
+    this.nodeHoverFillColor      = s.nodeHoverFillColor;
+    this.nodeHoverStrokeColor    = s.nodeHoverStrokeColor;
+    this.nodeHoverGrowthFactor   = s.nodeHoverGrowthFactor;
+    this.nodeHoverMinSize        = s.nodeHoverMinSize;
+    this.nodeHoverFillOpacity    = s.nodeHoverFillOpacity;
+    this.nodeHoverStrokeWidth    = s.nodeHoverStrokeWidth;
+    this.nodeHoverStrokeOpacity  = s.nodeHoverStrokeOpacity;
+
+    // ── Selection ───────────────────────────────────────────────────────────
+    this.selectedTipStrokeColor   = s.selectedTipStrokeColor;
+    this.selectedTipFillColor     = s.selectedTipFillColor;
+    this.selectedTipGrowthFactor  = s.selectedTipGrowthFactor;
+    this.selectedTipMinSize       = s.selectedTipMinSize;
+    this.selectedTipFillOpacity   = s.selectedTipFillOpacity;
+    this.selectedTipStrokeWidth   = s.selectedTipStrokeWidth;
+    this.selectedTipStrokeOpacity = s.selectedTipStrokeOpacity;
+    this.selectedNodeStrokeColor   = s.selectedNodeStrokeColor;
+    this.selectedNodeFillColor     = s.selectedNodeFillColor;
+    this.selectedNodeGrowthFactor  = s.selectedNodeGrowthFactor;
+    this.selectedNodeMinSize       = s.selectedNodeMinSize;
+    this.selectedNodeFillOpacity   = s.selectedNodeFillOpacity;
+    this.selectedNodeStrokeWidth   = s.selectedNodeStrokeWidth;
+    this.selectedNodeStrokeOpacity = s.selectedNodeStrokeOpacity;
+
+    // Propagate bg colour to an attached legend renderer.
+    this._legendRenderer?.setBgColor(this.bgColor, this._skipBg);
+
     if (redraw && this.nodes) {
       this._measureLabels();
       this._updateScaleX();

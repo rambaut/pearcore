@@ -239,7 +239,7 @@ export const THEMES = {
       },
 };
 
-export const DEFAULTS = {
+export const DEFAULT_SETTINGS = {
   theme:            'Artic',
   canvasBgColor:    '#ffffff',
   branchColor:      '#444444',
@@ -250,6 +250,7 @@ export const DEFAULTS = {
   tipHaloSize:      '1',
   tipShapeColor:    '#ffffff',
   tipShapeBgColor:  '#000000',
+  tipOutlineColor:  '#033940',
   nodeSize:         '0',
   nodeHaloSize:     '1',
   nodeShapeColor:   '#000000',
@@ -295,4 +296,10 @@ export const DEFAULTS = {
   axisMinorInterval:    'off',
   axisMajorLabelFormat: 'auto',
   axisMinorLabelFormat: 'off',
+  // Layout geometry (no DOM controls — passed directly to TreeRenderer)
+  paddingLeft:    '60',
+  paddingTop:     '20',
+  paddingBottom:  '20',
+  elbowRadius:    '2',
+  rootStubLength: '20',
 };

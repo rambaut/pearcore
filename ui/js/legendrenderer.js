@@ -21,8 +21,9 @@ export class LegendRenderer {
   /**
    * @param {HTMLCanvasElement} leftCanvas
    * @param {HTMLCanvasElement} rightCanvas
+   * @param {object}            settings  Must include fontSize, textColor, bgColor (all required).
    */
-  constructor(leftCanvas, rightCanvas) {
+  constructor(leftCanvas, rightCanvas, settings) {
     this._leftCanvas  = leftCanvas;
     this._rightCanvas = rightCanvas;
 
@@ -30,15 +31,32 @@ export class LegendRenderer {
     this._annotation = null;   // annotation key string | null
     this._schema     = null;   // Map<string, AnnotationDef>
 
-    this.fontSize  = 11;
-    this.textColor = '#f7eeca';
-    this.bgColor   = '#002b36';
-    this.skipBg    = false;
+    this.skipBg = false;
+    this._dpr   = window.devicePixelRatio || 1;
 
-    this._dpr = window.devicePixelRatio || 1;
+    this.setSettings(settings, /*redraw*/ false);
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
+
+  /**
+   * Apply rendering settings.  Recognised keys: fontSize (number), textColor (string),
+   * bgColor (string), skipBg (boolean).
+   * @param {object}  s
+   * @param {boolean} redraw  When true (default) triggers a repaint.
+   */
+  setSettings(s, redraw = true) {
+    if (s.fontSize  != null) this.fontSize  = s.fontSize;
+    if (s.textColor != null) this.textColor = s.textColor;
+    if (s.bgColor   != null) {
+      this.bgColor = s.bgColor;
+      for (const lc of [this._leftCanvas, this._rightCanvas]) {
+        if (lc) lc.style.backgroundColor = s.bgColor;
+      }
+    }
+    if (s.skipBg != null) this.skipBg = s.skipBg;
+    if (redraw) this.draw();
+  }
 
   /**
    * Store the annotation schema.  Triggers a redraw so the legend reflects

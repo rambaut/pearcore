@@ -4,7 +4,7 @@ import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointR
 import { TreeRenderer } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
-import { THEMES, DEFAULTS, SETTINGS_KEY, USER_THEMES_KEY } from './themes.js';
+import { THEMES, DEFAULT_SETTINGS, SETTINGS_KEY, USER_THEMES_KEY } from './themes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from './annotationsio.js';
 
@@ -90,7 +90,7 @@ import { createAnnotImporter } from './annotationsio.js';
   const tipFilterCnt           = document.getElementById('tip-filter-count');
 
   // ── Settings persistence ──────────────────────────────────────────────────
-  // SETTINGS_KEY, USER_THEMES_KEY, THEMES, DEFAULTS imported from ./themes.js
+  // SETTINGS_KEY, USER_THEMES_KEY, THEMES, DEFAULT_SETTINGS imported from ./themes.js
 
   let currentOrder = null;  // null | 'asc' | 'desc' — declared early so saveSettings() is safe to call during init
 
@@ -472,49 +472,8 @@ import { createAnnotImporter } from './annotationsio.js';
     themeSelect.value = themeName;
     btnStoreTheme.disabled = (themeName !== 'custom');
     if (renderer) {
-      if (s.canvasBgColor)        renderer.setBgColor(s.canvasBgColor);
-      if (s.branchColor)          renderer.setBranchColor(s.branchColor);
-      if (s.branchWidth    != null) renderer.setBranchWidth(parseFloat(s.branchWidth));
-      if (s.fontSize       != null) renderer.setFontSize(parseInt(s.fontSize));
-      if (s.labelColor)            renderer.setLabelColor(s.labelColor);
-      if (s.selectedLabelStyle)    renderer.setSelectedLabelStyle(s.selectedLabelStyle);
-      if (s.selectedTipStrokeColor)     renderer.setSelectedTipStrokeColor(s.selectedTipStrokeColor);
-      if (s.selectedNodeStrokeColor)         renderer.setSelectedNodeStrokeColor(s.selectedNodeStrokeColor);
-      if (s.tipHoverFillColor)         renderer.setTipHoverFillColor(s.tipHoverFillColor);
-      if (s.nodeHoverFillColor)    renderer.setNodeHoverFillColor(s.nodeHoverFillColor);
-      if (s.selectedTipFillColor)  renderer.setSelectedTipFillColor(s.selectedTipFillColor);
-      if (s.selectedTipGrowthFactor != null) renderer.setSelectedTipGrowthFactor(parseFloat(s.selectedTipGrowthFactor));
-      if (s.selectedTipMinSize != null) renderer.setSelectedTipMinSize(parseFloat(s.selectedTipMinSize));
-      if (s.selectedTipFillOpacity != null) renderer.setSelectedTipFillOpacity(parseFloat(s.selectedTipFillOpacity));
-      if (s.selectedTipStrokeWidth != null) renderer.setSelectedTipStrokeWidth(parseFloat(s.selectedTipStrokeWidth));
-      if (s.selectedTipStrokeOpacity != null) renderer.setSelectedTipStrokeOpacity(parseFloat(s.selectedTipStrokeOpacity));
-      if (s.selectedNodeFillColor) renderer.setSelectedNodeFillColor(s.selectedNodeFillColor);
-      if (s.selectedNodeGrowthFactor != null) renderer.setSelectedNodeGrowthFactor(parseFloat(s.selectedNodeGrowthFactor));
-      if (s.selectedNodeMinSize != null) renderer.setSelectedNodeMinSize(parseFloat(s.selectedNodeMinSize));
-      if (s.selectedNodeFillOpacity != null) renderer.setSelectedNodeFillOpacity(parseFloat(s.selectedNodeFillOpacity));
-      if (s.selectedNodeStrokeWidth != null) renderer.setSelectedNodeStrokeWidth(parseFloat(s.selectedNodeStrokeWidth));
-      if (s.selectedNodeStrokeOpacity != null) renderer.setSelectedNodeStrokeOpacity(parseFloat(s.selectedNodeStrokeOpacity));
-      if (s.tipHoverStrokeColor)   renderer.setTipHoverStrokeColor(s.tipHoverStrokeColor);
-      if (s.tipHoverGrowthFactor != null) renderer.setTipHoverGrowthFactor(parseFloat(s.tipHoverGrowthFactor));
-      if (s.tipHoverMinSize != null) renderer.setTipHoverMinSize(parseFloat(s.tipHoverMinSize));
-      if (s.tipHoverFillOpacity != null) renderer.setTipHoverFillOpacity(parseFloat(s.tipHoverFillOpacity));
-      if (s.tipHoverStrokeWidth != null) renderer.setTipHoverStrokeWidth(parseFloat(s.tipHoverStrokeWidth));
-      if (s.tipHoverStrokeOpacity != null) renderer.setTipHoverStrokeOpacity(parseFloat(s.tipHoverStrokeOpacity));
-      if (s.nodeHoverStrokeColor)  renderer.setNodeHoverStrokeColor(s.nodeHoverStrokeColor);
-      if (s.nodeHoverGrowthFactor != null) renderer.setNodeHoverGrowthFactor(parseFloat(s.nodeHoverGrowthFactor));
-      if (s.nodeHoverMinSize != null) renderer.setNodeHoverMinSize(parseFloat(s.nodeHoverMinSize));
-      if (s.nodeHoverFillOpacity != null) renderer.setNodeHoverFillOpacity(parseFloat(s.nodeHoverFillOpacity));
-      if (s.nodeHoverStrokeWidth != null) renderer.setNodeHoverStrokeWidth(parseFloat(s.nodeHoverStrokeWidth));
-      if (s.nodeHoverStrokeOpacity != null) renderer.setNodeHoverStrokeOpacity(parseFloat(s.nodeHoverStrokeOpacity));
-      if (s.tipSize        != null) renderer.setTipRadius(parseInt(s.tipSize));
-      if (s.tipHaloSize    != null) renderer.setTipHaloSize(parseInt(s.tipHaloSize));
-      if (s.tipShapeColor)         renderer.setTipShapeColor(s.tipShapeColor);
-      if (s.tipShapeBgColor)       renderer.setTipShapeBgColor(s.tipShapeBgColor);
-      if (s.nodeSize       != null) renderer.setNodeRadius(parseInt(s.nodeSize));
-      if (s.nodeHaloSize   != null) renderer.setNodeHaloSize(parseInt(s.nodeHaloSize));
-      if (s.nodeShapeColor)        renderer.setNodeShapeColor(s.nodeShapeColor);
-      if (s.nodeShapeBgColor)      renderer.setNodeShapeBgColor(s.nodeShapeBgColor);
-      if (s.axisColor)             axisRenderer.setColor(s.axisColor);
+      renderer.setSettings(_buildRendererSettings());
+      if (s.axisColor) axisRenderer.setColor(s.axisColor);
     }
   }
 
@@ -528,29 +487,29 @@ import { createAnnotImporter } from './annotationsio.js';
     tipColourBy.value        = 'user_colour';
     nodeColourBy.value       = 'user_colour';
     labelColourBy.value      = 'user_colour';
-    legendShowEl.value       = DEFAULTS.legendShow;
+    legendShowEl.value       = DEFAULT_SETTINGS.legendShow;
     legendAnnotEl.value      = '';
-    legendTextColorEl.value  = DEFAULTS.legendTextColor;
-    legendFontSizeSlider.value = DEFAULTS.legendFontSize;
-    document.getElementById('legend-font-size-value').textContent = DEFAULTS.legendFontSize;
-    axisShowEl.value         = DEFAULTS.axisShow;
+    legendTextColorEl.value  = DEFAULT_SETTINGS.legendTextColor;
+    legendFontSizeSlider.value = DEFAULT_SETTINGS.legendFontSize;
+    document.getElementById('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
+    axisShowEl.value         = DEFAULT_SETTINGS.axisShow;
     axisDateAnnotEl.value    = '';
-    axisMajorIntervalEl.value    = DEFAULTS.axisMajorInterval;
-    axisMinorIntervalEl.value    = DEFAULTS.axisMinorInterval;
-    axisMajorLabelEl.value       = DEFAULTS.axisMajorLabelFormat;
-    axisMinorLabelEl.value       = DEFAULTS.axisMinorLabelFormat;
-    _updateMinorOptions(DEFAULTS.axisMajorInterval, DEFAULTS.axisMinorInterval);
-    axisFontSizeSlider.value = DEFAULTS.axisFontSize;
-    document.getElementById('axis-font-size-value').textContent = DEFAULTS.axisFontSize;
-    axisLineWidthSlider.value = DEFAULTS.axisLineWidth;
-    document.getElementById('axis-line-width-value').textContent = DEFAULTS.axisLineWidth;
+    axisMajorIntervalEl.value    = DEFAULT_SETTINGS.axisMajorInterval;
+    axisMinorIntervalEl.value    = DEFAULT_SETTINGS.axisMinorInterval;
+    axisMajorLabelEl.value       = DEFAULT_SETTINGS.axisMajorLabelFormat;
+    axisMinorLabelEl.value       = DEFAULT_SETTINGS.axisMinorLabelFormat;
+    _updateMinorOptions(DEFAULT_SETTINGS.axisMajorInterval, DEFAULT_SETTINGS.axisMinorInterval);
+    axisFontSizeSlider.value = DEFAULT_SETTINGS.axisFontSize;
+    document.getElementById('axis-font-size-value').textContent = DEFAULT_SETTINGS.axisFontSize;
+    axisLineWidthSlider.value = DEFAULT_SETTINGS.axisLineWidth;
+    document.getElementById('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
 
     if (renderer) {
       renderer.setTipColourBy('user_colour');
       renderer.setNodeColourBy('user_colour');
       renderer.setLabelColourBy('user_colour');
-      legendRenderer.setFontSize(parseInt(DEFAULTS.legendFontSize));
-      legendRenderer.setTextColor(DEFAULTS.legendTextColor);
+      legendRenderer.setFontSize(parseInt(DEFAULT_SETTINGS.legendFontSize));
+      legendRenderer.setTextColor(DEFAULT_SETTINGS.legendTextColor);
       renderer.setMode('nodes');
       applyLegend();
       applyAxis();
@@ -566,6 +525,65 @@ import { createAnnotImporter } from './annotationsio.js';
     document.getElementById('btn-mode-branches') ?.classList.toggle('active', false);
 
     saveSettings();
+  }
+
+  /**
+   * Build a fully-typed settings object for TreeRenderer from the current DOM
+   * state.  Called whenever a theme is applied, a file's settings are loaded,
+   * or the renderer is first created so there is a single source of truth for
+   * what gets passed to the renderer.
+   */
+  function _buildRendererSettings() {
+    return {
+      bgColor:          canvasBgColorEl.value,
+      branchColor:      branchColorEl.value,
+      branchWidth:      parseFloat(branchWidthSlider.value),
+      fontSize:         parseInt(fontSlider.value),
+      tipRadius:        parseInt(tipSlider.value),
+      tipHaloSize:      parseInt(tipHaloSlider.value),
+      tipShapeColor:    tipShapeColorEl.value,
+      tipShapeBgColor:  tipShapeBgEl.value,
+      tipOutlineColor:  DEFAULT_SETTINGS.tipOutlineColor,
+      nodeRadius:       parseInt(nodeSlider.value),
+      nodeHaloSize:     parseInt(nodeHaloSlider.value),
+      nodeShapeColor:   nodeShapeColorEl.value,
+      nodeShapeBgColor: nodeShapeBgEl.value,
+      labelColor:       labelColorEl.value,
+      selectedLabelStyle: selectedLabelStyleEl.value,
+      paddingLeft:      parseInt(DEFAULT_SETTINGS.paddingLeft),
+      paddingTop:       parseInt(DEFAULT_SETTINGS.paddingTop),
+      paddingBottom:    parseInt(DEFAULT_SETTINGS.paddingBottom),
+      elbowRadius:      parseFloat(DEFAULT_SETTINGS.elbowRadius),
+      rootStubLength:   parseFloat(DEFAULT_SETTINGS.rootStubLength),
+      tipHoverFillColor:      tipHoverFillEl.value,
+      tipHoverStrokeColor:    tipHoverStrokeEl.value,
+      tipHoverGrowthFactor:   parseFloat(tipHoverGrowthSlider.value),
+      tipHoverMinSize:        parseFloat(tipHoverMinSizeSlider.value),
+      tipHoverFillOpacity:    parseFloat(tipHoverFillOpacitySlider.value),
+      tipHoverStrokeWidth:    parseFloat(tipHoverStrokeWidthSlider.value),
+      tipHoverStrokeOpacity:  parseFloat(tipHoverStrokeOpacitySlider.value),
+      nodeHoverFillColor:     nodeHoverFillEl.value,
+      nodeHoverStrokeColor:   nodeHoverStrokeEl.value,
+      nodeHoverGrowthFactor:  parseFloat(nodeHoverGrowthSlider.value),
+      nodeHoverMinSize:       parseFloat(nodeHoverMinSizeSlider.value),
+      nodeHoverFillOpacity:   parseFloat(nodeHoverFillOpacitySlider.value),
+      nodeHoverStrokeWidth:   parseFloat(nodeHoverStrokeWidthSlider.value),
+      nodeHoverStrokeOpacity: parseFloat(nodeHoverStrokeOpacitySlider.value),
+      selectedTipStrokeColor:    selectedTipStrokeEl.value,
+      selectedTipFillColor:      selectedTipFillEl.value,
+      selectedTipGrowthFactor:   parseFloat(selectedTipGrowthSlider.value),
+      selectedTipMinSize:        parseFloat(selectedTipMinSizeSlider.value),
+      selectedTipFillOpacity:    parseFloat(selectedTipFillOpacitySlider.value),
+      selectedTipStrokeWidth:    parseFloat(selectedTipStrokeWidthSlider.value),
+      selectedTipStrokeOpacity:  parseFloat(selectedTipStrokeOpacitySlider.value),
+      selectedNodeStrokeColor:   selectedNodeStrokeEl.value,
+      selectedNodeFillColor:     selectedNodeFillEl.value,
+      selectedNodeGrowthFactor:  parseFloat(selectedNodeGrowthSlider.value),
+      selectedNodeMinSize:       parseFloat(selectedNodeMinSizeSlider.value),
+      selectedNodeFillOpacity:   parseFloat(selectedNodeFillOpacitySlider.value),
+      selectedNodeStrokeWidth:   parseFloat(selectedNodeStrokeWidthSlider.value),
+      selectedNodeStrokeOpacity: parseFloat(selectedNodeStrokeOpacitySlider.value),
+    };
   }
 
   /** Apply a named theme: hydrate all visual DOM controls and push to renderer. */
@@ -607,28 +625,7 @@ import { createAnnotImporter } from './annotationsio.js';
     const legendColor = t.legendTextColor || t.labelColor;
     legendTextColorEl.value = legendColor;
     if (renderer) {
-      renderer.setBgColor(t.canvasBgColor);
-      renderer.setBranchColor(t.branchColor);
-      renderer.setBranchWidth(parseFloat(t.branchWidth));
-      renderer.setFontSize(parseInt(t.fontSize));
-      renderer.setLabelColor(t.labelColor);
-      renderer.setSelectedLabelStyle(t.selectedLabelStyle || 'bold');
-      renderer.setSelectedTipStrokeColor(t.selectedTipStrokeColor  || '#E06961');
-      renderer.setSelectedNodeStrokeColor(t.selectedNodeStrokeColor           || '#19A699');
-      renderer.setTipHoverFillColor(t.tipHoverFillColor           || '#BF4B43');
-      renderer.setNodeHoverFillColor(t.nodeHoverFillColor || '#19A699');
-      renderer.setSelectedTipFillColor(t.selectedTipFillColor || '#888888');
-      renderer.setSelectedNodeFillColor(t.selectedNodeFillColor || '#19A699');
-      renderer.setTipHoverStrokeColor(t.tipHoverStrokeColor || '#7B2820');
-      renderer.setNodeHoverStrokeColor(t.nodeHoverStrokeColor || '#0D6560');
-      renderer.setTipRadius(parseInt(t.tipSize));
-      renderer.setTipHaloSize(parseInt(t.tipHaloSize));
-      renderer.setTipShapeColor(t.tipShapeColor);
-      renderer.setTipShapeBgColor(t.tipShapeBgColor);
-      renderer.setNodeRadius(parseInt(t.nodeSize));
-      renderer.setNodeHaloSize(parseInt(t.nodeHaloSize));
-      renderer.setNodeShapeColor(t.nodeShapeColor);
-      renderer.setNodeShapeBgColor(t.nodeShapeBgColor);
+      renderer.setSettings(_buildRendererSettings());
       if (t.axisColor) axisRenderer.setColor(t.axisColor);
       legendRenderer.setTextColor(legendColor);
       // Invalidate axis hash so next update redraws
@@ -801,7 +798,7 @@ import { createAnnotImporter } from './annotationsio.js';
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const renderer = new TreeRenderer(canvas);
+  const renderer = new TreeRenderer(canvas, _buildRendererSettings());
 
   renderer._onStatsChange = (stats) => {
     const el = document.getElementById('status-stats');
@@ -819,17 +816,22 @@ import { createAnnotImporter } from './annotationsio.js';
 
   // ── Legend renderer ────────────────────────────────────────────────────────
   // Must be created before applyTheme() (which calls legendRenderer.setTextColor).
-  const legendRenderer = new LegendRenderer(legendLeftCanvas, legendRightCanvas);
+  const legendRenderer = new LegendRenderer(legendLeftCanvas, legendRightCanvas, {
+    fontSize:  parseInt(legendFontSizeSlider.value),
+    textColor: legendTextColorEl.value,
+    bgColor:   canvasBgColorEl.value,
+  });
   renderer.setLegendRenderer(legendRenderer);
 
   // ── Axis renderer ─────────────────────────────────────────────────────────
   // Must be created before applyTheme() is called below (applyTheme references
   // axisRenderer, and const bindings have TDZ — calling the function before this
   // line would throw "Cannot access 'axisRenderer' before initialization").
-  const axisRenderer          = new AxisRenderer(axisCanvas);
-  axisRenderer.setColor(axisColorEl.value);
-  axisRenderer.setFontSize(parseInt(axisFontSizeSlider.value));
-  axisRenderer.setLineWidth(parseFloat(axisLineWidthSlider.value));
+  const axisRenderer = new AxisRenderer(axisCanvas, {
+    axisColor: axisColorEl.value,
+    fontSize:  parseInt(axisFontSizeSlider.value),
+    lineWidth: parseFloat(axisLineWidthSlider.value),
+  });
   const canvasAndAxisWrapper  = document.getElementById('canvas-and-axis-wrapper');
 
   // Apply stored visual settings to the renderer immediately.
@@ -837,52 +839,9 @@ import { createAnnotImporter } from './annotationsio.js';
   if (!_saved.theme) {
     applyTheme('Artic');
   } else {
-    renderer.setBgColor(canvasBgColorEl.value);
-    renderer.setBranchColor(branchColorEl.value);
-    renderer.setBranchWidth(parseFloat(branchWidthSlider.value));
-    renderer.setFontSize(parseInt(fontSlider.value));
-    renderer.setLabelColor(labelColorEl.value);
-    renderer.setSelectedLabelStyle(selectedLabelStyleEl.value);
-    renderer.setSelectedTipStrokeColor(selectedTipStrokeEl.value);
-    renderer.setSelectedNodeStrokeColor(selectedNodeStrokeEl.value);
-    renderer.setTipHoverFillColor(tipHoverFillEl.value);
-    renderer.setNodeHoverFillColor(nodeHoverFillEl.value);
-    renderer.setSelectedTipFillColor(selectedTipFillEl.value);
-    renderer.setSelectedTipGrowthFactor(parseFloat(selectedTipGrowthSlider.value));
-    renderer.setSelectedTipMinSize(parseFloat(selectedTipMinSizeSlider.value));
-    renderer.setSelectedTipFillOpacity(parseFloat(selectedTipFillOpacitySlider.value));
-    renderer.setSelectedTipStrokeWidth(parseFloat(selectedTipStrokeWidthSlider.value));
-    renderer.setSelectedTipStrokeOpacity(parseFloat(selectedTipStrokeOpacitySlider.value));
-    renderer.setSelectedNodeFillColor(selectedNodeFillEl.value);
-    renderer.setSelectedNodeGrowthFactor(parseFloat(selectedNodeGrowthSlider.value));
-    renderer.setSelectedNodeMinSize(parseFloat(selectedNodeMinSizeSlider.value));
-    renderer.setSelectedNodeFillOpacity(parseFloat(selectedNodeFillOpacitySlider.value));
-    renderer.setSelectedNodeStrokeWidth(parseFloat(selectedNodeStrokeWidthSlider.value));
-    renderer.setSelectedNodeStrokeOpacity(parseFloat(selectedNodeStrokeOpacitySlider.value));
-    renderer.setTipHoverStrokeColor(tipHoverStrokeEl.value);
-    renderer.setTipHoverGrowthFactor(parseFloat(tipHoverGrowthSlider.value));
-    renderer.setTipHoverMinSize(parseFloat(tipHoverMinSizeSlider.value));
-    renderer.setTipHoverFillOpacity(parseFloat(tipHoverFillOpacitySlider.value));
-    renderer.setTipHoverStrokeWidth(parseFloat(tipHoverStrokeWidthSlider.value));
-    renderer.setTipHoverStrokeOpacity(parseFloat(tipHoverStrokeOpacitySlider.value));
-    renderer.setNodeHoverStrokeColor(nodeHoverStrokeEl.value);
-    renderer.setNodeHoverGrowthFactor(parseFloat(nodeHoverGrowthSlider.value));
-    renderer.setNodeHoverMinSize(parseFloat(nodeHoverMinSizeSlider.value));
-    renderer.setNodeHoverFillOpacity(parseFloat(nodeHoverFillOpacitySlider.value));
-    renderer.setNodeHoverStrokeWidth(parseFloat(nodeHoverStrokeWidthSlider.value));
-    renderer.setNodeHoverStrokeOpacity(parseFloat(nodeHoverStrokeOpacitySlider.value));
-    renderer.setTipRadius(parseInt(tipSlider.value));
-    renderer.setTipHaloSize(parseInt(tipHaloSlider.value));
-    renderer.setTipShapeColor(tipShapeColorEl.value);
-    renderer.setTipShapeBgColor(tipShapeBgEl.value);
-    renderer.setNodeRadius(parseInt(nodeSlider.value));
-    renderer.setNodeHaloSize(parseInt(nodeHaloSlider.value));
-    renderer.setNodeShapeColor(nodeShapeColorEl.value);
-    renderer.setNodeShapeBgColor(nodeShapeBgEl.value);
+    // DOM controls were already hydrated from _saved above; just sync the renderer.
+    renderer.setSettings(_buildRendererSettings(), false);
   }
-
-  legendRenderer.setFontSize(parseInt(legendFontSizeSlider.value));
-  legendRenderer.setTextColor(legendTextColorEl.value);
 
   renderer._onViewChange = (scaleX, offsetX, paddingLeft, labelRightPad, bgColor, fontSize, dpr) => {
     axisRenderer.update(scaleX, offsetX, paddingLeft, labelRightPad, bgColor, fontSize, dpr);
