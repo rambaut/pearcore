@@ -2974,6 +2974,9 @@ import * as commands from './commands.js';
     if (e.altKey) return;
     for (const cmd of commands.getAll().values()) {
       if (!commands.matchesShortcut(e, cmd.shortcut)) continue;
+      // If no exec is registered (e.g. new-window, wired only by the Tauri adapter),
+      // don't intercept — let the browser handle its own default for this shortcut.
+      if (!cmd.exec) continue;
       // select-all: let the browser handle it natively when a text field is focused.
       if (cmd.id === 'select-all') {
         const tag = document.activeElement?.tagName;
