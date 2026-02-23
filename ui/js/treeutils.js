@@ -337,7 +337,36 @@ export function computeLayoutFromGraph(graph, subtreeRootId = null) {
     nodeMap.delete(node.id);
   }
 
-  const finalNodes = layoutNodes.filter(n => !toRemove.has(n.id));
+  let finalNodes = layoutNodes.filter(n => !toRemove.has(n.id));
+
+  // ── Root-collapse pass ────────────────────────────────────────────────────
+  // The post-pass above never suppresses the root. After hiding, the root may
+  // be degree-2 (1 child remaining). Walk down the single-child chain from the
+  // root and promote the first bifurcating (or tip) descendant to be the new
+  // layout root, removing all intermediate degree-2 ancestors.
+  {
+    const rootsToRemove = new Set();
+    let rootNode = finalNodes.find(n => n.parentId === null);
+    while (rootNode && !rootNode.isTip && rootNode.children.length === 1) {
+      const childNode = nodeMap.get(rootNode.children[0]);
+      if (!childNode) break;
+      // Propagate hasHiddenChildren flag down to the new root.
+      if (rootNode.hasHiddenChildren) childNode.hasHiddenChildren = true;
+      childNode.parentId = null;   // promote to root
+      rootsToRemove.add(rootNode.id);
+      nodeMap.delete(rootNode.id);
+      rootNode = childNode;
+    }
+    if (rootsToRemove.size) {
+      finalNodes = finalNodes.filter(n => !rootsToRemove.has(n.id));
+      // Shift all x values so the new root sits at x = 0.
+      const newRoot = finalNodes.find(n => n.parentId === null);
+      const newRootX = newRoot?.x ?? 0;
+      if (newRootX !== 0) {
+        for (const n of finalNodes) n.x -= newRootX;
+      }
+    }
+  }
 
   // Recompute y positions bottom-up now that suppression may have changed children.
   for (let i = finalNodes.length - 1; i >= 0; i--) {

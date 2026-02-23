@@ -1780,6 +1780,20 @@ import * as commands from './commands.js';
 
     function canHide() {
       if (!graph) return false;
+      // Multi-tip prune: hide each tip individually and contract degree-2 ancestors.
+      if (renderer._selectedTipIds.size > 1) {
+        if (!renderer.nodes) return false;
+        const sel = renderer._selectedTipIds;
+        // At least one selected tip must not already be hidden.
+        if (![...sel].some(id => !graph.hiddenNodeIds.has(id))) return false;
+        // After pruning all selected tips at least 2 non-selected visible tips must remain.
+        // Degree-2 contraction only hides internal nodes, never unselected tips, so this
+        // count is a tight lower bound on the visible tips left after the operation.
+        const remaining = renderer.nodes.filter(
+          n => n.isTip && !sel.has(n.id) && !graph.hiddenNodeIds.has(n.id)
+        ).length;
+        return remaining >= 2;
+      }
       const nodeId = _selectedNodeId();
       if (!nodeId || !renderer.nodeMap) return false;
       const node = renderer.nodeMap.get(nodeId);
@@ -2007,14 +2021,100 @@ import * as commands from './commands.js';
 
     function applyHide() {
       if (!canHide()) return;
-      const nodeId = _selectedNodeId();
-      if (!nodeId) return;
 
       // Snapshot the current visual root BEFORE mutating the graph / layout.
       const oldRoot    = renderer.nodes?.find(n => !n.parentId) ?? null;
       const oldNodeMap = renderer.nodeMap;
 
-      graph.hiddenNodeIds.add(nodeId);
+      if (renderer._selectedTipIds.size > 1) {
+        // Multi-tip prune using ancestor remaining-count map.
+        //
+        // Phase 1 – walk up from each selected tip building a map of how many
+        // unaccounted-for child-subtrees each ancestor retains.
+        //
+        //   • First visit to a node: count = (ALL non-hidden children in
+        //     adjacents[1..], including the direction we came from).
+        //     Store count−1 (that −1 accounts for the path we walked up from).
+        //     Always stop on first visit.
+        //   • Subsequent visits (another selected tip arrived): decrement by 1.
+        //     – result > 0 → stop  (node still has unclaimed children)
+        //     – result == 0 → continue up  (all children now accounted for)
+        //
+        // Phase 2 – hiding:
+        //   • Ancestors whose count == 0 are fully consumed by selected tips:
+        //     hide the ancestor node (hides its whole subtree in one step).
+        //   • Selected tips not covered by a hidden ancestor are hidden directly.
+        //   • Ancestors with remaining count ≥ 1 are left alone; the layout's
+        //     post-pass suppresses any resulting degree-2 nodes automatically.
+
+        const { nodeA, nodeB } = graph.root;
+        const rootGuard = new Set([nodeA, nodeB]); // indices
+
+        // --- Phase 1 ---
+        const remaining = new Map(); // nodeIdx → remaining unaccounted children
+
+        for (const tipId of renderer._selectedTipIds) {
+          if (graph.hiddenNodeIds.has(tipId)) continue;
+          const tipIdx = graph.origIdToIdx.get(tipId);
+          if (tipIdx === undefined) continue;
+
+          let comingFrom = tipIdx;
+          let nodeIdx    = graph.nodes[tipIdx].adjacents[0];
+
+          while (nodeIdx !== undefined && nodeIdx >= 0 && !rootGuard.has(nodeIdx)) {
+            if (!remaining.has(nodeIdx)) {
+              // First visit: count ALL non-hidden children (adjacents[1..]),
+              // including comingFrom — that path is "owned" by this tip and
+              // is accounted for by the −1.
+              const count = graph.nodes[nodeIdx].adjacents.slice(1)
+                .filter(ci => !graph.hiddenNodeIds.has(graph.nodes[ci].origId))
+                .length;
+              remaining.set(nodeIdx, count - 1);
+              break; // always stop on first visit
+            } else {
+              const newCount = remaining.get(nodeIdx) - 1;
+              remaining.set(nodeIdx, newCount);
+              if (newCount > 0) break; // still has unclaimed children — stop
+              // newCount === 0: fully consumed — continue propagating upward
+            }
+            comingFrom = nodeIdx;
+            nodeIdx    = graph.nodes[nodeIdx].adjacents[0];
+          }
+        }
+
+        // --- Phase 2 ---
+        // Collect fully-consumed ancestor origIds (remaining === 0).
+        const hiddenAncestorIds = new Set();
+        for (const [ni, count] of remaining) {
+          if (count === 0) hiddenAncestorIds.add(graph.nodes[ni].origId);
+        }
+
+        // Hide fully-consumed ancestors (covers their entire subtrees).
+        for (const origId of hiddenAncestorIds) {
+          graph.hiddenNodeIds.add(origId);
+        }
+
+        // Hide individual selected tips not already covered by a hidden ancestor.
+        for (const tipId of renderer._selectedTipIds) {
+          if (graph.hiddenNodeIds.has(tipId)) continue;
+          const tipIdx = graph.origIdToIdx.get(tipId);
+          if (tipIdx === undefined) continue;
+
+          let covered = false;
+          let ni = graph.nodes[tipIdx].adjacents[0];
+          while (ni !== undefined && ni >= 0 && !rootGuard.has(ni)) {
+            if (hiddenAncestorIds.has(graph.nodes[ni].origId)) { covered = true; break; }
+            if (!remaining.has(ni)) break; // outside affected ancestry
+            ni = graph.nodes[ni].adjacents[0];
+          }
+          if (!covered) graph.hiddenNodeIds.add(tipId);
+        }
+      } else {
+        const nodeId = _selectedNodeId();
+        if (!nodeId) return;
+        graph.hiddenNodeIds.add(nodeId);
+      }
+
       renderer._selectedTipIds.clear();
       renderer._mrcaNodeId = null;
       if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(false);
