@@ -7,6 +7,7 @@ import { AxisRenderer  } from './axisrenderer.js';
 import { THEMES, DEFAULT_SETTINGS, SETTINGS_KEY, USER_THEMES_KEY } from './themes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from './annotationsio.js';
+import * as commands from './commands.js';
 
 (async () => {
   const canvas            = document.getElementById('tree-canvas');
@@ -974,18 +975,6 @@ import { createAnnotImporter } from './annotationsio.js';
       if (modal.classList.contains('open'))  { closeModal(); return; }
     }
 
-    // ── File-open shortcuts (web-app context; Tauri handles these via native menu) ──
-    const cmdOrCtrl = e.metaKey || e.ctrlKey;
-    if (cmdOrCtrl && !e.shiftKey && e.key === 'o') {
-      e.preventDefault();
-      pickTreeFile();      // Cmd/Ctrl+O → direct native file picker
-      return;
-    }
-    if (cmdOrCtrl && e.shiftKey && e.key === 'O') {
-      e.preventDefault();
-      openModal();         // Cmd/Ctrl+Shift+O → Open Tree modal
-      return;
-    }
   });
 
   // ── File tab ──────────────────────────────────────────────────────────────
@@ -1434,8 +1423,7 @@ import { createAnnotImporter } from './annotationsio.js';
     repopulate(legendAnnotEl, /*isLegend*/ true);
     // Sync clear-user-colour button: enabled only when at least one node has been coloured.
     if (btnClearUserColour) {
-      btnClearUserColour.disabled = !schema.has('user_colour');
-      _setMenuEnabled('tree-clear-colours', schema.has('user_colour'));
+      commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
     }
   }
 
@@ -1489,17 +1477,14 @@ import { createAnnotImporter } from './annotationsio.js';
       // Disable reroot / midpoint-root for explicitly rooted trees.
       // (bindControls may not have run yet on first load; the selector always works.)
       const btnMPR = document.getElementById('btn-midpoint-root');
-      btnMPR.disabled = isExplicitlyRooted;
-      btnMPR.title    = isExplicitlyRooted
+      btnMPR.title = isExplicitlyRooted
         ? 'Tree is explicitly rooted (root has annotations) — rerooting disabled'
         : 'Midpoint root (⌘M)';
+      commands.setEnabled('tree-midpoint', !isExplicitlyRooted);
       const btnRR = document.getElementById('btn-reroot');
-      if (isExplicitlyRooted) {
-        btnRR.disabled = true;
-        btnRR.title    = 'Tree is explicitly rooted (root has annotations) — rerooting disabled';
-      } else {
-        btnRR.title = 'Reroot tree at selection';
-      }
+      btnRR.title = isExplicitlyRooted
+        ? 'Tree is explicitly rooted (root has annotations) — rerooting disabled'
+        : 'Reroot tree at selection';
 
       // Populate the "Colour by" dropdowns. user_colour is always the first option.
       const schema = graph.annotationSchema;
@@ -1536,8 +1521,7 @@ import { createAnnotImporter } from './annotationsio.js';
       legendAnnotEl.value    = '';
       legendAnnotEl.disabled = schema.size === 0;
       if (btnClearUserColour) {
-        btnClearUserColour.disabled = !schema.has('user_colour');
-        _setMenuEnabled('tree-clear-colours', schema.has('user_colour'));
+        commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
       }
 
       // Annotation-dependent settings:  file-embedded settings take priority over saved prefs.
@@ -1621,35 +1605,27 @@ import { createAnnotImporter } from './annotationsio.js';
 
       if (!treeLoaded) {
         treeLoaded = true;
-        btnImportAnnot.disabled         = false;
-        btnExportTree.disabled          = false;
-        btnExportGraphic.disabled       = false;
-        tipFilterEl.disabled            = false;
-        tipColourPickerEl.disabled      = false;
-        // Enable tree-interaction toolbar buttons
-        document.getElementById('btn-zoom-in').disabled       = false;
-        document.getElementById('btn-zoom-out').disabled      = false;
-        document.getElementById('btn-fit').disabled           = false;
-        document.getElementById('btn-fit-labels').disabled    = false;
+        tipFilterEl.disabled       = false;
+        tipColourPickerEl.disabled = false;
+        // Buttons with no command equivalent
         const _btnHypUp   = document.getElementById('btn-hyp-up');
         const _btnHypDown = document.getElementById('btn-hyp-down');
         if (_btnHypUp)   _btnHypUp.disabled   = false;
         if (_btnHypDown) _btnHypDown.disabled = false;
-        document.getElementById('btn-order-asc').disabled     = false;
-        document.getElementById('btn-order-desc').disabled    = false;
         document.getElementById('btn-mode-nodes').disabled    = false;
         document.getElementById('btn-mode-branches').disabled = false;
         // Hide the empty-state overlay
         emptyStateEl.classList.add('hidden');
-        _setMenuEnabled('import-annot',   true);
-        _setMenuEnabled('export-tree',     true);
-        _setMenuEnabled('export-image',    true);
-        _setMenuEnabled('view-zoom-in',    true);
-        _setMenuEnabled('view-zoom-out',   true);
-        _setMenuEnabled('view-fit',        true);
-        _setMenuEnabled('view-fit-labels', true);
-        _setMenuEnabled('tree-order-up',   true);
-        _setMenuEnabled('tree-order-down', true);
+        // Enable commands — registry syncs both the button .disabled and the native menu.
+        commands.setEnabled('import-annot',    true);
+        commands.setEnabled('export-tree',     true);
+        commands.setEnabled('export-image',    true);
+        commands.setEnabled('view-zoom-in',    true);
+        commands.setEnabled('view-zoom-out',   true);
+        commands.setEnabled('view-fit',        true);
+        commands.setEnabled('view-fit-labels', true);
+        commands.setEnabled('tree-order-up',   true);
+        commands.setEnabled('tree-order-down', true);
       }
 
       // Restore interaction mode (file settings take priority).
@@ -1886,58 +1862,41 @@ import { createAnnotImporter } from './annotationsio.js';
       if (!gs) return graph.hiddenNodeIds.size > 0; // virtual root — any hidden counts
       return graphSubtreeHasHidden(graph, gs.gIdx, gs.gFromIdx);
     }
-    const btnMidpointRoot  = document.getElementById('btn-midpoint-root');
     // isExplicitlyRooted is read dynamically (closured from outer scope) so
     // subsequent tree loads automatically pick up the new value.
-    btnMidpointRoot.disabled = isExplicitlyRooted;
-    _setMenuEnabled('tree-midpoint', !isExplicitlyRooted);
+    // (tree-midpoint is also set per-load in loadTree; this run of bindControls
+    //  is a no-op on that path but is kept for safety.)
     document.getElementById('btn-zoom-in') .addEventListener('click', () => renderer.zoomIn());
     document.getElementById('btn-zoom-out').addEventListener('click', () => renderer.zoomOut());
     document.getElementById('btn-hyp-up')  ?.addEventListener('click', () => renderer.hypMagUp());
     document.getElementById('btn-hyp-down')?.addEventListener('click', () => renderer.hypMagDown());
 
     renderer._onNavChange = (canBack, canFwd) => {
-      btnBack.disabled    = !canBack;
-      btnForward.disabled = !canFwd;
-      btnHome.disabled    = !renderer._viewSubtreeRootId;
-      btnDrill.disabled   = !canDrill();
-      btnClimb.disabled   = !canClimb();
-      _setMenuEnabled('view-back',    canBack);
-      _setMenuEnabled('view-forward', canFwd);
-      _setMenuEnabled('view-home',    !!renderer._viewSubtreeRootId);
-      _setMenuEnabled('view-drill',   canDrill());
-      _setMenuEnabled('view-climb',   canClimb());
+      commands.setEnabled('view-back',    canBack);
+      commands.setEnabled('view-forward', canFwd);
+      commands.setEnabled('view-home',    !!renderer._viewSubtreeRootId);
+      commands.setEnabled('view-drill',   canDrill());
+      commands.setEnabled('view-climb',   canClimb());
     };
 
     renderer._onBranchSelectChange = (hasSelection) => {
       if (renderer._mode === 'branches') {
-        btnReroot.disabled = isExplicitlyRooted || !hasSelection;
-        _setMenuEnabled('tree-reroot', !btnReroot.disabled);
+        commands.setEnabled('tree-reroot', !isExplicitlyRooted && hasSelection);
       }
     };
     renderer._onNodeSelectChange = (hasSelection) => {
       if (renderer._mode === 'nodes') {
-        btnReroot.disabled = isExplicitlyRooted || !hasSelection;
-        _setMenuEnabled('tree-reroot', !btnReroot.disabled);
+        commands.setEnabled('tree-reroot', !isExplicitlyRooted && hasSelection);
       }
-      // Rotate is enabled whenever there is any selection in nodes mode.
       const canRotate = renderer._mode === 'nodes' && hasSelection;
-      btnRotate.disabled    = !canRotate;
-      btnRotateAll.disabled = !canRotate;
-      btnHide.disabled      = !canHide();
-      btnShow.disabled      = !canShow();
-      btnDrill.disabled     = !canDrill();
-      btnClimb.disabled     = !canClimb();
-      btnNodeInfo.disabled        = !graph;  // enabled whenever a tree is loaded
-      _setMenuEnabled('view-info',  !!graph);
-      _setMenuEnabled('view-drill', canDrill());
-      _setMenuEnabled('view-climb', canClimb());
-      btnApplyUserColour.disabled = !hasSelection;
-      _setMenuEnabled('tree-rotate',      canRotate);
-      _setMenuEnabled('tree-rotate-all',  canRotate);
-      _setMenuEnabled('tree-hide',        !btnHide.disabled);
-      _setMenuEnabled('tree-show',        !btnShow.disabled);
-      _setMenuEnabled('tree-paint',       hasSelection);
+      commands.setEnabled('view-info',        !!graph);
+      commands.setEnabled('view-drill',       canDrill());
+      commands.setEnabled('view-climb',       canClimb());
+      commands.setEnabled('tree-rotate',      canRotate);
+      commands.setEnabled('tree-rotate-all',  canRotate);
+      commands.setEnabled('tree-hide',        canHide());
+      commands.setEnabled('tree-show',        canShow());
+      commands.setEnabled('tree-paint',       hasSelection);
     };
 
     btnBack.addEventListener('click',    () => renderer.navigateBack());
@@ -2868,39 +2827,50 @@ import { createAnnotImporter } from './annotationsio.js';
   btnFit.addEventListener('click', () => renderer.fitToWindow());
   document.getElementById('btn-fit-labels').addEventListener('click', () => renderer.fitLabels());
 
-  // Open button and file-level keyboard shortcuts
+  // Open button
   document.getElementById('btn-open-tree').addEventListener('click', () => openModal());
+
+  // ── Wire command exec functions ────────────────────────────────────────────
+  // Explicitly-wired (no buttonId, or custom behaviour):
+  commands.get('open-file').exec  = () => pickTreeFile();
+  commands.get('open-tree').exec  = () => openModal();
+  commands.get('select-all').exec = () => {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) {
+      document.execCommand('selectAll');
+    } else if (renderer.nodes) {
+      const allTipIds = new Set(renderer.nodes.filter(n => n.isTip).map(n => n.id));
+      renderer._selectedTipIds = allTipIds;
+      renderer._mrcaNodeId = null;
+      if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(allTipIds.size > 0);
+      renderer._dirty = true;
+    }
+  };
+  // Button-backed commands: exec clicks the toolbar button so all existing
+  // click-handler logic runs without duplication.
+  for (const cmd of commands.getAll().values()) {
+    if (cmd.buttonId && !cmd.exec) {
+      const btnId = cmd.buttonId;
+      cmd.exec = () => document.getElementById(btnId)?.click();
+    }
+  }
+
+  // ── Global keyboard shortcut dispatch (registry-driven) ───────────────────
   window.addEventListener('keydown', e => {
     if (!e.metaKey && !e.ctrlKey) return;
-    if (e.altKey) return;   // leave alt-modified combos free for other handlers
-    const k = e.key.toLowerCase();
-    if (!e.shiftKey) {
-      // Plain Cmd/Ctrl shortcuts
-      if (k === 'o') {
-        e.preventDefault();
-        openModal();
-      } else if (k === 's') {
-        if (!treeLoaded) return;
-        e.preventDefault();
-        btnExportTree.click();
-      } else if (k === 'e') {
-        if (!treeLoaded) return;
-        e.preventDefault();
-        btnExportGraphic.click();
+    if (e.altKey) return;
+    for (const cmd of commands.getAll().values()) {
+      if (!commands.matchesShortcut(e, cmd.shortcut)) continue;
+      // select-all: let the browser handle it natively when a text field is focused.
+      if (cmd.id === 'select-all') {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
       }
-    } else {
-      // Cmd/Ctrl + Shift shortcuts
-      if (k === 'o') {
-        if (!treeLoaded) return;
-        e.preventDefault();
-        btnImportAnnot.click();
-      }
+      e.preventDefault();
+      commands.execute(cmd.id);
+      return;
     }
   });
-
-  // Sync native menu item enabled state with a platform bridge.
-  // Initialised to a no-op; override via window.peartree.setMenuEnabledImpl().
-  let _setMenuEnabled = () => {};
 
   // ── Public API for framework adapters ────────────────────────────────────
   // Exposed on window.peartree so that platform-specific glue scripts (e.g.
@@ -2912,24 +2882,13 @@ import { createAnnotImporter } from './annotationsio.js';
     closeModal,
     setModalError,
 
-    /** Select all tips in the current tree (e.g. for Edit > Select All). */
-    selectAll() {
-      if (renderer.nodes) {
-        const allTipIds = new Set(renderer.nodes.filter(n => n.isTip).map(n => n.id));
-        renderer._selectedTipIds = allTipIds;
-        renderer._mrcaNodeId = null;
-        if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(allTipIds.size > 0);
-        renderer._dirty = true;
-      }
-    },
-
     /** Trigger a file open. Default: click the hidden <input type="file">.
      *  Override with a platform-specific implementation (e.g. Tauri native dialog). */
     pickFile: () => fileInput.click(),
 
-    /** Register a function (id, enabled) => void to sync a native menu item's
-     *  enabled state. Called internally on every state change; default is a no-op. */
-    setMenuEnabledImpl(fn) { _setMenuEnabled = fn; },
+    /** The central command registry. Platform adapters (e.g. peartree-tauri.js)
+     *  subscribe to enabled-state changes and execute commands via this. */
+    commands,
   };
 
   window.dispatchEvent(new CustomEvent('peartree-ready'));

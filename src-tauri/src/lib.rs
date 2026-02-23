@@ -208,31 +208,9 @@ pub fn run() {
             ])?;
             app.set_menu(menu)?;
 
-            // ── Initial disabled states (no tree loaded yet) ──────────────────
-            // File: need a tree before these make sense.
-            for item in &[&import_annot, &export_tree, &export_image] {
-                item.set_enabled(false)?;
-            }
-            // View: disabled until a tree is loaded; navigation history also empty.
-            for item in &[
-                &view_back, &view_forward, &view_home,
-                &view_drill, &view_climb,
-                &view_zoom_in, &view_zoom_out, &view_fit, &view_fit_labels,
-                &view_info,
-            ] {
-                item.set_enabled(false)?;
-            }
-            // Tree: require a loaded tree and/or a selection.
-            for item in &[
-                &tree_rotate, &tree_rotate_all,
-                &tree_order_up, &tree_order_down,
-                &tree_reroot, &tree_midpoint,
-                &tree_hide, &tree_show,
-                &tree_paint, &tree_clear_colours,
-            ] {
-                item.set_enabled(false)?;
-            }
-            // Forward every menu event to the frontend as a "menu-event" with the item id as payload
+            // Forward every menu event to the frontend as a "menu-event" with the item id as payload.
+            // Initial enabled/disabled states are pushed from the JS registry (peartree-tauri.js)
+            // via onStateChange({ callNow: true }) immediately after peartree-ready fires.
             app.on_menu_event(|app, event| {
                 app.emit("menu-event", event.id().as_ref()).ok();
             });
