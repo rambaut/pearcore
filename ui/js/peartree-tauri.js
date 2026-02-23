@@ -39,12 +39,14 @@
   };
 
   // ── Native menu enabled-state sync ────────────────────────────────────────
-  // Subscribe with callNow:true so ALL current disabled states are pushed to
-  // Rust immediately — this replaces the hard-coded initial-disabled block
-  // that was previously in lib.rs.
+  // Subscribe to state changes from the JS command registry. Rust sets the
+  // correct initial disabled states at launch; this handles all dynamic
+  // changes thereafter (tree loaded, selection changed, etc.).
   registry.onStateChange((id, enabled) => {
-    invoke('set_menu_item_enabled', { id, enabled }).catch(() => {});
-  }, { callNow: true });
+    console.log('[tauri] set_menu_item_enabled', id, enabled);
+    invoke('set_menu_item_enabled', { id, enabled })
+      .catch(err => console.error('[tauri] set_menu_item_enabled failed', id, err));
+  });
 
   // ── File opened via drag-to-icon / double-click / file association ─────────
   await listen('open-file', async (event) => {

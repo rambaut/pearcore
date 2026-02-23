@@ -1,20 +1,28 @@
 use tauri::{
     menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu},
-    Emitter,
+    Emitter, Manager,
 };
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::DialogExt;
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+/// Managed state that maps each command id → its live MenuItem handle.
+/// Stored in Tauri's app state so `set_menu_item_enabled` can reach the
+/// actual handles rather than copies returned by `Menu::get`.
+struct MenuItems(Mutex<HashMap<String, MenuItem<tauri::Wry>>>);
 
 /// Called from JS to enable/disable a menu item by its string id.
 #[tauri::command]
-fn set_menu_item_enabled(app: tauri::AppHandle, id: &str, enabled: bool) {
-    if let Some(menu) = app.menu() {
-        if let Some(item) = menu.get(id) {
-            if let Some(mi) = item.as_menuitem() {
-                let _ = mi.set_enabled(enabled);
-            }
-        }
-    }
+fn set_menu_item_enabled(
+    app: tauri::AppHandle,
+    id: &str,
+    enabled: bool,
+) -> Result<(), String> {
+    let state = app.state::<MenuItems>();
+    let map   = state.0.lock().map_err(|e| e.to_string())?;
+    let item  = map.get(id).ok_or_else(|| format!("unknown menu item: {id}"))?;
+    item.set_enabled(enabled).map_err(|e| e.to_string())
 }
 
 /// Opens a native OS file picker filtered to tree file types, reads the
@@ -208,9 +216,71 @@ pub fn run() {
             ])?;
             app.set_menu(menu)?;
 
+            // ── Initial disabled states ───────────────────────────────────────
+            // Set synchronously in Rust before the WebView loads so the menu
+            // reflects the correct state from the very first frame.
+            // The JS command registry (peartree-tauri.js) drives all subsequent
+            // changes via set_menu_item_enabled invocations.
+            for item in &[&import_annot, &export_tree, &export_image] {
+                item.set_enabled(false)?;
+            }
+            for item in &[
+                &view_back, &view_forward, &view_home,
+                &view_drill, &view_climb,
+                &view_zoom_in, &view_zoom_out, &view_fit, &view_fit_labels,
+                &view_info,
+            ] {
+                item.set_enabled(false)?;
+            }
+            for item in &[
+                &tree_rotate, &tree_rotate_all,
+                &tree_order_up, &tree_order_down,
+                &tree_reroot, &tree_midpoint,
+                &tree_hide, &tree_show,
+                &tree_paint, &tree_clear_colours,
+            ] {
+                item.set_enabled(false)?;
+            }
+
+            // ── Register live MenuItem handles in managed state ────────────────
+            // set_menu_item_enabled uses these directly so it always operates on
+            // the real native handles, not copies returned by Menu::get.
+            let mut map: HashMap<String, MenuItem<tauri::Wry>> = HashMap::new();
+            for (id, item) in [
+                ("open-file",        open_file),
+                ("open-tree",        open_tree),
+                ("import-annot",     import_annot),
+                ("export-tree",      export_tree),
+                ("export-image",     export_image),
+                ("select-all",       select_all),
+                ("view-back",        view_back),
+                ("view-forward",     view_forward),
+                ("view-home",        view_home),
+                ("view-drill",       view_drill),
+                ("view-climb",       view_climb),
+                ("view-zoom-in",     view_zoom_in),
+                ("view-zoom-out",    view_zoom_out),
+                ("view-fit",         view_fit),
+                ("view-fit-labels",  view_fit_labels),
+                ("view-info",        view_info),
+                ("tree-rotate",      tree_rotate),
+                ("tree-rotate-all",  tree_rotate_all),
+                ("tree-order-up",    tree_order_up),
+                ("tree-order-down",  tree_order_down),
+                ("tree-reroot",      tree_reroot),
+                ("tree-midpoint",    tree_midpoint),
+                ("tree-hide",        tree_hide),
+                ("tree-show",        tree_show),
+                ("tree-paint",       tree_paint),
+                ("tree-clear-colours", tree_clear_colours),
+                ("show-help",        show_help),
+            ] {
+                map.insert(id.to_string(), item);
+            }
+            app.manage(MenuItems(Mutex::new(map)));
+
+
             // Forward every menu event to the frontend as a "menu-event" with the item id as payload.
-            // Initial enabled/disabled states are pushed from the JS registry (peartree-tauri.js)
-            // via onStateChange({ callNow: true }) immediately after peartree-ready fires.
             app.on_menu_event(|app, event| {
                 app.emit("menu-event", event.id().as_ref()).ok();
             });
