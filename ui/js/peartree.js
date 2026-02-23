@@ -1114,7 +1114,7 @@ import * as commands from './commands.js';
       renderer._dirty = true;
     },
   });
-  btnImportAnnot.addEventListener('click', () => annotImporter.open());
+  btnImportAnnot.addEventListener('click', () => commands.execute('import-annot'));
 
   document.getElementById('export-tree-close').addEventListener('click', _closeExportDialog);
   btnExportTree.addEventListener('click', _openExportDialog);
@@ -2941,12 +2941,13 @@ import * as commands from './commands.js';
   document.getElementById('btn-fit-labels').addEventListener('click', () => renderer.fitLabels());
 
   // Open button
-  document.getElementById('btn-open-tree').addEventListener('click', () => openModal());
+  document.getElementById('btn-open-tree').addEventListener('click', () => commands.execute('open-tree'));
 
   // ── Wire command exec functions ────────────────────────────────────────────
   // Explicitly-wired (no buttonId, or custom behaviour):
   commands.get('open-file').exec  = () => pickTreeFile();
   commands.get('open-tree').exec  = () => openModal();
+  commands.get('import-annot').exec = () => annotImporter.open();
   commands.get('select-all').exec = () => {
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) {
