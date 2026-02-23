@@ -800,6 +800,9 @@
       margin-top: 1rem;
     }
     /* Standalone error dialog */
+    /* Node Info dialog — uses shared .pt-modal-overlay / .pt-modal classes */
+    #node-info-body { overflow-y: auto; max-height: 60vh; font-size: 0.78rem; font-family: monospace; }
+
     #error-dialog-overlay {
       display: none;
       position: fixed;
@@ -1063,7 +1066,7 @@
     <div class="pt-toolbar-sep"></div>
 
     <!-- Node Info -->
-    <button id="btn-node-info" class="btn btn-sm btn-outline-secondary" disabled title="Node info (⌘I)"><i class="bi bi-info-circle"></i></button>
+    <button id="btn-node-info" class="btn btn-sm btn-outline-secondary" disabled title="Node info (⌘I)"><i class="bi bi-info-square"></i></button>
     <div class="pt-toolbar-sep"></div>
 
     <!-- User colour -->
@@ -1227,13 +1230,13 @@
 </div>
 
 <!-- Node Info Dialog (Cmd+I) -->
-<div id="node-info-overlay" style="display:none;position:fixed;inset:0;z-index:900;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);">
-  <div style="background:#033940;border:1px solid #002b36;border-radius:0.5rem;box-shadow:0 0.5rem 1.5rem rgba(0,0,0,0.4);min-width:340px;max-width:500px;max-height:78vh;display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 1rem;border-bottom:1px solid #002b36;">
-      <span id="node-info-title" style="font-weight:600;color:var(--pt-accent,#e6d595);font-size:0.85rem;"></span>
+<div id="node-info-overlay" class="pt-modal-overlay">
+  <div class="pt-modal">
+    <div class="pt-modal-header">
+      <h5 id="node-info-title" class="modal-title"></h5>
       <button id="node-info-close" class="pt-modal-close-btn" title="Close">&times;</button>
     </div>
-    <div id="node-info-body" style="overflow-y:auto;padding:0.65rem 1rem;font-size:0.78rem;font-family:monospace;"></div>
+    <div id="node-info-body" class="pt-modal-body"></div>
   </div>
 </div>
 

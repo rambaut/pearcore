@@ -953,6 +953,7 @@ import * as commands from './commands.js';
   btnModalClose.addEventListener('click', () => closeModal());
 
   // ── Unified keyboard handler for all modal overlays ──────────────────────
+  // capture:true ensures we intercept before focused elements inside modals can swallow the event
   document.addEventListener('keydown', e => {
     const inTextField = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) &&
       !['checkbox', 'radio'].includes(document.activeElement?.type);
@@ -961,9 +962,9 @@ import * as commands from './commands.js';
       // Close innermost open overlay first.
       if (exportGraphicOverlay.classList.contains('open')) { _closeGraphicsDialog(); return; }
       if (exportOverlay.classList.contains('open'))        { _closeExportDialog();   return; }
-      if (importOverlay.classList.contains('open'))        { _closeAnnotDialog();    return; }
+      if (document.getElementById('import-annot-overlay')?.classList.contains('open')) { annotImporter.close(); return; }
       const nodeInfoOv = document.getElementById('node-info-overlay');
-      if (nodeInfoOv && nodeInfoOv.style.display !== 'none') { nodeInfoOv.style.display = 'none'; return; }
+      if (nodeInfoOv && nodeInfoOv.classList.contains('open')) { nodeInfoOv.classList.remove('open'); return; }
       if (modal.classList.contains('open'))  { closeModal();           return; }
     }
 
@@ -974,7 +975,7 @@ import * as commands from './commands.js';
       if (exportOverlay.classList.contains('open')) {
         document.getElementById('exp-download-btn')?.click(); return;
       }
-      if (importOverlay.classList.contains('open')) {
+      if (document.getElementById('import-annot-overlay')?.classList.contains('open')) {
         const apply = document.getElementById('imp-apply-btn');
         if (apply) { apply.click(); return; }
         (document.getElementById('imp-close-btn') ||
@@ -982,12 +983,12 @@ import * as commands from './commands.js';
          document.getElementById('imp-picker-cancel-btn'))?.click();
         return;
       }
-      const nodeInfoOv = document.getElementById('node-info-overlay');
-      if (nodeInfoOv && nodeInfoOv.style.display !== 'none') { nodeInfoOv.style.display = 'none'; return; }
+      const nodeInfoOv2 = document.getElementById('node-info-overlay');
+      if (nodeInfoOv2 && nodeInfoOv2.classList.contains('open')) { nodeInfoOv2.classList.remove('open'); return; }
       if (modal.classList.contains('open'))  { closeModal(); return; }
     }
 
-  });
+  }, { capture: true });
 
   // ── File tab ──────────────────────────────────────────────────────────────
 
@@ -2342,7 +2343,7 @@ import * as commands from './commands.js';
         body.appendChild(tbl);
 
         const overlay = document.getElementById('node-info-overlay');
-        overlay.style.display = 'flex';
+        overlay.classList.add('open');
         return;
       }
 
@@ -2423,7 +2424,7 @@ import * as commands from './commands.js';
       body.appendChild(tbl);
 
       const overlay = document.getElementById('node-info-overlay');
-      overlay.style.display = 'flex';
+      overlay.classList.add('open');
     }
 
     btnNodeInfo.addEventListener('click', () => showNodeInfo());
@@ -2458,12 +2459,12 @@ import * as commands from './commands.js';
     });
 
     document.getElementById('node-info-close').addEventListener('click', () => {
-      document.getElementById('node-info-overlay').style.display = 'none';
+      document.getElementById('node-info-overlay').classList.remove('open');
     });
 
     document.getElementById('node-info-overlay').addEventListener('click', e => {
       if (e.target === document.getElementById('node-info-overlay')) {
-        document.getElementById('node-info-overlay').style.display = 'none';
+        document.getElementById('node-info-overlay').classList.remove('open');
       }
     });
 
