@@ -37,6 +37,8 @@
 
     /* ── Layout ── */
     html, body { height: 100%; overflow: hidden; }
+    /* Prevents white flash before CSS/JS loads — matches the default canvas bg */
+    html { background: #02292e; }
     body {
       display: flex;
       flex-direction: column;
@@ -89,6 +91,12 @@
       background: rgba(255,255,255,0.15);
       margin: 0 2px;
     }
+    /* Reroot + Select-mode controls: hidden until an unrooted tree is loaded.
+       display:contents is used when visible so the children participate in the
+       parent flex layout directly (no wrapping box). CSS class avoids the
+       WKWebView inline-style reliability issue. */
+    #reroot-controls { display: none; }
+    #reroot-controls.visible { display: contents; }
     /* Tip filter */
     .pt-filter-wrap {
       display: flex;
@@ -251,6 +259,8 @@
       min-width: 0;
       margin: 0;
       padding: 0;
+      /* Match the default canvas background so nothing flickers through before JS draws */
+      background: #02292e;
     }
     #axis-canvas {
       flex-shrink: 0;
@@ -1039,7 +1049,7 @@
     <div class="pt-toolbar-sep"></div>
 
     <!-- Select mode + Reroot (hidden for explicitly-rooted trees; shown by JS on load) -->
-    <div id="reroot-controls" style="display:none">
+    <div id="reroot-controls">
 
     <!-- Select mode -->
     <span class="form-label-sm" style="padding: 0 2px 0 4px;">Select:</span>
@@ -1219,7 +1229,7 @@
 <div id="export-graphic-overlay" class="pt-modal-overlay">
   <div class="pt-modal">
     <div class="pt-modal-header">
-      <h5 class="modal-title"><i class="bi bi-image me-2"></i>Download Graphic</h5>
+      <h5 class="modal-title"><i class="bi bi-image me-2"></i>Export Graphic</h5>
       <button class="pt-modal-close-btn" id="export-graphic-close" title="Close">&times;</button>
     </div>
     <div class="pt-modal-body" id="export-graphic-body">

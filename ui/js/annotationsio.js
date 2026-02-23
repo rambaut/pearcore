@@ -39,6 +39,17 @@ export function createAnnotImporter({ getGraph, onApply }) {
 
   document.getElementById('import-annot-close').addEventListener('click', close);
 
+  /**
+   * Skip the picker phase and go straight to the import config dialog.
+   * Used by the Tauri adapter which supplies file content from a native dialog.
+   * Cancel from the config step closes the overlay entirely (no picker to return to).
+   */
+  function loadFile(name, content) {
+    if (!getGraph()) return;
+    overlay.classList.add('open');
+    _showImportConfig(name, content, close);
+  }
+
   /** Phase 1: render the File/URL picker UI into the dialog body. */
   function _showAnnotPicker(errorMsg) {
     titleEl.innerHTML = '<i class="bi bi-file-earmark-plus me-2"></i>Import Annotations';
@@ -124,17 +135,19 @@ export function createAnnotImporter({ getGraph, onApply }) {
   }
 
   /** Show the import configuration dialog. */
-  function _showImportConfig(filename, text) {
+  function _showImportConfig(filename, text, onCancel) {
+    // Default: go back to the file picker (web-app flow).
+    const handleCancel = onCancel ?? (() => _showAnnotPicker());
     let parsed;
     try { parsed = parseDelimited(text); }
-    catch (err) { _showImportError(`Parse error: ${err.message}`); return; }
+    catch (err) { _showImportError(`Parse error: ${err.message}`, handleCancel); return; }
     const { headers, rows } = parsed;
     if (headers.length < 2) {
-      _showImportError('File must have at least 2 columns (one to match tips and at least one annotation column).');
+      _showImportError('File must have at least 2 columns (one to match tips and at least one annotation column).', handleCancel);
       return;
     }
     if (rows.length === 0) {
-      _showImportError('No data rows found (file appears to have only a header row).');
+      _showImportError('No data rows found (file appears to have only a header row).', handleCancel);
       return;
     }
 
@@ -227,7 +240,7 @@ export function createAnnotImporter({ getGraph, onApply }) {
         anyUnchecked ? 'Deselect all' : 'Select all';
     });
 
-    document.getElementById('imp-cancel-btn').addEventListener('click', () => _showAnnotPicker());
+    document.getElementById('imp-cancel-btn').addEventListener('click', () => handleCancel());
 
     document.getElementById('imp-apply-btn').addEventListener('click', () => {
       const matchIdx   = parseInt(document.getElementById('imp-match-col').value, 10);
@@ -337,14 +350,15 @@ export function createAnnotImporter({ getGraph, onApply }) {
   }
 
   /** Show an error inside the import dialog (phase 2 parse errors). */
-  function _showImportError(msg) {
+  function _showImportError(msg, onCancel) {
+    const handleCancel = onCancel ?? (() => _showAnnotPicker());
     titleEl.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Import Error';
     body.innerHTML = `<div style="color:var(--bs-danger);padding:0.5rem 0">${esc(msg)}</div>`;
     footer.innerHTML = `<button id="imp-back-btn" class="btn btn-sm btn-outline-secondary me-auto">&#x2190; Back</button>
       <button id="imp-close-err-btn" class="btn btn-sm btn-secondary">Close</button>`;
-    document.getElementById('imp-back-btn').addEventListener('click',      () => _showAnnotPicker());
+    document.getElementById('imp-back-btn').addEventListener('click',      () => handleCancel());
     document.getElementById('imp-close-err-btn').addEventListener('click', close);
   }
 
-  return { open, close };
+  return { open, close, loadFile };
 }

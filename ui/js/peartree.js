@@ -1486,9 +1486,8 @@ import * as commands from './commands.js';
       isExplicitlyRooted = graph.rooted;
 
       // Show/hide the Select + Reroot toolbar sections based on whether the
-      // tree is explicitly rooted. display:contents keeps the flex layout intact.
-      document.getElementById('reroot-controls').style.display =
-        isExplicitlyRooted ? 'none' : 'contents';
+      // tree is explicitly rooted. Use a CSS class to avoid WKWebView inline-style issues.
+      document.getElementById('reroot-controls').classList.toggle('visible', !isExplicitlyRooted);
 
       commands.setEnabled('tree-midpoint', !isExplicitlyRooted);
       commands.setEnabled('tree-reroot',   false); // re-enabled on selection by bindControls
@@ -3022,6 +3021,10 @@ import * as commands from './commands.js';
     /** The central command registry. Platform adapters (e.g. peartree-tauri.js)
      *  subscribe to enabled-state changes and execute commands via this. */
     commands,
+
+    /** Annotation importer — platform adapters can call loadFile(name, content)
+     *  to bypass the picker phase and go straight to the config dialog. */
+    annotImporter,
   };
 
   window.dispatchEvent(new CustomEvent('peartree-ready'));

@@ -36,7 +36,7 @@ fn set_menu_item_enabled(
 }
 
 /// Opens a native OS file picker filtered to tree file types, reads the
-/// selected file, and returns `{"name": "...", "content": "..."}` to JS.
+/// selected file, and returns `{"name": "...", "content": "...", "path": "..."}` to JS.
 /// Returns `null` if the user cancels.
 ///
 /// Must be `async` so Tauri runs it on a worker thread instead of the main
@@ -61,6 +61,33 @@ async fn pick_tree_file(app: tauri::AppHandle) -> Result<Option<serde_json::Valu
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("tree")
+                .to_string();
+            let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let path_str = path.to_string_lossy().to_string();
+            Ok(Some(serde_json::json!({ "name": name, "content": content, "path": path_str })))
+        }
+    }
+}
+
+/// Opens a native OS file picker filtered to annotation file types (CSV / TSV),
+/// reads the selected file, and returns `{"name": "...", "content": "..."}` to JS.
+/// Returns `null` if the user cancels.
+#[tauri::command]
+async fn pick_annot_file(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, String> {
+    let result = app
+        .dialog()
+        .file()
+        .add_filter("Annotation files", &["csv", "tsv", "txt"])
+        .blocking_pick_file();
+
+    match result {
+        None => Ok(None),
+        Some(file_path) => {
+            let path = file_path.into_path().map_err(|e| e.to_string())?;
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("annotations")
                 .to_string();
             let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
             Ok(Some(serde_json::json!({ "name": name, "content": content })))
@@ -115,7 +142,7 @@ fn take_pending_file(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![set_menu_item_enabled, pick_tree_file, read_file_content, new_window, take_pending_file])
+        .invoke_handler(tauri::generate_handler![set_menu_item_enabled, pick_tree_file, pick_annot_file, read_file_content, new_window, take_pending_file])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -176,8 +203,7 @@ pub fn run() {
 
             // ── File ──────────────────────────────────────────────────────────
             let new_win      = MenuItem::with_id(app, "new-window",   "New Window",                  true, Some("CmdOrCtrl+N"))?;
-            let open_file    = MenuItem::with_id(app, "open-file",    "Open\u{2026}",                true, Some("CmdOrCtrl+O"))?;
-            let open_tree    = MenuItem::with_id(app, "open-tree",    "Open Tree\u{2026}",           true, Some("CmdOrCtrl+Shift+O"))?;
+            let open_file    = MenuItem::with_id(app, "open-file",    "Open Tree\u{2026}",                true, Some("CmdOrCtrl+O"))?;
             let import_annot = MenuItem::with_id(app, "import-annot", "Import Annotations\u{2026}",  true, Some("CmdOrCtrl+Shift+A"))?;
             let export_tree  = MenuItem::with_id(app, "export-tree",  "Export Tree\u{2026}",          true, Some("CmdOrCtrl+E"))?;
             let export_image = MenuItem::with_id(app, "export-image", "Export Image\u{2026}",         true, Some("CmdOrCtrl+Shift+E"))?;
@@ -186,7 +212,6 @@ pub fn run() {
                 &new_win,
                 &PredefinedMenuItem::separator(app)?,
                 &open_file,
-                &open_tree,
                 &import_annot,
                 &PredefinedMenuItem::separator(app)?,
                 &export_tree,
@@ -326,7 +351,6 @@ pub fn run() {
             for (id, item) in [
                 ("new-window",       new_win),
                 ("open-file",        open_file),
-                ("open-tree",        open_tree),
                 ("import-annot",     import_annot),
                 ("export-tree",      export_tree),
                 ("export-image",     export_image),

@@ -30,10 +30,19 @@
   // ── File picker: native Tauri dialog ───────────────────────────────────
   // WKWebView blocks <input type="file"> clicks from async contexts, so we
   // override the default pickFile with a Rust command.
+  // If a tree is already open in this window, open the chosen file in a new
+  // window instead of overwriting the current one (same as the open-file event).
   app.pickFile = async () => {
     try {
       const result = await invoke('pick_tree_file');
-      if (result) await app.loadTree(result.content, result.name);
+      if (!result) return;
+      if (app.hasTree) {
+        // Pass the file path to a fresh window so it loads there.
+        invoke('new_window', { filePath: result.path })
+          .catch(err => console.error('new_window failed:', err));
+      } else {
+        await app.loadTree(result.content, result.name);
+      }
     } catch (err) {
       app.showErrorDialog(err.message ?? String(err));
     }
@@ -42,6 +51,22 @@
   // ── New window ─────────────────────────────────────────────────────────
   registry.get('new-window').exec = () => {
     invoke('new_window', { filePath: null }).catch(err => console.error('new_window failed:', err));
+  };
+
+  // ── In Tauri, "Open Tree File" button bypasses the modal and goes straight
+  //    to the native file picker (same as Cmd+O).
+  registry.get('open-tree').exec = () => app.pickFile();
+
+  // ── In Tauri, "Import Annotations" bypasses the modal picker phase and uses
+  //    the native file dialog, then feeds the content straight into the config step.
+  registry.get('import-annot').exec = async () => {
+    try {
+      const result = await invoke('pick_annot_file');
+      if (!result) return;
+      app.annotImporter.loadFile(result.name, result.content);
+    } catch (err) {
+      app.showErrorDialog(err.message ?? String(err));
+    }
   };
 
   // ── Native menu enabled-state sync ────────────────────────────────────────
