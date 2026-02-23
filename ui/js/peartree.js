@@ -920,6 +920,17 @@ import * as commands from './commands.js';
     else      { el.style.display = 'none'; }
   }
 
+  /** Show a simple standalone error dialog with an OK button. */
+  function showErrorDialog(msg) {
+    const overlay = document.getElementById('error-dialog-overlay');
+    document.getElementById('error-dialog-msg').textContent = msg;
+    overlay.classList.add('open');
+  }
+
+  document.getElementById('error-dialog-ok').addEventListener('click', () => {
+    document.getElementById('error-dialog-overlay').classList.remove('open');
+  });
+
   function setModalLoading(on) {
     document.getElementById('modal-loading').style.display = on ? 'block' : 'none';
     modal.querySelectorAll('.pt-modal-body button, .pt-tab-btn').forEach(b => {
@@ -1071,9 +1082,7 @@ import * as commands from './commands.js';
       await loadTree(text, 'ebov.tree');
     } catch (err) {
       showEmptyState();
-      // Surface the error via the modal so the user can see it
-      openModal();
-      setModalError(err.message);
+      showErrorDialog(err.message);
     }
   });
   emptyStateEl.addEventListener('dragover', e => {
@@ -1653,7 +1662,14 @@ import * as commands from './commands.js';
 
       closeModal();
     } catch (err) {
-      setModalError(err.message);
+      // If the Open Tree modal is already visible, show the error inside it.
+      // Otherwise (file opened via native picker, drag-drop, etc.) show a
+      // standalone error dialog instead of hijacking the modal.
+      if (modal.classList.contains('open')) {
+        setModalError(err.message);
+      } else {
+        showErrorDialog(err.message);
+      }
     }
 
     setModalLoading(false);
@@ -2153,14 +2169,14 @@ import * as commands from './commands.js';
     });
 
     function applyMidpointRoot() {
-      if (btnMidpointRoot.disabled) return;
+      if (btnMPR.disabled) return;
       if (!_cachedMidpoint) _cachedMidpoint = midpointRootGraph(graph);
       const { childNodeId, distFromParent } = _cachedMidpoint;
       _cachedMidpoint = null;  // tree is about to change — old result is no longer valid
       applyReroot(childNodeId, distFromParent);
     }
 
-    btnMidpointRoot.addEventListener('click', () => applyMidpointRoot());
+    btnMPR.addEventListener('click', () => applyMidpointRoot());
 
     // ── Node Info (Cmd+I) ──────────────────────────────────────────────────
 
@@ -2881,6 +2897,11 @@ import * as commands from './commands.js';
     openModal,
     closeModal,
     setModalError,
+    /** Show a standalone error dialog with an OK button. */
+    showErrorDialog,
+
+    /** True when a tree is currently loaded in this window. */
+    get hasTree() { return treeLoaded; },
 
     /** Trigger a file open. Default: click the hidden <input type="file">.
      *  Override with a platform-specific implementation (e.g. Tauri native dialog). */

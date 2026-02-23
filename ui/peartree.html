@@ -799,6 +799,43 @@
       padding: 0.75rem 1rem;
       margin-top: 1rem;
     }
+    /* Standalone error dialog */
+    #error-dialog-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    #error-dialog-overlay.open { display: flex; }
+    #error-dialog {
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+      max-width: 440px;
+      width: 90%;
+      padding: 1.5rem 1.5rem 1.25rem;
+    }
+    #error-dialog h6 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--bs-danger-text-emphasis);
+    }
+    #error-dialog-msg {
+      font-size: 0.875rem;
+      color: var(--bs-body-color);
+      margin-bottom: 1.25rem;
+      word-break: break-word;
+    }
+    #error-dialog-ok {
+      float: right;
+    }
     /* Example panel */
     .pt-example-center {
       text-align: center;
@@ -1129,6 +1166,16 @@
       <!-- Error display -->
       <div class="pt-modal-error" id="modal-error" style="display:none"></div>
     </div>
+  </div>
+</div>
+
+<!-- Standalone error dialog (used when a file fails to load outside the Open Tree modal) -->
+<div id="error-dialog-overlay">
+  <div id="error-dialog">
+    <h6><i class="bi bi-exclamation-triangle-fill"></i>Could not open file</h6>
+    <p id="error-dialog-msg"></p>
+    <button id="error-dialog-ok" class="btn btn-sm btn-primary">OK</button>
+    <div style="clear:both"></div>
   </div>
 </div>
 

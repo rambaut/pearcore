@@ -39,6 +39,7 @@ function _define(def) {
 // enabled: false → requires a tree (or selection) to make sense
 
 // File
+_define({ id: 'new-window',   label: 'New Window',             shortcut: 'CmdOrCtrl+N',       group: 'file', enabled: true  });
 _define({ id: 'open-file',    label: 'Open…',                 shortcut: 'CmdOrCtrl+O',       group: 'file', enabled: true  });
 _define({ id: 'open-tree',    label: 'Open Tree…',             shortcut: 'CmdOrCtrl+Shift+O', group: 'file', enabled: true,  buttonId: 'btn-open-tree'      });
 _define({ id: 'import-annot', label: 'Import Annotations…',    shortcut: 'CmdOrCtrl+Shift+A', group: 'file', enabled: false, buttonId: 'btn-import-annot'   });

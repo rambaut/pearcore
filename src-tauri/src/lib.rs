@@ -5,12 +5,22 @@ use tauri::{
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::DialogExt;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Mutex,
+};
 
 /// Managed state that maps each command id → its live MenuItem handle.
 /// Stored in Tauri's app state so `set_menu_item_enabled` can reach the
 /// actual handles rather than copies returned by `Menu::get`.
 struct MenuItems(Mutex<HashMap<String, MenuItem<tauri::Wry>>>);
+
+/// Monotonically increasing counter used to generate unique window labels.
+struct WindowCounter(AtomicU32);
+
+/// Pending file paths for newly created windows: window_label → file_path.
+/// set by `new_window`, consumed once by `take_pending_file` on startup.
+struct PendingFiles(Mutex<HashMap<String, String>>);
 
 /// Called from JS to enable/disable a menu item by its string id.
 #[tauri::command]
@@ -66,21 +76,68 @@ fn read_file_content(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// Creates a new PearTree window. If `file_path` is provided the path is stored
+/// in PendingFiles keyed by the new window's label; the window's JS retrieves it
+/// via `take_pending_file` on startup and loads the tree automatically.
+#[tauri::command]
+fn new_window(app: tauri::AppHandle, file_path: Option<String>) -> Result<(), String> {
+    let n = app.state::<WindowCounter>().0.fetch_add(1, Ordering::SeqCst);
+    let label = format!("window-{n}");
+
+    if let Some(path) = file_path {
+        app.state::<PendingFiles>().0.lock().unwrap().insert(label.clone(), path);
+    }
+
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        &label,
+        tauri::WebviewUrl::App("peartree.html".into()),
+    )
+    .title("PearTree \u{2014} Phylogenetic Tree Viewer")
+    .inner_size(1400.0, 900.0)
+    .min_inner_size(900.0, 600.0)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Retrieves (and removes) any pending file path for the calling window.
+/// Called by the JS adapter on startup to load a file passed to `new_window`.
+#[tauri::command]
+fn take_pending_file(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Option<String> {
+    app.state::<PendingFiles>().0.lock().unwrap().remove(window.label())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![set_menu_item_enabled, pick_tree_file, read_file_content])
+        .invoke_handler(tauri::generate_handler![set_menu_item_enabled, pick_tree_file, read_file_content, new_window, take_pending_file])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             // Forward any file opened via drag-to-icon or double-click (macOS file
             // association) to the frontend as an "open-file" event with the file path.
+            // Emit only to the focused window; if no window has focus (app was in the
+            // background), broadcast to all so at least one window handles it.
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
                     if let Ok(path) = url.to_file_path() {
-                        app_handle.emit("open-file", path.to_string_lossy().to_string()).ok();
+                        let path_str = path.to_string_lossy().to_string();
+                        let focused = app_handle
+                            .webview_windows()
+                            .into_values()
+                            .find(|w| w.is_focused().unwrap_or(false));
+                        if let Some(w) = focused {
+                            w.emit("open-file", &path_str).ok();
+                        } else {
+                            app_handle.emit("open-file", &path_str).ok();
+                        }
                     }
                 }
             });
@@ -103,6 +160,7 @@ pub fn run() {
             ])?;
 
             // ── File ──────────────────────────────────────────────────────────
+            let new_win      = MenuItem::with_id(app, "new-window",   "New Window",                  true, Some("CmdOrCtrl+N"))?;
             let open_file    = MenuItem::with_id(app, "open-file",    "Open\u{2026}",                true, Some("CmdOrCtrl+O"))?;
             let open_tree    = MenuItem::with_id(app, "open-tree",    "Open Tree\u{2026}",           true, Some("CmdOrCtrl+Shift+O"))?;
             let import_annot = MenuItem::with_id(app, "import-annot", "Import Annotations\u{2026}",  true, Some("CmdOrCtrl+Shift+A"))?;
@@ -110,6 +168,8 @@ pub fn run() {
             let export_image = MenuItem::with_id(app, "export-image", "Export Image\u{2026}",         true, Some("CmdOrCtrl+Shift+E"))?;
 
             let file_menu = Submenu::with_items(app, "File", true, &[
+                &new_win,
+                &PredefinedMenuItem::separator(app)?,
                 &open_file,
                 &open_tree,
                 &import_annot,
@@ -247,6 +307,7 @@ pub fn run() {
             // the real native handles, not copies returned by Menu::get.
             let mut map: HashMap<String, MenuItem<tauri::Wry>> = HashMap::new();
             for (id, item) in [
+                ("new-window",       new_win),
                 ("open-file",        open_file),
                 ("open-tree",        open_tree),
                 ("import-annot",     import_annot),
@@ -278,11 +339,21 @@ pub fn run() {
                 map.insert(id.to_string(), item);
             }
             app.manage(MenuItems(Mutex::new(map)));
+            app.manage(WindowCounter(AtomicU32::new(0)));
+            app.manage(PendingFiles(Mutex::new(HashMap::new())));
 
-
-            // Forward every menu event to the frontend as a "menu-event" with the item id as payload.
+            // Forward every menu event to the focused window as a "menu-event".
+            // Targeting only the focused window ensures each window only receives
+            // events while it is active (correct behaviour for a global menu bar).
             app.on_menu_event(|app, event| {
-                app.emit("menu-event", event.id().as_ref()).ok();
+                let id = event.id().as_ref().to_string();
+                let focused = app
+                    .webview_windows()
+                    .into_values()
+                    .find(|w| w.is_focused().unwrap_or(false));
+                if let Some(w) = focused {
+                    w.emit("menu-event", &id).ok();
+                }
             });
 
             Ok(())
