@@ -2067,7 +2067,7 @@ export class TreeRenderer {
       const additive = e.metaKey || e.ctrlKey;
 
       if (!node) {
-        this._selectedTipIds.clear();
+        if (!additive) this._selectedTipIds.clear();
       } else if (node.isTip) {
         if (additive) {
           // toggle this tip
