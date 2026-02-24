@@ -1553,6 +1553,7 @@ import * as commands from './commands.js';
       for (const [name, def] of schema) {
         if (name === 'user_colour') continue; // static first option already in HTML
         if (def.dataType === 'list') continue;
+        if (def.groupMember) continue; // BEAST sub-annotation (median/HPD/range)
         if (filter === 'tips'  && !def.onTips)  continue;
         if (filter === 'nodes' && !def.onNodes) continue;
         const opt = document.createElement('option');
@@ -1643,6 +1644,7 @@ import * as commands from './commands.js';
         for (const [name, def] of schema) {
           if (name === 'user_colour') continue;
           if (def.dataType === 'list') continue;
+          if (def.groupMember) continue; // BEAST sub-annotation (median/HPD/range)
           if (filter === 'tips'  && !def.onTips)  continue;
           if (filter === 'nodes' && !def.onNodes) continue;
           const opt = document.createElement('option');
@@ -2453,7 +2455,7 @@ import * as commands from './commands.js';
 
         const schema = graph ? graph.annotationSchema : null;
         const annotKeys = schema
-          ? [...schema.keys()].filter(k => k !== 'user_colour')
+          ? [...schema.keys()].filter(k => k !== 'user_colour' && !schema.get(k)?.groupMember)
           : [];
 
         const rows = [];
@@ -2526,19 +2528,39 @@ import * as commands from './commands.js';
         rows.push(['Tips below', tipCount]);
       }
       const annots = node.annotations || {};
+      const schema = graph ? graph.annotationSchema : null;
       const annotEntries = Object.entries(annots);
       if (annotEntries.length > 0) {
         rows.push([null, null]); // divider
-        for (const [k, v] of annotEntries) {
-          let display;
+        // Helper: format a single annotation value for display.
+        function fmtAnnot(v) {
+          if (v === null || v === undefined) return '—';
           if (Array.isArray(v)) {
-            display = `{${v.map(x => (typeof x === 'number' ? x.toFixed(6) : String(x))).join(', ')}}`;
+            return '{' + v.map(x => (typeof x === 'number' ? x.toFixed(6) : String(x))).join(', ') + '}';
           } else if (typeof v === 'number') {
-            display = v.toFixed(6);
-          } else {
-            display = String(v);
+            return v.toFixed(6);
           }
-          rows.push([k, display]);
+          return String(v);
+        }
+        // Track emitted keys so group members aren't repeated after their base.
+        const emitted = new Set();
+        for (const [k, v] of annotEntries) {
+          if (emitted.has(k)) continue;
+          const def = schema ? schema.get(k) : null;
+          // Skip group members here — they are shown indented under their base.
+          if (def && def.groupMember) continue;
+          rows.push([k, fmtAnnot(v)]);
+          emitted.add(k);
+          // If this is a BEAST base annotation, show grouped sub-metrics indented.
+          if (def && def.group) {
+            const SUB_LABELS = { median: 'median', hpd: '95% HPD', range: 'range', mean: 'mean', lower: 'lower', upper: 'upper' };
+            for (const [groupKey, subAnnotName] of Object.entries(def.group)) {
+              if (Object.prototype.hasOwnProperty.call(annots, subAnnotName)) {
+                rows.push(['__sub__', [SUB_LABELS[groupKey] || groupKey, fmtAnnot(annots[subAnnotName])]]);
+                emitted.add(subAnnotName);
+              }
+            }
+          }
         }
       }
 
@@ -2566,6 +2588,15 @@ import * as commands from './commands.js';
           div.style.cssText = 'display:flex;align-items:center;gap:6px;color:rgba(230,213,149,0.5);font-size:0.72rem;letter-spacing:0.05em;text-transform:uppercase;';
           div.innerHTML = '<span style="flex:0 0 auto">Annotations</span><span style="flex:1;border-top:1px solid rgba(230,213,149,0.2);display:inline-block"></span>';
           td.appendChild(div);
+        } else if (label === '__sub__') {
+          // Indented sub-row for grouped BEAST annotations (median / HPD / range)
+          const [subLabel, subValue] = value;
+          const td1 = tr.insertCell();
+          const td2 = tr.insertCell();
+          td1.style.cssText = 'color:rgba(230,213,149,0.42);padding:1px 14px 1px 18px;white-space:nowrap;vertical-align:top;font-size:0.85em;';
+          td2.style.cssText = 'color:rgba(242,241,230,0.55);padding:1px 0;word-break:break-all;font-size:0.85em;';
+          td1.textContent = subLabel;
+          td2.textContent = subValue;
         } else {
           const td1 = tr.insertCell();
           const td2 = tr.insertCell();

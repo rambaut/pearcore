@@ -285,6 +285,27 @@ export function fromNestedRoot(nestedRoot) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Well-known annotation names whose value range is defined by domain convention
+ * rather than the observed data.  The renderer uses these fixed bounds for the
+ * colour scale so a value of 0.5 always maps to the palette mid-point regardless
+ * of whether the actual tree data spans the full range.
+ *
+ * Keys are matched case-insensitively.  A `null` bound means "use observed".
+ * @type {Map<string, {min:number, max:number}>}
+ */
+export const KNOWN_ANNOTATION_BOUNDS = new Map([
+  // Bayesian posterior probability / support
+  ['posterior',             { min: 0, max: 1 }],
+  ['posterior_probability', { min: 0, max: 1 }],
+  ['prob',                  { min: 0, max: 1 }],
+  ['probability',           { min: 0, max: 1 }],
+  // Bootstrap / general node support expressed as a proportion
+  ['support',               { min: 0, max: 1 }],
+  ['bootstrap',             { min: 0, max: 1 }],
+  // Common date/time decimal-year annotations do NOT have fixed bounds — omitted.
+]);
+
+/**
  * Infer an AnnotationDef (without `name`) from a flat array of observed values.
  * Called recursively for list element types.
  *
@@ -351,9 +372,51 @@ export function buildAnnotationSchema(nodes) {
       }
     }
     if (values.length > 0) {
-      schema.set(name, { name, onTips, onNodes, ...inferAnnotationType(values) });
+      const def = { name, onTips, onNodes, ...inferAnnotationType(values) };
+      // Override min/max with well-known fixed bounds when they exist, so the
+      // colour scale always spans the full canonical range (e.g. 0–1 for posterior).
+      const knownKey = [...KNOWN_ANNOTATION_BOUNDS.keys()]
+        .find(k => k.toLowerCase() === name.toLowerCase());
+      if (knownKey && (def.dataType === 'real' || def.dataType === 'integer')) {
+        const bounds = KNOWN_ANNOTATION_BOUNDS.get(knownKey);
+        def.min = bounds.min;
+        def.max = bounds.max;
+        def.fixedBounds = true;
+      }
+      schema.set(name, def);
     }
   }
+
+  // ── BEAST annotation grouping ───────────────────────────────────────────
+  // Detect keys like `height_median`, `height_95%_HPD`, `height_range` and
+  // link them to their base key (`height`).  The base keeps a `group` map
+  // { median, hpd, range, … } → key name.  Each member gets `groupMember`
+  // set to the base key name so it can be hidden from colour-by dropdowns.
+  // Suffixes listed longest-first so '_95%_HPD' is matched before any shorter
+  // hypothetical overlap.
+  const BEAST_SUFFIXES = [
+    ['_95%_HPD', 'hpd'],
+    ['_median',  'median'],
+    ['_range',   'range'],
+    ['_mean',    'mean'],
+    ['_lower',   'lower'],
+    ['_upper',   'upper'],
+  ];
+  for (const [name, def] of schema) {
+    for (const [suffix, label] of BEAST_SUFFIXES) {
+      if (name.endsWith(suffix)) {
+        const base = name.slice(0, -suffix.length);
+        if (schema.has(base)) {
+          def.groupMember = base;
+          const baseDef = schema.get(base);
+          baseDef.group = baseDef.group || {};
+          baseDef.group[label] = name;
+        }
+        break; // only the first matching suffix applies
+      }
+    }
+  }
+
   return schema;
 }
 
