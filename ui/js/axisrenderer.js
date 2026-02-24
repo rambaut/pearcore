@@ -243,7 +243,8 @@ export class AxisRenderer {
 
     if (!this._scaleX || this._maxX === 0) return;
 
-    const plotLeft  = this._offsetX;
+    // Extend left to paddingLeft so node-bar overhang is covered by the axis line.
+    const plotLeft  = Math.min(this._offsetX, this._paddingLeft);
     const plotRight = this._offsetX + this._maxX * this._scaleX;
     if (plotRight <= plotLeft) return;
 
@@ -369,16 +370,20 @@ export class AxisRenderer {
 
   /** Returns {leftVal, rightVal} = the axis values at worldX=0 and worldX=maxX */
   _valueDomain() {
+    // Extra height units covered by any node-bar/whisker overhang to the left of the root.
+    const extraH = this._scaleX > 0
+      ? Math.max(0, this._offsetX - this._paddingLeft) / this._scaleX
+      : 0;
     if (this._dateMode) {
       // date(nodeH) = _anchorDecYear + (_anchorH - nodeH)
       // root at nodeH=_rootHeight, most-recent tips at nodeH=_minTipH
-      const leftVal  = this._anchorDecYear + this._anchorH - this._rootHeight;
+      const leftVal  = this._anchorDecYear + this._anchorH - (this._rootHeight + extraH);
       const rightVal = this._anchorDecYear + this._anchorH - this._minTipH;
       return { leftVal, rightVal };
     }
     if (this._timed) {
       // Height axis: rootHeight at worldX=0, decreasing to 0 at worldX=maxX
-      return { leftVal: this._rootHeight, rightVal: 0 };
+      return { leftVal: this._rootHeight + extraH, rightVal: 0 };
     }
     // Divergence
     return { leftVal: 0, rightVal: this._maxX };
