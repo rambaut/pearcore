@@ -40,14 +40,12 @@
     "macOS": {
       "infoPlist": "./Info.plist"
     },
-    "windows": {
-      "fileAssociations": [
-        {
-          "ext": ["tree", "tre", "nex", "nexus", "treefile", "nwk", "newick"],
-          "name": "PearTree phylogenetic tree file"
-        }
-      ]
-    }
+    "fileAssociations": [
+      {
+        "ext": ["tree", "tre", "nex", "nexus", "treefile", "nwk", "newick"],
+        "name": "PearTree phylogenetic tree file"
+      }
+    ]
   },
     "plugins": {
     "deep-link": {
