@@ -3,9 +3,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { AxisRenderer } from './axisrenderer.js';
-import { getCategoricalPalette, getSequentialPalette,
+import { getSequentialPalette,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE,
-         MISSING_DATA_COLOUR } from './palettes.js';
+         MISSING_DATA_COLOUR, buildCategoricalColourMap } from './palettes.js';
 
 /** @private HTML/SVG attribute–safe string escaper. */
 function esc(s) {
@@ -194,12 +194,12 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
 
       if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
         const paletteName = renderer._annotationPaletteOverrides?.get(legendKey);
-        const PALETTE = getCategoricalPalette(paletteName);
+        const colourMap  = buildCategoricalColourMap(def.values || [], paletteName);
         const SWATCH  = 12;
         const ROW_H   = Math.max(SWATCH + 4, fs + 4);
-        (def.values || []).forEach((val, i) => {
+        (def.values || []).forEach((val) => {
           if (ly + SWATCH > ttH_eff - PAD) return;
-          const colour = PALETTE[i % PALETTE.length];
+          const colour = colourMap.get(val) ?? MISSING_DATA_COLOUR;
           legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${SWATCH}" height="${SWATCH}" fill="${esc(colour)}"/>`);
           legendParts.push(`<text x="${lx + PAD + SWATCH + 6}" y="${ly + SWATCH / 2}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="#F7EECA">${svgTextEsc(String(val))}</text>`);
           ly += ROW_H;
@@ -208,8 +208,12 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
         const BAR_W   = lw - PAD * 2;
         const BAR_H   = 14;
         const gid     = 'lgrd';
-        const seqPair = getSequentialPalette(renderer._annotationPaletteOverrides?.get(legendKey));
-        defs.push(`<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${seqPair[0]}"/><stop offset="100%" stop-color="${seqPair[1]}"/></linearGradient>`);
+        const seqStops = getSequentialPalette(renderer._annotationPaletteOverrides?.get(legendKey));
+        const ns = seqStops.length;
+        const stopMarkup = seqStops.map((c, i) =>
+          `<stop offset="${(ns === 1 ? 0 : i / (ns - 1) * 100).toFixed(1)}%" stop-color="${esc(c)}"/>`
+        ).join('');
+        defs.push(`<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0">${stopMarkup}</linearGradient>`);
         legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${BAR_W}" height="${BAR_H}" fill="url(#${gid})"/>`);
         ly += BAR_H + 4;
         const min = def.min ?? 0, max = def.max ?? 1;

@@ -17,8 +17,9 @@
  *   resize()                           — call after the legend canvas is shown/hidden/resized
  *   draw()                             — explicit repaint
  */
-import { getCategoricalPalette, getSequentialPalette,
-         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
+import { getSequentialPalette,
+         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE,
+         MISSING_DATA_COLOUR, buildCategoricalColourMap } from './palettes.js';
 
 export class LegendRenderer {
   /**
@@ -194,14 +195,14 @@ export class LegendRenderer {
 
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
       const paletteName = this._paletteOverrides?.get(key);
-      const PALETTE = getCategoricalPalette(paletteName);
+      const colourMap  = buildCategoricalColourMap(def.values || [], paletteName);
       const SWATCH = Math.max(8, lfs);
       const ROW_H  = Math.max(SWATCH + 4, lfs + 4);
       ctx.font         = `${lfs}px ${FONT}`;
       ctx.textBaseline = 'middle';
-      (def.values || []).forEach((val, i) => {
+      (def.values || []).forEach((val) => {
         if (y + SWATCH > H - PAD) return;   // no space left
-        const colour = PALETTE[i % PALETTE.length];
+        const colour = colourMap.get(val) ?? MISSING_DATA_COLOUR;
         ctx.fillStyle = colour;
         ctx.fillRect(PAD, y, SWATCH, SWATCH);
         ctx.fillStyle = ltc;
@@ -216,9 +217,12 @@ export class LegendRenderer {
       const BAR_H  = Math.max(40, H - y - PAD);
       // Vertical gradient: top = max (red), bottom = min (teal).
       const grad   = ctx.createLinearGradient(0, BAR_Y, 0, BAR_Y + BAR_H);
-      const seqPair = getSequentialPalette(this._paletteOverrides?.get(key));
-      grad.addColorStop(0, seqPair[1]);   // max colour at top
-      grad.addColorStop(1, seqPair[0]);   // min colour at bottom
+      const seqStops = getSequentialPalette(this._paletteOverrides?.get(key));
+      const ns = seqStops.length;
+      // Vertical gradient: top = max (last stop), bottom = min (first stop).
+      for (let i = 0; i < ns; i++) {
+        grad.addColorStop(i / (ns - 1), seqStops[ns - 1 - i]);
+      }
       ctx.fillStyle = grad;
       ctx.fillRect(BAR_X, BAR_Y, BAR_W, BAR_H);
 

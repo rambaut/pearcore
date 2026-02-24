@@ -3,9 +3,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { computeLayoutFromGraph } from './treeutils.js';
-import { getCategoricalPalette, getSequentialPalette, lerpSequential,
+import { getSequentialPalette, lerpSequential,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE,
-         MISSING_DATA_COLOUR } from './palettes.js';
+         MISSING_DATA_COLOUR, buildCategoricalColourMap } from './palettes.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Canvas renderer
@@ -622,10 +622,8 @@ export class TreeRenderer {
     const scale = new Map();
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
       const paletteName = this._annotationPaletteOverrides.get(key);
-      const palette = getCategoricalPalette(paletteName);
-      (def.values || []).forEach((v, i) => {
-        scale.set(v, palette[i % palette.length]);
-      });
+      const colourMap = buildCategoricalColourMap(def.values || [], paletteName);
+      for (const [v, c] of colourMap) scale.set(v, c);
     } else if (def.dataType === 'real' || def.dataType === 'integer') {
       // Store range and palette name so _colourFromScale can interpolate at draw time.
       scale.set('__min__', def.min ?? 0);
