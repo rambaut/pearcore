@@ -453,7 +453,8 @@ pub fn run() {
             // already populated by the deep-link handler above.
             #[cfg(target_os = "windows")]
             {
-                let mut pending = app.state::<PendingFiles>().0.lock().unwrap();
+                let pending_state = app.state::<PendingFiles>();
+                let mut pending = pending_state.0.lock().unwrap();
                 if !pending.contains_key("main") {
                     if let Some(arg) = std::env::args().nth(1) {
                         let p = std::path::Path::new(&arg);
