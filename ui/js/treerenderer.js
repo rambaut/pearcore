@@ -3,6 +3,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { computeLayoutFromGraph } from './treeutils.js';
+import { getCategoricalPalette, getSequentialPalette, lerpSequential,
+         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Canvas renderer
@@ -594,10 +596,7 @@ export class TreeRenderer {
 
     const scale = new Map();
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-      const palette = [
-        '#2aa198', '#cb4b16', '#268bd2', '#d33682',
-        '#6c71c4', '#b58900', '#859900', '#dc322f',
-      ];
+      const palette = getCategoricalPalette(DEFAULT_CATEGORICAL_PALETTE);
       (def.values || []).forEach((v, i) => {
         scale.set(v, palette[i % palette.length]);
       });
@@ -615,15 +614,10 @@ export class TreeRenderer {
     if (scale.has(value)) return scale.get(value);
     // Numeric interpolation
     if (scale.has('__min__')) {
-      const min = scale.get('__min__');
-      const max = scale.get('__max__');
-      const t  = max > min ? (value - min) / (max - min) : 0.5;
-      const tc = Math.max(0, Math.min(1, t));
-      // Interpolate #2aa198 → #dc322f  (teal → red)
-      const r = Math.round(0x2a + tc * (0xdc - 0x2a));
-      const g = Math.round(0xa1 + tc * (0x32 - 0xa1));
-      const b = Math.round(0x98 + tc * (0x2f - 0x98));
-      return `rgb(${r},${g},${b})`;
+      const min  = scale.get('__min__');
+      const max  = scale.get('__max__');
+      const t    = max > min ? (value - min) / (max - min) : 0.5;
+      return lerpSequential(t, getSequentialPalette(DEFAULT_SEQUENTIAL_PALETTE));
     }
     return null;
   }

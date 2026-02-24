@@ -17,6 +17,9 @@
  *   resize()                           — call after the legend canvas is shown/hidden/resized
  *   draw()                             — explicit repaint
  */
+import { getCategoricalPalette, getSequentialPalette,
+         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
+
 export class LegendRenderer {
   /**
    * @param {HTMLCanvasElement} leftCanvas
@@ -179,10 +182,7 @@ export class LegendRenderer {
     y += lfs + 10;
 
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-      const PALETTE = [
-        '#2aa198', '#cb4b16', '#268bd2', '#d33682',
-        '#6c71c4', '#b58900', '#859900', '#dc322f',
-      ];
+      const PALETTE = getCategoricalPalette(DEFAULT_CATEGORICAL_PALETTE);
       const SWATCH = Math.max(8, lfs);
       const ROW_H  = Math.max(SWATCH + 4, lfs + 4);
       ctx.font         = `${lfs}px ${FONT}`;
@@ -204,8 +204,9 @@ export class LegendRenderer {
       const BAR_H  = Math.max(40, H - y - PAD);
       // Vertical gradient: top = max (red), bottom = min (teal).
       const grad   = ctx.createLinearGradient(0, BAR_Y, 0, BAR_Y + BAR_H);
-      grad.addColorStop(0, '#dc322f');   // red  (max)
-      grad.addColorStop(1, '#2aa198');   // teal (min)
+      const seqPair = getSequentialPalette(DEFAULT_SEQUENTIAL_PALETTE);
+      grad.addColorStop(0, seqPair[1]);   // max colour at top
+      grad.addColorStop(1, seqPair[0]);   // min colour at bottom
       ctx.fillStyle = grad;
       ctx.fillRect(BAR_X, BAR_Y, BAR_W, BAR_H);
 
