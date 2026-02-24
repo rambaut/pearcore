@@ -33,6 +33,7 @@ export class LegendRenderer {
     this._position   = null;   // 'left' | 'right' | null
     this._annotation = null;   // annotation key string | null
     this._schema     = null;   // Map<string, AnnotationDef>
+    this._paletteOverrides = null; // Map<annotKey, paletteName> from TreeRenderer
 
     this.skipBg = false;
     this._dpr   = window.devicePixelRatio || 1;
@@ -68,6 +69,16 @@ export class LegendRenderer {
    */
   setAnnotationSchema(schema) {
     this._schema = schema;
+    this.draw();
+  }
+
+  /**
+   * Receive the per-annotation palette overrides Map from TreeRenderer.
+   * Triggers a redraw so legend colours update immediately.
+   * @param {Map<string,string>|null} overrides
+   */
+  setPaletteOverrides(overrides) {
+    this._paletteOverrides = overrides;
     this.draw();
   }
 
@@ -182,7 +193,8 @@ export class LegendRenderer {
     y += lfs + 10;
 
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-      const PALETTE = getCategoricalPalette(DEFAULT_CATEGORICAL_PALETTE);
+      const paletteName = this._paletteOverrides?.get(key);
+      const PALETTE = getCategoricalPalette(paletteName);
       const SWATCH = Math.max(8, lfs);
       const ROW_H  = Math.max(SWATCH + 4, lfs + 4);
       ctx.font         = `${lfs}px ${FONT}`;
@@ -204,7 +216,7 @@ export class LegendRenderer {
       const BAR_H  = Math.max(40, H - y - PAD);
       // Vertical gradient: top = max (red), bottom = min (teal).
       const grad   = ctx.createLinearGradient(0, BAR_Y, 0, BAR_Y + BAR_H);
-      const seqPair = getSequentialPalette(DEFAULT_SEQUENTIAL_PALETTE);
+      const seqPair = getSequentialPalette(this._paletteOverrides?.get(key));
       grad.addColorStop(0, seqPair[1]);   // max colour at top
       grad.addColorStop(1, seqPair[0]);   // min colour at bottom
       ctx.fillStyle = grad;

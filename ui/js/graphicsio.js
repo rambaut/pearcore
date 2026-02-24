@@ -192,7 +192,8 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       ly += fs + 10;
 
       if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-        const PALETTE = getCategoricalPalette(DEFAULT_CATEGORICAL_PALETTE);
+        const paletteName = renderer._annotationPaletteOverrides?.get(legendKey);
+        const PALETTE = getCategoricalPalette(paletteName);
         const SWATCH  = 12;
         const ROW_H   = Math.max(SWATCH + 4, fs + 4);
         (def.values || []).forEach((val, i) => {
@@ -206,7 +207,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
         const BAR_W   = lw - PAD * 2;
         const BAR_H   = 14;
         const gid     = 'lgrd';
-        const seqPair = getSequentialPalette(DEFAULT_SEQUENTIAL_PALETTE);
+        const seqPair = getSequentialPalette(renderer._annotationPaletteOverrides?.get(legendKey));
         defs.push(`<linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${seqPair[0]}"/><stop offset="100%" stop-color="${seqPair[1]}"/></linearGradient>`);
         legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${BAR_W}" height="${BAR_H}" fill="url(#${gid})"/>`);
         ly += BAR_H + 4;

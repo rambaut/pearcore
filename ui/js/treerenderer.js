@@ -109,7 +109,8 @@ export class TreeRenderer {
     this._crossfadeSnapshot = null;   // OffscreenCanvas capturing old frame
 
     // Annotation colouring
-    this._annotationSchema = null;   // Map<name, AnnotationDef> from buildAnnotationSchema
+    this._annotationSchema          = null;   // Map<name, AnnotationDef> from buildAnnotationSchema
+    this._annotationPaletteOverrides = new Map(); // annotKey → paletteName string
     this._tipColourBy      = null;   // annotation key or null
     this._tipColourScale   = null;   // Map<value, CSS colour> | null
     this._nodeColourBy     = null;   // annotation key for internal nodes, or null
@@ -554,6 +555,7 @@ export class TreeRenderer {
     if (this._nodeColourBy)   this._nodeColourScale   = this._buildColourScale(this._nodeColourBy);
     if (this._labelColourBy)  this._labelColourScale  = this._buildColourScale(this._labelColourBy);
     this._legendRenderer?.setAnnotationSchema(schema);
+    this._legendRenderer?.setPaletteOverrides(this._annotationPaletteOverrides);
     this._dirty = true;
   }
 
@@ -580,6 +582,27 @@ export class TreeRenderer {
     this._dirty = true;
   }
 
+  /**
+   * Set (or clear) the palette to use for a specific annotation key.
+   * Rebuilds any active colour scales that use that key.
+   * @param {string}      key          Annotation name
+   * @param {string|null} paletteName  Name from CATEGORICAL_PALETTES or SEQUENTIAL_PALETTES, or null to revert to default
+   */
+  setAnnotationPalette(key, paletteName) {
+    if (paletteName) {
+      this._annotationPaletteOverrides.set(key, paletteName);
+    } else {
+      this._annotationPaletteOverrides.delete(key);
+    }
+    // Rebuild any colour scale that references this annotation key.
+    if (this._tipColourBy   === key) this._tipColourScale   = this._buildColourScale(key);
+    if (this._nodeColourBy  === key) this._nodeColourScale  = this._buildColourScale(key);
+    if (this._labelColourBy === key) this._labelColourScale = this._buildColourScale(key);
+    // Propagate to legend so it redraws with the new palette.
+    this._legendRenderer?.setPaletteOverrides(this._annotationPaletteOverrides);
+    this._dirty = true;
+  }
+
   /** Build a colour scale Map for the given annotation key. Returns the Map or null. */
   _buildColourScale(key) {
     const schema = this._annotationSchema;
@@ -596,14 +619,16 @@ export class TreeRenderer {
 
     const scale = new Map();
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-      const palette = getCategoricalPalette(DEFAULT_CATEGORICAL_PALETTE);
+      const paletteName = this._annotationPaletteOverrides.get(key);
+      const palette = getCategoricalPalette(paletteName);
       (def.values || []).forEach((v, i) => {
         scale.set(v, palette[i % palette.length]);
       });
     } else if (def.dataType === 'real' || def.dataType === 'integer') {
-      // Store the numeric range so _colourFromScale can interpolate at draw time.
+      // Store range and palette name so _colourFromScale can interpolate at draw time.
       scale.set('__min__', def.min ?? 0);
       scale.set('__max__', def.max ?? 1);
+      scale.set('__palette__', this._annotationPaletteOverrides.get(key) ?? null);
     }
     return scale;
   }
@@ -617,7 +642,7 @@ export class TreeRenderer {
       const min  = scale.get('__min__');
       const max  = scale.get('__max__');
       const t    = max > min ? (value - min) / (max - min) : 0.5;
-      return lerpSequential(t, getSequentialPalette(DEFAULT_SEQUENTIAL_PALETTE));
+      return lerpSequential(t, getSequentialPalette(scale.get('__palette__')));
     }
     return null;
   }

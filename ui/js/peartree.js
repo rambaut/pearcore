@@ -5,6 +5,8 @@ import { TreeRenderer } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
 import { THEMES, DEFAULT_SETTINGS, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY } from './themes.js';
+import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
+         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from './annotationsio.js';
 import * as commands from './commands.js';
@@ -57,6 +59,12 @@ import * as commands from './commands.js';
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
   const labelColourBy     = document.getElementById('label-colour-by');
+  const tipPaletteSelect   = document.getElementById('tip-palette-select');
+  const tipPaletteRow      = document.getElementById('tip-palette-row');
+  const nodePaletteSelect  = document.getElementById('node-palette-select');
+  const nodePaletteRow     = document.getElementById('node-palette-row');
+  const labelPaletteSelect = document.getElementById('label-palette-select');
+  const labelPaletteRow    = document.getElementById('label-palette-row');
   const legendShowEl          = document.getElementById('legend-show');
   const legendAnnotEl         = document.getElementById('legend-annotation');
   const legendTextColorEl     = document.getElementById('legend-text-color');
@@ -105,6 +113,38 @@ import * as commands from './commands.js';
   let defaultTheme = localStorage.getItem(DEFAULT_THEME_KEY) || 'Artic';
   // Guard: if the stored default is no longer in the registry fall back gracefully.
   if (!themeRegistry.has(defaultTheme)) defaultTheme = Object.keys(THEMES)[0];
+
+  /** Per-annotation palette override: annotationKey → palette name string. */
+  const annotationPalettes = new Map();
+
+  /**
+   * Populate a palette <select> for the given annotation key and show/hide its row.
+   * Restores stored value from annotationPalettes; falls back to the type default.
+   * @param {HTMLSelectElement} sel
+   * @param {HTMLElement}       row
+   * @param {string|null}       annotKey
+   */
+  function _updatePaletteSelect(sel, row, annotKey) {
+    const schema = renderer?._annotationSchema;
+    if (!annotKey || annotKey === 'user_colour' || !schema) {
+      row.style.display = 'none';
+      return;
+    }
+    const def = schema.get(annotKey);
+    if (!def) { row.style.display = 'none'; return; }
+    const isCat    = def.dataType === 'categorical' || def.dataType === 'ordinal';
+    const palettes = isCat ? CATEGORICAL_PALETTES : SEQUENTIAL_PALETTES;
+    const defPal   = isCat ? DEFAULT_CATEGORICAL_PALETTE : DEFAULT_SEQUENTIAL_PALETTE;
+    const stored   = annotationPalettes.get(annotKey) ?? defPal;
+    sel.innerHTML = '';
+    for (const name of Object.keys(palettes)) {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    }
+    sel.value = [...sel.options].some(o => o.value === stored) ? stored : defPal;
+    row.style.display = 'flex';
+  }
 
   /** Persist only user-defined (non-built-in) themes to localStorage. */
   function saveUserThemes() {
@@ -289,6 +329,7 @@ import * as commands from './commands.js';
       tipColourBy:      tipColourBy.value,
       nodeColourBy:     nodeColourBy.value,
       labelColourBy:    labelColourBy.value,
+      annotationPalettes: Object.fromEntries(annotationPalettes),
       legendShow:       legendShowEl.value,
       legendAnnotation: legendAnnotEl.value,
       legendTextColor:  legendTextColorEl.value,
@@ -307,10 +348,6 @@ import * as commands from './commands.js';
     }));
   }
 
-  /**
-   * Snapshot the full current UI state as a plain object suitable for
-   * embedding in an exported NEXUS file or for comparison.
-   */
   function _captureCurrentSettings() {
     return {
       theme:            themeSelect.value,
@@ -359,6 +396,7 @@ import * as commands from './commands.js';
       tipColourBy:      tipColourBy.value,
       nodeColourBy:     nodeColourBy.value,
       labelColourBy:    labelColourBy.value,
+      annotationPalettes: Object.fromEntries(annotationPalettes),
       legendShow:       legendShowEl.value,
       legendAnnotation: legendAnnotEl.value,
       legendTextColor:  legendTextColorEl.value,
@@ -708,6 +746,10 @@ import * as commands from './commands.js';
 
   // Load stored settings and immediately hydrate the visual DOM controls.
   const _saved = loadSettings();
+  // Restore per-annotation palette choices.
+  if (_saved.annotationPalettes) {
+    for (const [k, v] of Object.entries(_saved.annotationPalettes)) annotationPalettes.set(k, v);
+  }
   if (_saved.canvasBgColor)        canvasBgColorEl.value    = _saved.canvasBgColor;
   if (_saved.branchColor)          branchColorEl.value      = _saved.branchColor;
   if (_saved.branchWidth    != null) {
@@ -1524,6 +1566,10 @@ import * as commands from './commands.js';
     repopulate(nodeColourBy);
     repopulate(labelColourBy);
     repopulate(legendAnnotEl, /*isLegend*/ true);
+    // Refresh palette selects to match current colour-by selections after annotation schema changes.
+    _updatePaletteSelect(tipPaletteSelect,   tipPaletteRow,   tipColourBy.value);
+    _updatePaletteSelect(nodePaletteSelect,  nodePaletteRow,  nodeColourBy.value);
+    _updatePaletteSelect(labelPaletteSelect, labelPaletteRow, labelColourBy.value);
     // Sync clear-user-colour button: enabled only when at least one node has been coloured.
     if (btnClearUserColour) {
       commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
@@ -1638,9 +1684,23 @@ import * as commands from './commands.js';
 
       // Pass schema to the renderer so it can build colour scales.
       renderer.setAnnotationSchema(schema);
+      // Apply any per-annotation palette overrides from file settings first,
+      // then from the persistent in-memory map (file settings take priority).
+      if (_eff.annotationPalettes) {
+        for (const [k, v] of Object.entries(_eff.annotationPalettes)) {
+          annotationPalettes.set(k, v);
+        }
+      }
+      for (const [k, v] of annotationPalettes) {
+        renderer.setAnnotationPalette(k, v);
+      }
       renderer.setTipColourBy(tipColourBy.value     || null);
       renderer.setNodeColourBy(nodeColourBy.value   || null);
       renderer.setLabelColourBy(labelColourBy.value || null);
+      // Show palette selects for active colour-by annotations.
+      _updatePaletteSelect(tipPaletteSelect,   tipPaletteRow,   tipColourBy.value);
+      _updatePaletteSelect(nodePaletteSelect,  nodePaletteRow,  nodeColourBy.value);
+      _updatePaletteSelect(labelPaletteSelect, labelPaletteRow, labelColourBy.value);
       applyLegend();   // rebuild legend with new data (may clear it)
       const layout = computeLayoutFromGraph(graph);
       renderer.setData(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
@@ -2871,17 +2931,50 @@ import * as commands from './commands.js';
 
   nodeColourBy.addEventListener('change', () => {
     renderer.setNodeColourBy(nodeColourBy.value || null);
+    _updatePaletteSelect(nodePaletteSelect, nodePaletteRow, nodeColourBy.value);
     saveSettings();
   });
 
   tipColourBy.addEventListener('change', () => {
     renderer.setTipColourBy(tipColourBy.value || null);
+    _updatePaletteSelect(tipPaletteSelect, tipPaletteRow, tipColourBy.value);
     saveSettings();
   });
 
   labelColourBy.addEventListener('change', () => {
     renderer.setLabelColourBy(labelColourBy.value || null);
+    _updatePaletteSelect(labelPaletteSelect, labelPaletteRow, labelColourBy.value);
     saveSettings();
+  });
+
+  tipPaletteSelect.addEventListener('change', () => {
+    const key = tipColourBy.value;
+    if (key && key !== 'user_colour') {
+      annotationPalettes.set(key, tipPaletteSelect.value);
+      renderer.setAnnotationPalette(key, tipPaletteSelect.value);
+      legendRenderer.draw();
+      saveSettings();
+    }
+  });
+
+  nodePaletteSelect.addEventListener('change', () => {
+    const key = nodeColourBy.value;
+    if (key && key !== 'user_colour') {
+      annotationPalettes.set(key, nodePaletteSelect.value);
+      renderer.setAnnotationPalette(key, nodePaletteSelect.value);
+      legendRenderer.draw();
+      saveSettings();
+    }
+  });
+
+  labelPaletteSelect.addEventListener('change', () => {
+    const key = labelColourBy.value;
+    if (key && key !== 'user_colour') {
+      annotationPalettes.set(key, labelPaletteSelect.value);
+      renderer.setAnnotationPalette(key, labelPaletteSelect.value);
+      legendRenderer.draw();
+      saveSettings();
+    }
   });
 
   // ── Legend controls ───────────────────────────────────────────────────────
