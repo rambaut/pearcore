@@ -1504,6 +1504,40 @@
       </div>
     </div>
 
+    <div class="pt-palette-section" id="node-bars-section" style="display:none">
+      <h3><i class="bi bi-bar-chart-steps"></i> Node Bars</h3>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Show</span>
+        <select class="pt-palette-select" id="node-bars-show">
+          <option value="off">Off</option>
+          <option value="on">On</option>
+        </select>
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Colour</span>
+        <input type="color" class="pt-palette-color" id="node-bars-color" value="#2aa198" />
+      </div>
+      <div class="pt-palette-row" title="Bar height in screen pixels">
+        <i class="bi bi-arrows-expand-vertical form-label-sm"></i>
+        <input type="range" class="form-range" id="node-bars-width-slider" min="2" max="30" step="1" value="6" />
+        <span class="pt-val" id="node-bars-width-value">6</span>
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Median line</span>
+        <select class="pt-palette-select" id="node-bars-median">
+          <option value="on">Show</option>
+          <option value="off">Hide</option>
+        </select>
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Range whiskers</span>
+        <select class="pt-palette-select" id="node-bars-range">
+          <option value="off">Hide</option>
+          <option value="on">Show</option>
+        </select>
+      </div>
+    </div>
+
     <div class="pt-palette-section" id="selection-hover-section">
       <h3><i class="bi bi-cursor-fill"></i> Selection &amp; Hover</h3>
 

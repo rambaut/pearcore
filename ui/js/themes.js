@@ -307,4 +307,10 @@ export const DEFAULT_SETTINGS = {
   paddingBottom:  '20',
   elbowRadius:    '2',
   rootStubLength: '20',
+  // Node bars (only shown when tree has 'height' group from BEAST)
+  nodeBarsEnabled:    'off',
+  nodeBarsColor:      '#2aa198',
+  nodeBarsWidth:      '6',
+  nodeBarsShowMedian: 'on',
+  nodeBarsShowRange:  'off',
 };

@@ -56,6 +56,12 @@ import * as commands from './commands.js';
   const nodeHoverStrokeOpacitySlider     = document.getElementById('node-hover-stroke-opacity');
   const nodeShapeColorEl  = document.getElementById('node-shape-color');
   const nodeShapeBgEl     = document.getElementById('node-shape-bg-color');
+  const nodeBarsShowEl      = document.getElementById('node-bars-show');
+  const nodeBarsColorEl     = document.getElementById('node-bars-color');
+  const nodeBarsWidthSlider = document.getElementById('node-bars-width-slider');
+  const nodeBarsMedianEl    = document.getElementById('node-bars-median');
+  const nodeBarsRangeEl     = document.getElementById('node-bars-range');
+  const nodeBarsSectionEl   = document.getElementById('node-bars-section');
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
   const labelColourBy     = document.getElementById('label-colour-by');
@@ -343,6 +349,11 @@ import * as commands from './commands.js';
       axisColor:          axisColorEl.value,
       axisFontSize:       axisFontSizeSlider.value,
       axisLineWidth:      axisLineWidthSlider.value,
+      nodeBarsEnabled:    nodeBarsShowEl.value,
+      nodeBarsColor:      nodeBarsColorEl.value,
+      nodeBarsWidth:      nodeBarsWidthSlider.value,
+      nodeBarsShowMedian: nodeBarsMedianEl.value,
+      nodeBarsShowRange:  nodeBarsRangeEl.value,
       nodeOrder:        currentOrder,
       mode:             renderer ? renderer._mode : 'nodes',
     }));
@@ -410,6 +421,11 @@ import * as commands from './commands.js';
       axisColor:          axisColorEl.value,
       axisFontSize:       axisFontSizeSlider.value,
       axisLineWidth:      axisLineWidthSlider.value,
+      nodeBarsEnabled:    nodeBarsShowEl.value,
+      nodeBarsColor:      nodeBarsColorEl.value,
+      nodeBarsWidth:      nodeBarsWidthSlider.value,
+      nodeBarsShowMedian: nodeBarsMedianEl.value,
+      nodeBarsShowRange:  nodeBarsRangeEl.value,
       nodeOrder:        currentOrder,
       mode:             renderer ? renderer._mode : 'nodes',
     };
@@ -556,6 +572,15 @@ import * as commands from './commands.js';
       legendFontSizeSlider.value = s.legendFontSize;
       document.getElementById('legend-font-size-value').textContent = s.legendFontSize;
     }
+    // Node bars settings
+    if (s.nodeBarsEnabled)  nodeBarsShowEl.value  = s.nodeBarsEnabled;
+    if (s.nodeBarsColor)    nodeBarsColorEl.value = s.nodeBarsColor;
+    if (s.nodeBarsWidth != null) {
+      nodeBarsWidthSlider.value = s.nodeBarsWidth;
+      document.getElementById('node-bars-width-value').textContent = s.nodeBarsWidth;
+    }
+    if (s.nodeBarsShowMedian) nodeBarsMedianEl.value = s.nodeBarsShowMedian;
+    if (s.nodeBarsShowRange)  nodeBarsRangeEl.value  = s.nodeBarsShowRange;
     // Set themeSelect to the stored theme name (or 'custom' if not known).
     const themeName = s.theme && themeRegistry.has(s.theme) ? s.theme : (s.theme === 'custom' ? 'custom' : 'custom');
     themeSelect.value = themeName;
@@ -592,6 +617,12 @@ import * as commands from './commands.js';
     document.getElementById('axis-font-size-value').textContent = DEFAULT_SETTINGS.axisFontSize;
     axisLineWidthSlider.value = DEFAULT_SETTINGS.axisLineWidth;
     document.getElementById('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
+    nodeBarsShowEl.value  = DEFAULT_SETTINGS.nodeBarsEnabled;
+    nodeBarsColorEl.value = DEFAULT_SETTINGS.nodeBarsColor;
+    nodeBarsWidthSlider.value = DEFAULT_SETTINGS.nodeBarsWidth;
+    document.getElementById('node-bars-width-value').textContent = DEFAULT_SETTINGS.nodeBarsWidth;
+    nodeBarsMedianEl.value = DEFAULT_SETTINGS.nodeBarsShowMedian;
+    nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsShowRange;
 
     if (renderer) {
       renderer.setTipColourBy('user_colour');
@@ -672,6 +703,11 @@ import * as commands from './commands.js';
       selectedNodeFillOpacity:   parseFloat(selectedNodeFillOpacitySlider.value),
       selectedNodeStrokeWidth:   parseFloat(selectedNodeStrokeWidthSlider.value),
       selectedNodeStrokeOpacity: parseFloat(selectedNodeStrokeOpacitySlider.value),
+      nodeBarsEnabled:    nodeBarsShowEl.value === 'on',
+      nodeBarsColor:      nodeBarsColorEl.value,
+      nodeBarsWidth:      parseInt(nodeBarsWidthSlider.value),
+      nodeBarsShowMedian: nodeBarsMedianEl.value === 'on',
+      nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
     };
   }
 
@@ -1576,6 +1612,14 @@ import * as commands from './commands.js';
     // Sync clear-user-colour button: enabled only when at least one node has been coloured.
     if (btnClearUserColour) {
       commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
+    }
+    // Show node-bars section only when the 'height' annotation group (with HPD) is present.
+    const heightDef = schema ? schema.get('height') : null;
+    const hasNodeBars = !!(heightDef && heightDef.group && heightDef.group.hpd);
+    if (nodeBarsSectionEl) nodeBarsSectionEl.style.display = hasNodeBars ? '' : 'none';
+    if (!hasNodeBars && nodeBarsShowEl.value === 'on') {
+      nodeBarsShowEl.value = 'off';
+      if (renderer) { renderer.setSettings(_buildRendererSettings()); renderer._dirty = true; }
     }
   }
 
@@ -3125,6 +3169,25 @@ import * as commands from './commands.js';
     document.getElementById('axis-line-width-value').textContent = axisLineWidthSlider.value;
     applyAxisStyle();
   });
+
+  // ── Node bars controls ────────────────────────────────────────────────────
+
+  function applyNodeBars() {
+    if (renderer) {
+      renderer.setSettings(_buildRendererSettings());
+      renderer._dirty = true;
+    }
+    saveSettings();
+  }
+
+  nodeBarsShowEl.addEventListener('change', applyNodeBars);
+  nodeBarsColorEl.addEventListener('input', applyNodeBars);
+  nodeBarsWidthSlider.addEventListener('input', () => {
+    document.getElementById('node-bars-width-value').textContent = nodeBarsWidthSlider.value;
+    applyNodeBars();
+  });
+  nodeBarsMedianEl.addEventListener('change', applyNodeBars);
+  nodeBarsRangeEl.addEventListener('change', applyNodeBars);
 
   function _showDateTickRows(visible) {
     const d = visible ? 'flex' : 'none';

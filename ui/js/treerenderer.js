@@ -212,6 +212,13 @@ export class TreeRenderer {
     this.selectedNodeStrokeWidth   = s.selectedNodeStrokeWidth;
     this.selectedNodeStrokeOpacity = s.selectedNodeStrokeOpacity;
 
+    // ── Node bars (95% HPD intervals drawn behind branches) ─────────────────
+    this.nodeBarsEnabled    = s.nodeBarsEnabled    ?? false;
+    this.nodeBarsColor      = s.nodeBarsColor      ?? '#2aa198';
+    this.nodeBarsWidth      = s.nodeBarsWidth      ?? 6;
+    this.nodeBarsShowMedian = s.nodeBarsShowMedian ?? true;
+    this.nodeBarsShowRange  = s.nodeBarsShowRange  ?? false;
+
     // Propagate bg colour to an attached legend renderer.
     this._legendRenderer?.setBgColor(this.bgColor, this._skipBg);
 
@@ -1361,6 +1368,7 @@ export class TreeRenderer {
     const yWorldMin = this._worldYfromScreen(-this.fontSize * 2);
     const yWorldMax = this._worldYfromScreen(H + this.fontSize * 2);
 
+    this._drawNodeBars(yWorldMin, yWorldMax);
     this._drawBranches(yWorldMin, yWorldMax);
     this._drawNodesAndLabels(yWorldMin, yWorldMax);
     this._drawSelectionAndHover(yWorldMin, yWorldMax);
@@ -1374,6 +1382,124 @@ export class TreeRenderer {
       const a = t * t;
       ctx.globalAlpha = a;
       ctx.drawImage(this._crossfadeSnapshot, 0, 0, cW, cH);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /**
+   * Draw node bars: translucent HPD intervals rendered behind branches for
+   * internal nodes.  Uses the 'height' BEAST annotation group:
+   *   – filled rectangle spanning the 95% HPD interval
+   *   – dark border around the rectangle
+   *   – optional vertical median line inside the rectangle
+   *   – optional range whiskers extending beyond the rectangle
+   * Heights are converted to x positions as: worldX = maxX − height.
+   */
+  _drawNodeBars(yWorldMin, yWorldMax) {
+    if (!this.nodeBarsEnabled || !this.nodes) return;
+    const schema = this._annotationSchema;
+    if (!schema) return;
+    const heightDef = schema.get('height');
+    if (!heightDef || !heightDef.group || !heightDef.group.hpd) return;
+
+    const hpdKey    = heightDef.group.hpd;     // e.g. 'height_95%_HPD'
+    const medianKey = heightDef.group.median;  // e.g. 'height_median'
+    const rangeKey  = heightDef.group.range;   // e.g. 'height_range'
+    const maxX      = this.maxX;
+    const halfW     = this.nodeBarsWidth / 2;
+    const ctx       = this.ctx;
+    const col       = this.nodeBarsColor;
+
+    // ── Pass 1: filled HPD rectangle (translucent) ──────────────────────────
+    ctx.fillStyle   = col;
+    ctx.globalAlpha = 0.22;
+    for (const node of this.nodes) {
+      if (node.isTip) continue;
+      if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      const hpd = node.annotations?.[hpdKey];
+      if (!Array.isArray(hpd) || hpd.length < 2) continue;
+      // larger height → closer to root → further left on screen
+      const xLeft  = this._wx(maxX - hpd[1]);
+      const xRight = this._wx(maxX - hpd[0]);
+      if (xRight <= xLeft) continue;
+      ctx.fillRect(xLeft, this._wy(node.y) - halfW, xRight - xLeft, halfW * 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Pass 2: border stroke ────────────────────────────────────────────────
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = 1;
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    for (const node of this.nodes) {
+      if (node.isTip) continue;
+      if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      const hpd = node.annotations?.[hpdKey];
+      if (!Array.isArray(hpd) || hpd.length < 2) continue;
+      const xLeft  = this._wx(maxX - hpd[1]);
+      const xRight = this._wx(maxX - hpd[0]);
+      if (xRight <= xLeft) continue;
+      ctx.rect(xLeft, this._wy(node.y) - halfW, xRight - xLeft, halfW * 2);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth   = 1;
+
+    // ── Pass 3: median vertical line ─────────────────────────────────────────
+    if (this.nodeBarsShowMedian && medianKey) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth   = 1.5;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for (const node of this.nodes) {
+        if (node.isTip) continue;
+        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        const hpd = node.annotations?.[hpdKey];
+        if (!Array.isArray(hpd) || hpd.length < 2) continue;
+        const medVal = node.annotations?.[medianKey];
+        if (medVal == null) continue;
+        const xMed = this._wx(maxX - medVal);
+        const cy   = this._wy(node.y);
+        ctx.moveTo(xMed, cy - halfW);
+        ctx.lineTo(xMed, cy + halfW);
+      }
+      ctx.stroke();
+      ctx.lineWidth   = 1;
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Pass 4: range whiskers ────────────────────────────────────────────────
+    if (this.nodeBarsShowRange && rangeKey) {
+      const capH = halfW * 0.6;  // height of whisker end-cap
+      ctx.strokeStyle = col;
+      ctx.lineWidth   = 1;
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath();
+      for (const node of this.nodes) {
+        if (node.isTip) continue;
+        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        const hpd   = node.annotations?.[hpdKey];
+        const range = node.annotations?.[rangeKey];
+        if (!Array.isArray(hpd) || hpd.length < 2) continue;
+        if (!Array.isArray(range) || range.length < 2) continue;
+        const cy      = this._wy(node.y);
+        const xHpdL   = this._wx(maxX - hpd[1]);
+        const xHpdR   = this._wx(maxX - hpd[0]);
+        const xRangeL = this._wx(maxX - range[1]);  // upper range bound → left
+        const xRangeR = this._wx(maxX - range[0]);  // lower range bound → right
+        // Left whisker: line + end cap
+        ctx.moveTo(xHpdL, cy);
+        ctx.lineTo(xRangeL, cy);
+        ctx.moveTo(xRangeL, cy - capH);
+        ctx.lineTo(xRangeL, cy + capH);
+        // Right whisker: line + end cap
+        ctx.moveTo(xHpdR, cy);
+        ctx.lineTo(xRangeR, cy);
+        ctx.moveTo(xRangeR, cy - capH);
+        ctx.lineTo(xRangeR, cy + capH);
+      }
+      ctx.stroke();
+      ctx.lineWidth   = 1;
       ctx.globalAlpha = 1;
     }
   }
