@@ -954,14 +954,48 @@ export class TreeRenderer {
   _updateScaleX(immediate = true) {
     const W = this.canvas.clientWidth;
     const plotW = W - this.paddingLeft - this.labelRightPad;
-    this._targetScaleX  = plotW / this.maxX;
-    this._targetOffsetX = this.paddingLeft;   // X origin always returns to paddingLeft
+    // Extra world-units needed to the left of the root for node bars / whiskers.
+    const barPad = this.nodeBarsEnabled ? this._nodeBarsLeftPad() : 0;
+    this._targetScaleX  = plotW / (this.maxX + barPad);
+    // Shift the origin right so bars that extend past the root remain visible.
+    this._targetOffsetX = this.paddingLeft + barPad * this._targetScaleX;
     if (immediate) {
       this.scaleX  = this._targetScaleX;
       this.offsetX = this._targetOffsetX;
     } else {
       this._animating = true;
     }
+  }
+
+  /**
+   * Return the number of world-units by which node bars or whiskers extend to
+   * the LEFT of the root (worldX < 0).  Used to add left padding for the scale.
+   */
+  _nodeBarsLeftPad() {
+    if (!this.nodes || !this._annotationSchema) return 0;
+    const heightDef = this._annotationSchema.get('height');
+    if (!heightDef?.group?.hpd) return 0;
+    const hpdKey   = heightDef.group.hpd;
+    const rangeKey = (this.nodeBarsShowRange && heightDef.group.range) ? heightDef.group.range : null;
+    let maxLeftward = 0;
+    for (const node of this.nodes) {
+      if (node.isTip) continue;
+      // HPD upper bound (larger height = further left)
+      const hpd = node.annotations?.[hpdKey];
+      if (Array.isArray(hpd) && hpd.length >= 2) {
+        const excess = hpd[1] - this.maxX;   // positive when bar extends past root
+        if (excess > maxLeftward) maxLeftward = excess;
+      }
+      // Range outer bound (whiskers)
+      if (rangeKey) {
+        const range = node.annotations?.[rangeKey];
+        if (Array.isArray(range) && range.length >= 2) {
+          const excess = range[1] - this.maxX;
+          if (excess > maxLeftward) maxLeftward = excess;
+        }
+      }
+    }
+    return maxLeftward;
   }
 
   /** Recompute the minimum scaleY (tree fits the viewport vertically). */
