@@ -61,7 +61,8 @@ import * as commands from './commands.js';
   const nodeBarsWidthSlider = document.getElementById('node-bars-width-slider');
   const nodeBarsMedianEl    = document.getElementById('node-bars-median');
   const nodeBarsRangeEl     = document.getElementById('node-bars-range');
-  const nodeBarsSectionEl   = document.getElementById('node-bars-section');
+  const nodeBarsControlsEl  = document.getElementById('node-bars-controls');
+  const nodeBarsUnavailEl   = document.getElementById('node-bars-unavail');
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
   const labelColourBy     = document.getElementById('label-colour-by');
@@ -1613,10 +1614,11 @@ import * as commands from './commands.js';
     if (btnClearUserColour) {
       commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
     }
-    // Show node-bars section only when the 'height' annotation group (with HPD) is present.
+    // Show node-bars controls only when the 'height' annotation group (with HPD) is present.
     const heightDef = schema ? schema.get('height') : null;
     const hasNodeBars = !!(heightDef && heightDef.group && heightDef.group.hpd);
-    if (nodeBarsSectionEl) nodeBarsSectionEl.style.display = hasNodeBars ? '' : 'none';
+    if (nodeBarsControlsEl) nodeBarsControlsEl.style.display = hasNodeBars ? '' : 'none';
+    if (nodeBarsUnavailEl)  nodeBarsUnavailEl.style.display  = hasNodeBars ? 'none' : 'block';
     if (!hasNodeBars && nodeBarsShowEl.value === 'on') {
       nodeBarsShowEl.value = 'off';
       if (renderer) { renderer.setSettings(_buildRendererSettings()); renderer._dirty = true; }
@@ -1734,6 +1736,14 @@ import * as commands from './commands.js';
 
       // Pass schema to the renderer so it can build colour scales.
       renderer.setAnnotationSchema(schema);
+      // Show node-bars controls only when a BEAST 'height' annotation with HPD is present.
+      {
+        const _hDef = schema ? schema.get('height') : null;
+        const _hasNB = !!(_hDef && _hDef.group && _hDef.group.hpd);
+        if (nodeBarsControlsEl) nodeBarsControlsEl.style.display = _hasNB ? '' : 'none';
+        if (nodeBarsUnavailEl)  nodeBarsUnavailEl.style.display  = _hasNB ? 'none' : 'block';
+        if (!_hasNB && nodeBarsShowEl && nodeBarsShowEl.value === 'on') nodeBarsShowEl.value = 'off';
+      }
       // Apply any per-annotation palette overrides from file settings first,
       // then from the persistent in-memory map (file settings take priority).
       if (_eff.annotationPalettes) {
