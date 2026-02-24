@@ -25,7 +25,7 @@ Click the **folder icon** or press **⌘O** to open the *Open Tree File* dialog.
 | **URL** | Enter a direct URL to a NEXUS or Newick file and click *Load from URL* |
 | **Example** | Load the built-in Ebola virus (EBOV) example tree |
 
-Supported formats: **NEXUS** (`.nex`, `.nexus`, `.tre`, `.tree`) and **Newick** (`.nwk`, `.newick`).
+Supported formats: **NEXUS** (`.nex`, `.nexus`, `.tre`, `.tree`, `.treefile`) and **Newick** (`.nwk`, `.newick`).
 
 Press **Escape** or click × to close the dialog without loading (once a tree is already open).
 
