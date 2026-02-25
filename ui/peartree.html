@@ -239,18 +239,11 @@
     /* ── Canvas area ── */
     #canvas-container {
       flex: 1;
+      position: relative;   /* positioning context for slide-out panels */
       display: flex;
       flex-direction: row;
       align-items: stretch;
       overflow: hidden;
-    }
-    #canvas-and-axis-wrapper {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      overflow: hidden;
-      min-width: 0;
     }
     #canvas-wrapper {
       flex: 1;
@@ -345,7 +338,7 @@
     /* ── Help panel ── */
     #help-panel {
       position: fixed;
-      top: 0;
+      top: var(--pt-toolbar-h, 0px);
       right: 0;
       bottom: 0;
       width: 380px;
@@ -498,7 +491,7 @@
     /* ── Tool palette (slides in from left) ── */
     #palette-panel {
       position: fixed;
-      top: 0;
+      top: var(--pt-toolbar-h, 0px);
       left: 0;
       bottom: 0;
       width: 240px;
@@ -512,13 +505,28 @@
       overflow: hidden;
     }
     #palette-panel.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.55); }
+    /* Pinned: leave absolute positioning (panel already visible), but canvas-and-axis-wrapper
+       gets a matching left margin so the content slides over to make room. */
+    #palette-panel.pinned { transform: translateX(0); box-shadow: none; }
+    #canvas-and-axis-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow: hidden;
+      min-width: 0;
+      transition: margin-left 0.22s cubic-bezier(.4,0,.2,1);
+    }
+    body.palette-pinned #canvas-and-axis-wrapper {
+      margin-left: 240px;
+    }
     #selection-hover-section { display: none; }
     #palette-panel.advanced #selection-hover-section { display: block; }
     #palette-panel-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 14px 8px 16px;
+      padding: 8px 8px 8px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
       flex-shrink: 0;
     }
@@ -529,18 +537,25 @@
       margin: 0;
       letter-spacing: 0.3px;
     }
-    #btn-palette-close {
+    #btn-palette-pin, #btn-palette-close {
       background: none;
       border: none;
       color: var(--pt-off-white);
-      font-size: 1.1rem;
       line-height: 1;
       padding: 2px 6px;
       border-radius: 3px;
-      opacity: 0.6;
+      opacity: 0.5;
       cursor: pointer;
     }
+    #btn-palette-pin  { font-size: 0.85rem; }
+    #btn-palette-close { font-size: 1.1rem; }
+    #btn-palette-pin:hover,
     #btn-palette-close:hover { background: rgba(255,255,255,0.08); opacity: 1; }
+    #btn-palette-pin.active {
+      color: var(--pt-primary);
+      opacity: 1;
+    }
+    .palette-pin-btns { display: flex; align-items: center; gap: 0; }
     #palette-panel-body {
       flex: 1;
       min-height: 0;
@@ -1273,7 +1288,10 @@
 <div id="palette-panel">
   <div id="palette-panel-header">
     <h2><i class="bi bi-sliders me-1"></i>Visual Options</h2>
-    <button id="btn-palette-close" title="Close">&times;</button>
+    <div class="palette-pin-btns">
+      <button id="btn-palette-pin" title="Pin panel open"><i class="bi bi-pin-angle"></i></button>
+      <button id="btn-palette-close" title="Close">&times;</button>
+    </div>
   </div>
   <div id="palette-panel-body">
 
@@ -1740,6 +1758,13 @@
   const palettePanel     = document.getElementById('palette-panel');
   const btnPalette       = document.getElementById('btn-palette');
   const btnPaletteClose  = document.getElementById('btn-palette-close');
+  const btnPalettePin    = document.getElementById('btn-palette-pin');
+  let   palettePinned    = false;
+
+  function _afterPanelTransition() {
+    // Let the CSS transition finish, then tell the tree renderer about the new width.
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 240);
+  }
 
   function openPalette(advanced = false) {
     palettePanel.classList.add('open');
@@ -1747,12 +1772,34 @@
     btnPalette.classList.add('active');
   }
   function closePalette() {
+    if (palettePinned) unpinPalette();
     palettePanel.classList.remove('open', 'advanced');
     btnPalette.classList.remove('active');
+    _afterPanelTransition();
+  }
+  function pinPalette() {
+    palettePinned = true;
+    palettePanel.classList.add('open', 'pinned');
+    document.body.classList.add('palette-pinned');
+    btnPalettePin.classList.add('active');
+    btnPalettePin.title = 'Unpin panel';
+    btnPalettePin.innerHTML = '<i class="bi bi-pin-angle-fill"></i>';
+    btnPalette.classList.add('active');
+    _afterPanelTransition();
+  }
+  function unpinPalette() {
+    palettePinned = false;
+    palettePanel.classList.remove('pinned');
+    document.body.classList.remove('palette-pinned');
+    btnPalettePin.classList.remove('active');
+    btnPalettePin.title = 'Pin panel open';
+    btnPalettePin.innerHTML = '<i class="bi bi-pin-angle"></i>';
+    _afterPanelTransition();
   }
 
   btnPalette.addEventListener('click', e => {
     e.stopPropagation();
+    if (palettePinned) return;   // pinned: toolbar button doesn't close
     if (palettePanel.classList.contains('open')) {
       closePalette();
     } else {
@@ -1760,6 +1807,10 @@
     }
   });
   btnPaletteClose.addEventListener('click', closePalette);
+  btnPalettePin.addEventListener('click', () => {
+    if (palettePinned) unpinPalette();
+    else               pinPalette();
+  });
 
   // Slider live value readouts
   const fontSliderEl = document.getElementById('font-size-slider');
@@ -1846,9 +1897,9 @@
   btnAboutClose.addEventListener('click', closeAbout);
   aboutBackdrop.addEventListener('click', closeAbout);
 
-  // Clicking the tree canvas closes any open panel immediately.
+  // Clicking the tree canvas closes any open panel immediately (unless pinned).
   document.getElementById('tree-canvas').addEventListener('pointerdown', () => {
-    closePalette();
+    if (!palettePinned) closePalette();
     closeHelp();
     closeAbout();
   });
@@ -1859,14 +1910,23 @@
       const tag = document.activeElement && document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       e.preventDefault();
+      if (palettePinned) return;   // Tab does nothing when pinned
       palettePanel.classList.contains('open') ? closePalette() : openPalette(e.altKey);
     }
   });
 
-  // Close help on Escape
+  // Close help on Escape; also close palette if NOT pinned
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeHelp(); closePalette(); closeAbout(); }
+    if (e.key === 'Escape') { closeHelp(); if (!palettePinned) closePalette(); closeAbout(); }
   });
+
+  // ── Keep panels below toolbar ──────────────────────────────────────────
+  const _toolbar = document.querySelector('.pt-toolbar');
+  function _updateToolbarH() {
+    document.documentElement.style.setProperty('--pt-toolbar-h', _toolbar.offsetHeight + 'px');
+  }
+  _updateToolbarH();
+  new ResizeObserver(_updateToolbarH).observe(_toolbar);
 </script>
 <script type="module" src="js/peartree.js"></script>
 <script type="module" src="js/peartree-tauri.js"></script>
