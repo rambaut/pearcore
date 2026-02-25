@@ -9,6 +9,7 @@ import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from './annotationsio.js';
+import { createAnnotCurator  } from './annotcurator.js';
 import * as commands from './commands.js';
 
 (async () => {
@@ -103,6 +104,7 @@ import * as commands from './commands.js';
   const btnFit                 = document.getElementById('btn-fit');
   const btnResetSettings       = document.getElementById('btn-reset-settings');
   const btnImportAnnot         = document.getElementById('btn-import-annot');
+  const btnCurateAnnot         = document.getElementById('btn-curate-annot');
   const btnExportTree          = document.getElementById('btn-export-tree');
   const btnMPR                 = document.getElementById('btn-midpoint-root');
   const tipColourPickerEl            = document.getElementById('btn-node-colour');
@@ -1113,7 +1115,8 @@ import * as commands from './commands.js';
       // Close innermost open overlay first.
       if (exportGraphicOverlay.classList.contains('open')) { _closeGraphicsDialog(); return; }
       if (exportOverlay.classList.contains('open'))        { _closeExportDialog();   return; }
-      if (document.getElementById('import-annot-overlay')?.classList.contains('open')) { annotImporter.close(); return; }
+      if (document.getElementById('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
+      if (document.getElementById('import-annot-overlay')?.classList.contains('open'))  { annotImporter.close(); return; }
       const nodeInfoOv = document.getElementById('node-info-overlay');
       if (nodeInfoOv && nodeInfoOv.classList.contains('open')) { nodeInfoOv.classList.remove('open'); return; }
       if (modal.classList.contains('open'))  { closeModal();           return; }
@@ -1268,6 +1271,19 @@ import * as commands from './commands.js';
     },
   });
   btnImportAnnot.addEventListener('click', () => commands.execute('import-annot'));
+
+  // ── Curate Annotations ───────────────────────────────────────────────────
+  const annotCurator = createAnnotCurator({
+    getGraph: () => graph,
+    onApply: (schema) => {
+      _refreshAnnotationUIs(schema);
+      renderer.setAnnotationSchema(schema);
+      axisRenderer.setHeightFormatter(schema.get('height')?.fmt ?? null);
+      applyLegend();
+      renderer._dirty = true;
+    },
+  });
+  btnCurateAnnot.addEventListener('click', () => commands.execute('curate-annot'));
 
   document.getElementById('export-tree-close').addEventListener('click', _closeExportDialog);
   btnExportTree.addEventListener('click', _openExportDialog);
@@ -1893,6 +1909,7 @@ import * as commands from './commands.js';
         emptyStateEl.classList.add('hidden');
         // Enable commands — registry syncs both the button .disabled and the native menu.
         commands.setEnabled('import-annot',    true);
+        commands.setEnabled('curate-annot',    true);
         commands.setEnabled('export-tree',     true);
         commands.setEnabled('export-image',    true);
         commands.setEnabled('view-zoom-in',    true);
@@ -3317,6 +3334,7 @@ import * as commands from './commands.js';
   commands.get('open-file').exec  = () => pickTreeFile();
   commands.get('open-tree').exec  = () => openModal();
   commands.get('import-annot').exec = () => annotImporter.open();
+  commands.get('curate-annot').exec  = () => annotCurator.open();
   commands.get('select-all').exec = () => {
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) {

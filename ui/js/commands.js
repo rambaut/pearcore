@@ -42,7 +42,8 @@ function _define(def) {
 _define({ id: 'new-window',   label: 'New Window',             shortcut: 'CmdOrCtrl+N',       group: 'file', enabled: true  });
 _define({ id: 'open-file',    label: 'Open…',                 shortcut: 'CmdOrCtrl+O',       group: 'file', enabled: true  });
 _define({ id: 'open-tree',    label: 'Open Tree…',             shortcut: 'CmdOrCtrl+Shift+O', group: 'file', enabled: true,  buttonId: 'btn-open-tree'      });
-_define({ id: 'import-annot', label: 'Import Annotations…',    shortcut: 'CmdOrCtrl+Shift+A', group: 'file', enabled: false, buttonId: 'btn-import-annot'   });
+_define({ id: 'import-annot',  label: 'Import Annotations…',    shortcut: 'CmdOrCtrl+Shift+A', group: 'file', enabled: false, buttonId: 'btn-import-annot'   });
+_define({ id: 'curate-annot', label: 'Curate Annotations…',    shortcut: null,                group: 'file', enabled: false, buttonId: 'btn-curate-annot'   });
 _define({ id: 'export-tree',  label: 'Export Tree…',            shortcut: 'CmdOrCtrl+E',       group: 'file', enabled: false, buttonId: 'btn-export-tree'    });
 _define({ id: 'export-image', label: 'Export Image…',           shortcut: 'CmdOrCtrl+Shift+E', group: 'file', enabled: false, buttonId: 'btn-export-graphic' });
 

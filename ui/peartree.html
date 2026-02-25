@@ -1030,6 +1030,54 @@
     .expg-dim-px:focus { outline: none; border-color: var(--bs-primary); }
     #expg-png-opts { border-top: 1px solid #235b62; padding-top: 0.75rem; margin-top: 0.3rem; }
     .expg-hint { font-size: 0.76rem; color: var(--bs-secondary-color); margin-top: 0.3rem; }
+
+    /* ── Curate Annotations dialog ── */
+    .ca-table-wrap { overflow-y:auto; max-height:260px; border-bottom:1px solid #235b62; }
+    .ca-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+    .ca-table th { position:sticky; top:0; background:#02292e; color:var(--pt-gold);
+      font-weight:600; padding:5px 10px; text-align:left; border-bottom:1px solid #235b62;
+      white-space:nowrap; }
+    .ca-table td { padding:4px 10px; border-bottom:1px solid rgba(35,91,98,0.35);
+      vertical-align:middle; }
+    .ca-table tr:last-child td { border-bottom:none; }
+    .ca-table tr.selected td { background:rgba(25,166,153,0.15); }
+    .ca-table tr[data-name]:not(.selected):hover td { background:rgba(255,255,255,0.04); cursor:pointer; }
+    .ca-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:0.68rem; }
+    .ca-badge-real        { background:rgba(33,150,122,0.22);  color:#2aa198; }
+    .ca-badge-integer     { background:rgba(108,113,196,0.22); color:#6c71c4; }
+    .ca-badge-categorical { background:rgba(181,137,0,0.22);   color:#b58900; }
+    .ca-badge-list        { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.45); }
+    .ca-mono  { font-family:monospace; }
+    .ca-sep   { color:rgba(255,255,255,0.3); padding:0 2px; }
+    .ca-dim   { color:rgba(255,255,255,0.35); }
+    .ca-small { font-size:0.72rem; }
+    .ca-center { text-align:center; }
+    .ca-num-cell { white-space:nowrap; }
+    .ca-tfm-cell { font-size:0.78rem; text-align:center; }
+    .ca-pending-dot { color:var(--pt-gold); font-size:0.65rem; }
+    .ca-name  { font-weight:500; }
+    .ca-empty { text-align:center; color:rgba(255,255,255,0.3); padding:16px; }
+    .ca-detail { min-height:130px; padding:12px 16px 8px; font-size:0.82rem; }
+    .ca-detail-empty { color:rgba(255,255,255,0.3); font-size:0.78rem;
+      text-align:center; padding:32px 0; margin:0; }
+    .ca-detail-header { font-weight:600; color:var(--pt-cream); margin-bottom:8px; font-size:0.82rem; }
+    .ca-section-lbl { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em;
+      color:var(--bs-secondary-color); margin:0 0 4px; }
+    .ca-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem; flex-wrap:wrap; }
+    .ca-wrap { gap:0.4rem 1.2rem; }
+    .ca-row-lbl { font-size:0.75rem; color:var(--pt-cream); min-width:3rem; flex-shrink:0; }
+    .ca-sel { background:#02292e; color:var(--bs-body-color); border:1px solid #235b62;
+      border-radius:0.25rem; padding:0.2rem 0.4rem; font-size:0.82rem; font-family:inherit; }
+    .ca-sel:focus { outline:none; border-color:var(--pt-gold); }
+    .ca-num-input { width:90px; background:#02292e; color:var(--bs-body-color);
+      border:1px solid #235b62; border-radius:0.25rem; padding:0.2rem 0.4rem;
+      font-size:0.82rem; font-family:monospace; }
+    .ca-num-input:focus { outline:none; border-color:var(--pt-gold); }
+    .ca-chk-lbl { display:flex; align-items:center; gap:0.35rem; font-size:0.8rem;
+      cursor:pointer; white-space:nowrap; }
+    .ca-hint { font-size:0.72rem; color:rgba(255,255,255,0.4); font-style:italic; }
+    .ca-warn { font-size:0.73rem; color:#b58900; margin:2px 0 4px; padding:4px 8px;
+      background:rgba(181,137,0,0.1); border-radius:3px; }
   </style>
 </head>
 <body>
@@ -1041,7 +1089,7 @@
     <button id="btn-palette" class="btn btn-sm btn-outline-secondary" title="Visual options panel (Tab · ⌥Tab for advanced)"><i class="bi bi-sliders"></i><i class="bi bi-caret-right"></i></button>
     <div class="pt-toolbar-sep"></div>
     <button id="btn-open-tree" class="btn btn-sm btn-outline-primary" title="Open tree file (⌘O)"><i class="bi bi-folder2-open"></i></button>
-    <button id="btn-import-annot" class="btn btn-sm btn-outline-success" disabled title="Import annotations from CSV/TSV (⌘⇧O)"><i class="bi bi-table"></i></button>
+    <button id="btn-import-annot"  class="btn btn-sm btn-outline-success"   disabled title="Import annotations from CSV/TSV (⌘⇧O)"><i class="bi bi-table"></i></button>
     <button id="btn-export-tree"    class="btn btn-sm btn-outline-info" disabled title="Export tree (Newick or NEXUS)"><i class="bi bi-file-earmark-arrow-down"></i></button>
     <button id="btn-export-graphic" class="btn btn-sm btn-outline-warning" disabled title="Download graphic (SVG or PNG)"><i class="bi bi-image"></i></button>
     <div class="pt-toolbar-sep"></div>
@@ -1049,6 +1097,8 @@
 
   <!-- ── Wrapping centre: tree navigation and manipulation ── -->
   <div class="pt-toolbar-center">
+    <!-- annotation curation box - hiding for now -->
+    <!-- <button id="btn-curate-annot"  class="btn btn-sm btn-outline-secondary" disabled title="Curate annotations"><i class="bi bi-sliders2-vertical"></i></button> -->
 
     <!-- Back / Forward -->
     <span class="form-label-sm" style="padding: 0 2px 0 4px;">Nav:</span>
@@ -1248,6 +1298,36 @@
     <p id="error-dialog-msg"></p>
     <button id="error-dialog-ok" class="btn btn-sm btn-primary">OK</button>
     <div style="clear:both"></div>
+  </div>
+</div>
+
+<!-- Curate Annotations Dialog -->
+<div id="curate-annot-overlay" class="pt-modal-overlay">
+  <div class="pt-modal" style="width:740px;max-width:calc(100vw - 40px)">
+    <div class="pt-modal-header">
+      <h5 class="modal-title"><i class="bi bi-sliders2-vertical me-2"></i>Curate Annotations</h5>
+      <button class="pt-modal-close-btn" id="curate-annot-close" title="Close">&times;</button>
+    </div>
+    <div class="pt-modal-body" style="padding:0;display:flex;flex-direction:column">
+      <div class="ca-table-wrap">
+        <table class="ca-table">
+          <thead>
+            <tr>
+              <th>Annotation</th><th>Type</th><th>On</th>
+              <th>Observed range</th><th>Scale bounds</th><th>Transform</th>
+            </tr>
+          </thead>
+          <tbody id="curate-annot-tbody"></tbody>
+        </table>
+      </div>
+      <div id="curate-annot-detail" class="ca-detail">
+        <p class="ca-detail-empty">← Select an annotation row to edit its settings</p>
+      </div>
+    </div>
+    <div class="pt-modal-footer">
+      <button id="curate-annot-cancel" class="btn btn-sm btn-secondary">Cancel</button>
+      <button id="curate-annot-apply"  class="btn btn-sm btn-primary">Apply</button>
+    </div>
   </div>
 </div>
 
