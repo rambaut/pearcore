@@ -118,6 +118,14 @@ import * as commands from './commands.js';
 
   let currentOrder = null;  // null | 'asc' | 'desc' — declared early so saveSettings() is safe to call during init
 
+  // ── Tree state — declared early so hoisted async function loadTree() can access them ──
+  let graph              = null;  // PhyloGraph (adjacency-list model)
+  let controlsBound      = false;
+  let _cachedMidpoint    = null;  // cached midpointRootGraph() result; cleared on every tree change
+  let isExplicitlyRooted = false; // true when root node carries annotations — rerooting disabled
+  let _loadedFilename    = null;  // filename of the most recently loaded tree
+  let _axisIsTimedTree   = false;
+
   // Live theme registry: built-ins first, then any user-saved themes added on top.
   const themeRegistry = new Map(Object.entries(THEMES));
 
@@ -1681,15 +1689,6 @@ import * as commands from './commands.js';
   }
 
   // ── Tree loading ──────────────────────────────────────────────────────────
-
-  let graph            = null;  // PhyloGraph (adjacency-list model)
-  let controlsBound    = false;
-  let _cachedMidpoint  = null;  // cached midpointRootGraph() result; cleared on every tree change
-  let isExplicitlyRooted = false; // true when root node carries annotations — rerooting disabled
-  let _loadedFilename  = null;  // filename of the most recently loaded tree
-
-  // ── Axis subtree-tracking state ───────────────────────────────────────────
-  let _axisIsTimedTree = false;
 
   async function loadTree(text, filename) {
     setModalLoading(true);
