@@ -38,6 +38,7 @@ export class LegendRenderer {
 
     this.skipBg = false;
     this._dpr   = window.devicePixelRatio || 1;
+    this._fontFamily = 'monospace';
 
     this.setSettings(settings, /*redraw*/ false);
   }
@@ -106,6 +107,12 @@ export class LegendRenderer {
   /** @param {string} color — CSS colour string */
   setTextColor(color) {
     this.textColor = color;
+    this.draw();
+  }
+
+  /** @param {string} f — CSS font-family string */
+  setFontFamily(f) {
+    this._fontFamily = f || 'monospace';
     this.draw();
   }
 
@@ -179,7 +186,7 @@ export class LegendRenderer {
     }
 
     const PAD  = 12;
-    const FONT = 'monospace';
+    const FONT = this._fontFamily ?? 'monospace';
     let   y    = PAD;
 
     const lfs = this.fontSize;

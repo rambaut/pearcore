@@ -148,6 +148,7 @@ export class TreeRenderer {
     this.branchColor       = s.branchColor;
     this.branchWidth       = s.branchWidth;
     this.fontSize          = s.fontSize;
+    this.fontFamily        = s.fontFamily        ?? 'monospace';
 
     // ── Tip shape ───────────────────────────────────────────────────────────
     this.tipRadius         = s.tipRadius;
@@ -929,11 +930,11 @@ export class TreeRenderer {
   }
   _measureLabels() {
     if (!this.nodes) return;
-    // Only redo the expensive measureText scan when font size or node data changes.
-    const cacheKey = `${this.fontSize}`;
+    // Only redo the expensive measureText scan when font size/family or node data changes.
+    const cacheKey = `${this.fontSize}|${this.fontFamily}`;
     if (this._labelCacheKey !== cacheKey) {
       const ctx = this.ctx;
-      ctx.font = `${this.fontSize}px monospace`;
+      ctx.font = `${this.fontSize}px ${this.fontFamily}`;
       let max = 0;
       for (const n of this.nodes) {
         if (n.isTip && n.name) {
@@ -1672,7 +1673,7 @@ export class TreeRenderer {
     // Label x-offset: leave at least 5 px even when tip shapes are hidden.
     const outlineR = Math.max(r + tipHalo, 5);
 
-    ctx.font         = `${this.fontSize}px monospace`;
+    ctx.font         = `${this.fontSize}px ${this.fontFamily}`;
     ctx.textBaseline = 'middle';
     // Show labels only when tips are spaced at least half a label-height apart.
     // In hyperbolic-stretch mode labels are assessed per-node (see _showLabelAt).
@@ -1778,14 +1779,14 @@ export class TreeRenderer {
         }
         // Sub-pass 3b: selected labels in bold + selected colour
         ctx.fillStyle = this.selectedLabelColor;
-        ctx.font = `${this.selectedLabelStyle} ${this.fontSize}px monospace`;
+        ctx.font = `${this.selectedLabelStyle} ${this.fontSize}px ${this.fontFamily}`;
         for (const node of this.nodes) {
           if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           if (node.name) ctx.fillText(node.name, this._wx(node.x) + outlineR + 3, this._wy(node.y));
         }
-        ctx.font = `${this.fontSize}px monospace`;
+        ctx.font = `${this.fontSize}px ${this.fontFamily}`;
       } else if (this._labelColourBy && this._labelColourScale) {
         const key = this._labelColourBy;
         for (const node of this.nodes) {
@@ -2123,7 +2124,7 @@ export class TreeRenderer {
       const outlineR = r + Math.max(1, Math.round(r * 0.45));
       const labelX0  = outlineR + 3;
       const halfH    = this.fontSize / 2 + 2;
-      this.ctx.font  = `${this.fontSize}px monospace`;
+      this.ctx.font  = `${this.fontSize}px ${this.fontFamily}`;
       for (const node of this.nodes) {
         if (!node.isTip || !node.name) continue;
         if (node.y < yWorldMin || node.y > yWorldMax) continue;
@@ -2484,7 +2485,7 @@ export class TreeRenderer {
           const labelX0  = outlineR + 3;           // label starts this many px right of circle centre
           const halfH    = this.fontSize / 2 + 2;  // half-height of a label row
           const showLbls = this.scaleY >= this.fontSize * 0.5;
-          this.ctx.font  = `${this.fontSize}px monospace`;
+          this.ctx.font  = `${this.fontSize}px ${this.fontFamily}`;
           for (const node of this.nodes) {
             if (!node.isTip) continue;
             const sx = this._wx(node.x);

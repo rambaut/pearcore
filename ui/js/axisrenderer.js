@@ -27,6 +27,7 @@ export class AxisRenderer {
     this._timed      = false;
     this._rootHeight = 0;
     this._fontSize   = 9;
+    this._fontFamily = 'monospace';
 
     // Date mode — anchor stores one tip's (date, height) pair so any node's date
     // can be derived as: nodeDate = _anchorDecYear + (_anchorH - nodeH)
@@ -189,7 +190,7 @@ export class AxisRenderer {
     // Only auto-sync font size from tree if the user hasn't explicitly set one
     if (!this._axisFontSizeManual) this._fontSize = Math.max(7, fontSize - 1);
 
-    const hash = `${scaleX.toFixed(4)}|${offsetX.toFixed(2)}|${paddingLeft}|${labelRightPad}|${bgColor}|${this._fontSize}|${this._axisColor ?? ''}|${this._axisLineWidth}|${W}|${H}|${this._timed}|${this._dateMode}|${this._rootHeight}|${this._anchorDecYear}|${this._anchorH}|${this._minTipH}|${this._majorInterval}|${this._minorInterval}|${this._majorLabelFormat}|${this._minorLabelFormat}`;
+    const hash = `${scaleX.toFixed(4)}|${offsetX.toFixed(2)}|${paddingLeft}|${labelRightPad}|${bgColor}|${this._fontSize}|${this._fontFamily}|${this._axisColor ?? ''}|${this._axisLineWidth}|${W}|${H}|${this._timed}|${this._dateMode}|${this._rootHeight}|${this._anchorDecYear}|${this._anchorH}|${this._minTipH}|${this._majorInterval}|${this._minorInterval}|${this._majorLabelFormat}|${this._minorLabelFormat}`;
     if (hash === this._lastHash) return;
     this._lastHash = hash;
 
@@ -216,6 +217,11 @@ export class AxisRenderer {
     this._fontSize          = Math.max(6, px);
     this._axisFontSizeManual = true;
     this._lastHash          = '';
+  }
+
+  setFontFamily(f) {
+    this._fontFamily = f || 'monospace';
+    this._lastHash   = '';
   }
 
   /** Set the base colour used for ticks, baseline and labels (hex, e.g. '#f2f1e6'). */
@@ -305,7 +311,7 @@ export class AxisRenderer {
     const showMinorLabel = minorLabelFmt !== 'off';
     let minorLabelRight  = -Infinity;
 
-    ctx.font         = `${fsMinor}px monospace`;
+    ctx.font         = `${fsMinor}px ${this._fontFamily}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
 
@@ -335,7 +341,7 @@ export class AxisRenderer {
     const showMajorLabel = majorLabelFmt !== 'off';
     let majorLabelRight  = -Infinity;
 
-    ctx.font         = `${fs}px monospace`;
+    ctx.font         = `${fs}px ${this._fontFamily}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
 

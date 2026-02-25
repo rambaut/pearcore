@@ -63,6 +63,7 @@ import * as commands from './commands.js';
   const nodeBarsRangeEl     = document.getElementById('node-bars-range');
   const nodeBarsControlsEl  = document.getElementById('node-bars-controls');
   const nodeBarsUnavailEl   = document.getElementById('node-bars-unavail');
+  const fontFamilyEl        = document.getElementById('font-family-select');
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
   const labelColourBy     = document.getElementById('label-colour-by');
@@ -295,6 +296,7 @@ import * as commands from './commands.js';
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
       fontSize:         fontSlider.value,
+      fontFamily:       fontFamilyEl.value,
       labelColor:       labelColorEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
       selectedTipStrokeColor:  selectedTipStrokeEl.value,
@@ -367,6 +369,7 @@ import * as commands from './commands.js';
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
       fontSize:         fontSlider.value,
+      fontFamily:       fontFamilyEl.value,
       labelColor:       labelColorEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
       selectedTipStrokeColor:  selectedTipStrokeEl.value,
@@ -450,6 +453,7 @@ import * as commands from './commands.js';
       fontSlider.value = s.fontSize;
       document.getElementById('font-size-value').textContent = s.fontSize;
     }
+    if (s.fontFamily)            fontFamilyEl.value       = s.fontFamily;
     if (s.labelColor)            labelColorEl.value       = s.labelColor;
     if (s.selectedLabelStyle)    selectedLabelStyleEl.value = s.selectedLabelStyle;
     if (s.selectedTipStrokeColor)     selectedTipStrokeEl.value  = s.selectedTipStrokeColor;
@@ -709,6 +713,7 @@ import * as commands from './commands.js';
       nodeBarsWidth:      parseInt(nodeBarsWidthSlider.value),
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
+      fontFamily:         fontFamilyEl.value,
     };
   }
 
@@ -747,13 +752,17 @@ import * as commands from './commands.js';
     if (t.axisColor) {
       axisColorEl.value = t.axisColor;
     }
+    nodeBarsColorEl.value = t.nodeBarsColor ?? DEFAULT_SETTINGS.nodeBarsColor;
     // legendTextColor falls back to labelColor for themes that don't define it explicitly.
     const legendColor = t.legendTextColor || t.labelColor;
     legendTextColorEl.value = legendColor;
+    fontFamilyEl.value = t.fontFamily ?? DEFAULT_SETTINGS.fontFamily;
     if (renderer) {
       renderer.setSettings(_buildRendererSettings());
       if (t.axisColor) axisRenderer.setColor(t.axisColor);
       legendRenderer.setTextColor(legendColor);
+      axisRenderer.setFontFamily(fontFamilyEl.value);
+      legendRenderer.setFontFamily(fontFamilyEl.value);
       // Invalidate axis hash so next update redraws
       axisRenderer._lastHash = '';
     }
@@ -797,6 +806,7 @@ import * as commands from './commands.js';
     fontSlider.value = _saved.fontSize;
     document.getElementById('font-size-value').textContent = _saved.fontSize;
   }
+  if (_saved.fontFamily)           fontFamilyEl.value       = _saved.fontFamily;
   if (_saved.labelColor)           labelColorEl.value       = _saved.labelColor;
   if (_saved.selectedLabelStyle)   selectedLabelStyleEl.value = _saved.selectedLabelStyle;
   if (_saved.selectedTipStrokeColor)    selectedTipStrokeEl.value  = _saved.selectedTipStrokeColor;
@@ -2765,6 +2775,14 @@ import * as commands from './commands.js';
   fontSlider.addEventListener('input', () => {
     _markCustomTheme();
     renderer.setFontSize(parseInt(fontSlider.value));
+    saveSettings();
+  });
+
+  fontFamilyEl.addEventListener('change', () => {
+    _markCustomTheme();
+    renderer.setSettings(_buildRendererSettings());
+    axisRenderer.setFontFamily(fontFamilyEl.value);
+    legendRenderer.setFontFamily(fontFamilyEl.value);
     saveSettings();
   });
 
