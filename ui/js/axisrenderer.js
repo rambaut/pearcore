@@ -49,6 +49,7 @@ export class AxisRenderer {
     this._axisColor          = null;   // hex string; null → use built-in default colours
     this._axisLineWidth      = 1;      // stroke width for ticks and baseline
     this._axisFontSizeManual = false;  // true once setFontSize() has been called
+    this._heightFormatter    = null;   // (v:number)=>string from annotation def.fmt, for non-date ticks
 
     this.setSettings(settings, /*redraw*/ false);
   }
@@ -66,6 +67,16 @@ export class AxisRenderer {
     if (s.fontSize   != null) this.setFontSize(s.fontSize);
     if (s.lineWidth  != null) this.setLineWidth(s.lineWidth);
     if (redraw) this._lastHash = '';
+  }
+
+  /**
+   * Provide a pre-computed formatter for non-date (height / divergence) tick labels.
+   * Pass null to revert to the built-in magnitude-based static formatter.
+   * @param {((v:number)=>string)|null} fmt
+   */
+  setHeightFormatter(fmt) {
+    this._heightFormatter = fmt || null;
+    this._lastHash = '';
   }
 
   // ── Public API ──────────────────────────────────────────────────────────
@@ -361,7 +372,9 @@ export class AxisRenderer {
             ? AxisRenderer._formatDecYear(val, majorTicks)
             : this._formatDateVal(val, majorLabelFmt, this._majorInterval);
         } else {
-          label = AxisRenderer._formatValue(val);
+          label = this._heightFormatter
+            ? this._heightFormatter(val)
+            : AxisRenderer._formatValue(val);
         }
         const tw = ctx.measureText(label).width;
         const lx = Math.max(plotLeft + tw / 2 + 1, Math.min(plotRight - tw / 2 - 1, sx));

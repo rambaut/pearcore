@@ -946,6 +946,11 @@ export class TreeRenderer {
     const val = node.annotations?.[this.tipLabelAnnotation];
     if (val == null || val === '') return node.name || null;
     if (Array.isArray(val)) return val.join(', ');
+    if (typeof val === 'number') {
+      const def = this._annotationSchema?.get(this.tipLabelAnnotation);
+      if (def?.fmtValue) return def.fmtValue(val);
+      if (def?.fmt)      return def.fmt(val);
+    }
     return String(val);
   }
 

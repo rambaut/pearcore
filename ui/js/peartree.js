@@ -1252,6 +1252,7 @@ import * as commands from './commands.js';
     onApply: (g) => {
       _refreshAnnotationUIs(g.annotationSchema);
       renderer.setAnnotationSchema(g.annotationSchema);
+      axisRenderer.setHeightFormatter(g.annotationSchema.get('height')?.fmt ?? null);
       renderer.setTipColourBy(tipColourBy.value      || null);
       renderer.setNodeColourBy(nodeColourBy.value    || null);
       renderer.setLabelColourBy(labelColourBy.value  || null);
@@ -1819,6 +1820,9 @@ import * as commands from './commands.js';
       // For timed trees, root height = layout.maxX (root sits at x=0, most divergent tip at x=maxX).
       const _rootHeight  = _isTimedTree ? layout.maxX : 0;
       axisRenderer.setTreeParams({ maxX: layout.maxX, isTimedTree: _isTimedTree, rootHeight: _rootHeight });
+      // Give the axis renderer a pre-computed formatter for height/divergence tick labels,
+      // derived from the observed range of the 'height' annotation.
+      axisRenderer.setHeightFormatter(schema.get('height')?.fmt ?? null);
 
       // Populate date annotation dropdown with all categorical/integer annotations
       // so the user can pick whichever annotation holds their date values.

@@ -242,18 +242,9 @@ export class LegendRenderer {
       // Draw tick labels: as many as fit, spread evenly.
       const tickCount = Math.max(2, Math.min(6, Math.floor(BAR_H / (lfs + 6))));
 
-      // Build a label formatter that always produces distinguishable values.
-      // step is the spacing between adjacent ticks; dp is the minimum decimal
-      // places needed so that consecutive labels don't show the same string.
-      const isInt  = def.dataType === 'integer';
-      const step   = tickCount > 1 ? range / (tickCount - 1) : range || 1;
-      const dp     = isInt ? 0 : (step > 0 ? Math.max(0, Math.ceil(-Math.log10(step))) : 2);
-      // Use scientific notation when values are very large or very small and
-      // fixed notation would need more than 4 decimal places.
-      const useExp = !isInt && (dp > 4 || Math.abs(max) >= 1e6 || (min !== 0 && Math.abs(min) < 1e-4));
-      const fmt = v => isInt   ? String(Math.round(v))
-                     : useExp  ? v.toExponential(2)
-                     :           v.toFixed(dp);
+      // Use the pre-computed formatter attached to the annotation def by buildAnnotationSchema.
+      // Falls back to String() for any type not covered.
+      const fmt = def.fmt ?? (v => String(v));
 
       ctx.font         = `${lfs}px ${FONT}`;
       ctx.fillStyle    = ltc;

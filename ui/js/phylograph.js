@@ -306,6 +306,41 @@ export const KNOWN_ANNOTATION_BOUNDS = new Map([
 ]);
 
 /**
+ * Build a number-to-string formatter calibrated to an annotation's observed range.
+ * Uses the actual data range (observedMin/observedMax) to set resolution, so that
+ * consecutive tick labels are always distinguishable, then picks fixed-point or
+ * scientific notation based on magnitude.
+ *
+ * @param  {object} def   AnnotationDef with { dataType, observedMin, observedMax }
+ * @param  {string} [mode='ticks']  'ticks' – precision for axis/legend tick labels (~5 divisions);
+ *                                  'value' – higher precision for individual data values (+2 dp)
+ * @returns {(v:number) => string}
+ */
+export function makeAnnotationFormatter(def, mode = 'ticks') {
+  if (!def || (def.dataType !== 'real' && def.dataType !== 'integer')) {
+    return v => String(v);
+  }
+  if (def.dataType === 'integer') return v => String(Math.round(v));
+
+  const obsMin   = def.observedMin ?? def.min ?? 0;
+  const obsMax   = def.observedMax ?? def.max ?? 1;
+  const obsRange = Math.abs(obsMax - obsMin);
+  const maxAbs   = Math.max(Math.abs(obsMin), Math.abs(obsMax));
+
+  // Step size assuming ~5 ticks; dpTicks = decimal places to distinguish consecutive ticks.
+  const step    = obsRange > 0 ? obsRange / 5 : (maxAbs > 0 ? maxAbs / 5 : 1);
+  const dpTicks = step > 0 ? Math.max(0, Math.ceil(-Math.log10(step))) : 2;
+  // Value mode adds 2 extra decimal places so individual data points are distinguishable.
+  const dp      = mode === 'value' ? dpTicks + 2 : dpTicks;
+
+  // Scientific notation when fixed would need >4 tick-level dp, or magnitude is extreme.
+  const useExp = dpTicks > 4 || maxAbs >= 1e6 || (maxAbs > 0 && maxAbs < 1e-3);
+
+  if (useExp) return v => v === 0 ? '0' : v.toExponential(mode === 'value' ? 4 : 2);
+  return v => v.toFixed(dp);
+}
+
+/**
  * Infer an AnnotationDef (without `name`) from a flat array of observed values.
  * Called recursively for list element types.
  *
@@ -326,7 +361,9 @@ function inferAnnotationType(values) {
     let min = Infinity, max = -Infinity;
     for (const v of numericValues) { if (v < min) min = v; if (v > max) max = v; }
     const allInteger = numericValues.every(v => Number.isInteger(v));
-    return { dataType: allInteger ? 'integer' : 'real', min, max };
+    // observedMin/Max preserve the actual data range; min/max may be overridden later
+    // by KNOWN_ANNOTATION_BOUNDS (e.g. posterior always 0–1).
+    return { dataType: allInteger ? 'integer' : 'real', min, max, observedMin: min, observedMax: max };
   }
 
   // ── Categorical (default for string / mixed) ─────────────────────────────
@@ -382,6 +419,15 @@ export function buildAnnotationSchema(nodes) {
         def.min = bounds.min;
         def.max = bounds.max;
         def.fixedBounds = true;
+        // observedMin/observedMax are preserved from inferAnnotationType.
+      }
+      // Attach formatters and observed range for convenient use by renderers.
+      // def.fmt      – tick/legend precision (~5 divisions)
+      // def.fmtValue – higher precision for individual data values (e.g. tip labels)
+      if (def.dataType === 'real' || def.dataType === 'integer') {
+        def.observedRange = (def.observedMax ?? def.max ?? 0) - (def.observedMin ?? def.min ?? 0);
+        def.fmt      = makeAnnotationFormatter(def, 'ticks');
+        def.fmtValue = makeAnnotationFormatter(def, 'value');
       }
       schema.set(name, def);
     }
