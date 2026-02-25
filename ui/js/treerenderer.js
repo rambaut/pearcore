@@ -1309,9 +1309,12 @@ export class TreeRenderer {
     const H = this.canvas.parentElement.clientHeight;
     this.canvas.style.width  = W + 'px';
     this.canvas.style.height = H + 'px';
-    this.canvas.width  = W * this.dpr;
-    this.canvas.height = H * this.dpr;
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // Don't touch canvas.width/height here — resetting the bitmap clears the canvas
+    // immediately, but _draw() runs asynchronously in the next rAF, leaving a blank
+    // frame visible to the browser.  Instead, stash the required pixel dimensions and
+    // let _draw() apply them atomically just before it repaints.
+    this._pendingBitmapW = W * this.dpr;
+    this._pendingBitmapH = H * this.dpr;
     if (this.nodes) {
       // X always re-fits; preserve the current vertical zoom ratio if already zoomed in.
       const zoomRatio = (this.minScaleY > 0) ? this._targetScaleY / this.minScaleY : 1;
@@ -1417,6 +1420,19 @@ export class TreeRenderer {
     const ctx = this.ctx;
     const W = this.canvas.clientWidth;
     const H = this.canvas.clientHeight;
+
+    // Apply any pending bitmap resize atomically here, just before drawing, so
+    // the canvas is never visibly blank between the clear and the repaint.
+    if (this._pendingBitmapW !== undefined) {
+      const pw = this._pendingBitmapW;
+      const ph = this._pendingBitmapH;
+      if (this.canvas.width !== pw || this.canvas.height !== ph) {
+        this.canvas.width  = pw;
+        this.canvas.height = ph;
+      }
+      this._pendingBitmapW = undefined;
+      this._pendingBitmapH = undefined;
+    }
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);  // re-assert DPR transform each frame
     ctx.clearRect(0, 0, W, H);

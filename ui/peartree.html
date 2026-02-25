@@ -699,6 +699,14 @@
       color: var(--bs-primary);
       border-color: var(--bs-primary);
     }
+    /* Flip carets when the panels are open */
+    #btn-palette .bi-caret-right,
+    #btn-help    .bi-caret-left  {
+      display: inline-block;
+      transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+    }
+    #btn-palette.active .bi-caret-right { transform: scaleX(-1); }
+    #btn-help.active    .bi-caret-left  { transform: scaleX(-1); }
 
     /* ── Tooltip ── */
     #tooltip {
@@ -1762,18 +1770,32 @@
   let   palettePinned    = false;
 
   function _afterPanelTransition() {
-    // Let the CSS transition finish, then tell the tree renderer about the new width.
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 240);
+    // Pump resize events every frame for the duration of the CSS transition so the
+    // tree canvas rescales continuously in sync with the margin animation.
+    const DURATION = 250; // ms — slightly longer than the 0.22s CSS transition
+    const start = performance.now();
+    function pump(now) {
+      window.dispatchEvent(new Event('resize'));
+      if (now - start < DURATION) requestAnimationFrame(pump);
+    }
+    requestAnimationFrame(pump);
   }
 
   function openPalette(advanced = false) {
     palettePanel.classList.add('open');
     palettePanel.classList.toggle('advanced', advanced);
+    if (palettePinned) {
+      palettePanel.classList.add('pinned');
+      document.body.classList.add('palette-pinned');
+    }
     btnPalette.classList.add('active');
+    _afterPanelTransition();
   }
   function closePalette() {
-    if (palettePinned) unpinPalette();
-    palettePanel.classList.remove('open', 'advanced');
+    // Remove open/pinned CSS classes and canvas margin, but preserve the
+    // palettePinned flag so reopening the panel restores pinned behaviour.
+    palettePanel.classList.remove('open', 'advanced', 'pinned');
+    document.body.classList.remove('palette-pinned');
     btnPalette.classList.remove('active');
     _afterPanelTransition();
   }
@@ -1799,7 +1821,6 @@
 
   btnPalette.addEventListener('click', e => {
     e.stopPropagation();
-    if (palettePinned) return;   // pinned: toolbar button doesn't close
     if (palettePanel.classList.contains('open')) {
       closePalette();
     } else {
