@@ -68,6 +68,7 @@ import * as commands from './commands.js';
   const nodeColourBy      = document.getElementById('node-colour-by');
   const labelColourBy     = document.getElementById('label-colour-by');
   const tipLabelShow      = document.getElementById('tip-label-show');
+  const tipLabelAlignEl   = document.getElementById('tip-label-align');
   const tipPaletteSelect   = document.getElementById('tip-palette-select');
   const tipPaletteRow      = document.getElementById('tip-palette-row');
   const nodePaletteSelect  = document.getElementById('node-palette-select');
@@ -359,6 +360,7 @@ import * as commands from './commands.js';
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value,
       tipLabelShow:       tipLabelShow.value,
+      tipLabelAlign:      tipLabelAlignEl.value,
       nodeOrder:        currentOrder,
       mode:             renderer ? renderer._mode : 'nodes',
     }));
@@ -433,6 +435,7 @@ import * as commands from './commands.js';
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value,
       tipLabelShow:       tipLabelShow.value,
+      tipLabelAlign:      tipLabelAlignEl.value,
       nodeOrder:        currentOrder,
       mode:             renderer ? renderer._mode : 'nodes',
     };
@@ -610,6 +613,7 @@ import * as commands from './commands.js';
     nodeColourBy.value       = 'user_colour';
     labelColourBy.value      = 'user_colour';
     tipLabelShow.value       = 'names';
+    tipLabelAlignEl.value    = 'off';
     legendShowEl.value       = DEFAULT_SETTINGS.legendShow;
     legendAnnotEl.value      = '';
     legendTextColorEl.value  = DEFAULT_SETTINGS.legendTextColor;
@@ -719,6 +723,7 @@ import * as commands from './commands.js';
       nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
       fontFamily:         fontFamilyEl.value,
       tipLabelAnnotation: tipLabelShow.value === 'names' ? null : tipLabelShow.value,
+      tipLabelAlign:      tipLabelAlignEl.value,
     };
   }
 
@@ -932,6 +937,7 @@ import * as commands from './commands.js';
     document.getElementById('axis-line-width-value').textContent = _saved.axisLineWidth;
   }
   if (_saved.legendShow)           legendShowEl.value       = _saved.legendShow;
+  if (_saved.tipLabelAlign)        tipLabelAlignEl.value    = _saved.tipLabelAlign;
   // Restore saved theme name (or default to Artic if no saved settings)
   themeSelect.value = _saved.theme || 'Artic';
 
@@ -3097,6 +3103,11 @@ import * as commands from './commands.js';
 
   tipLabelShow.addEventListener('change', () => {
     renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
+    saveSettings();
+  });
+
+  tipLabelAlignEl.addEventListener('change', () => {
+    renderer.setTipLabelAlign(tipLabelAlignEl.value);
     saveSettings();
   });
 

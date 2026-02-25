@@ -330,4 +330,6 @@ export const DEFAULT_SETTINGS = {
   nodeBarsWidth:      '6',
   nodeBarsShowMedian: 'mean',
   nodeBarsShowRange:  'off',
+  // Tip label layout
+  tipLabelAlign:      'off',
 };

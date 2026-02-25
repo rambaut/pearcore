@@ -291,6 +291,18 @@ export class AxisRenderer {
       }
     } else {
       majorTicks = AxisRenderer._niceTicks(leftVal, rightVal, targetMajor);
+      // In divergence mode the axis ends exactly at maxX (the most-distant tip).
+      // _niceTicks only generates round-number ticks, so if the last tick falls
+      // noticeably short of maxX, append maxX explicitly so the axis is labelled
+      // all the way to the tip.
+      if (!this._timed && majorTicks.length > 0) {
+        const lastTick = majorTicks[majorTicks.length - 1];
+        const step = majorTicks.length > 1 ? Math.abs(majorTicks[1] - majorTicks[0]) : 0;
+        const gap  = rightVal - lastTick;
+        if (step > 0 && gap > step * 0.15) {
+          majorTicks.push(rightVal);
+        }
+      }
       const minorAll = majorTicks.length > 1
         ? AxisRenderer._niceTicks(leftVal, rightVal, targetMajor * 5) : [];
       const majorSet = new Set(majorTicks.map(t => t.toPrecision(10)));
@@ -377,7 +389,9 @@ export class AxisRenderer {
             : AxisRenderer._formatValue(val);
         }
         const tw = ctx.measureText(label).width;
-        const lx = Math.max(plotLeft + tw / 2 + 1, Math.min(plotRight - tw / 2 - 1, sx));
+        // Allow labels to extend to the canvas edge (W) rather than being hard-clamped
+        // at plotRight, so the terminal tick label on a divergence axis is never clipped.
+        const lx = Math.max(plotLeft + tw / 2 + 1, Math.min(W - tw / 2 - 2, sx));
         if (lx - tw / 2 > majorLabelRight + 2) {
           ctx.fillStyle = TEXT_COLOR;
           ctx.fillText(label, lx, Y_BASE + 1 + MAJOR_H + 2);

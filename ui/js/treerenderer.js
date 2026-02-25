@@ -221,6 +221,12 @@ export class TreeRenderer {
     this.nodeBarsShowMedian = s.nodeBarsShowMedian ?? 'mean';
     this.nodeBarsShowRange  = s.nodeBarsShowRange  ?? false;
 
+    // ── Aligned tip labels ────────────────────────────────────────────────
+    // Value is a string: 'off' | 'aligned' | 'dashed' | 'dots' | 'solid'
+    // Accept legacy boolean true for backwards compatibility.
+    const _al = s.tipLabelAlign ?? 'off';
+    this.tipLabelAlign = (_al === true || _al === 'on') ? 'aligned' : (_al === false ? 'off' : _al);
+
     // Propagate bg colour to an attached legend renderer.
     this._legendRenderer?.setBgColor(this.bgColor, this._skipBg);
 
@@ -334,6 +340,14 @@ export class TreeRenderer {
     this._labelCacheKey = null;
     this._measureLabels();
     this._updateScaleX();
+    this._dirty = true;
+  }
+
+  setTipLabelAlign(val) {
+    // Accept legacy boolean gracefully.
+    if (val === true  || val === 'on')  val = 'aligned';
+    if (val === false || val === null)  val = 'off';
+    this.tipLabelAlign = val;
     this._dirty = true;
   }
 
@@ -1809,8 +1823,37 @@ export class TreeRenderer {
 
     // Pass 3 – labels (two sub-passes when selection active: dim then bright)
     if (showLabels) {
-      const hasSelection = this._selectedTipIds.size > 0;
-      const dimColor = this.dimLabelColor;
+      const hasSelection  = this._selectedTipIds.size > 0;
+      const dimColor      = this.dimLabelColor;
+      // In aligned mode every label is drawn at the column corresponding to the
+      // rightmost tip; null means normal (per-tip) positioning.
+      const _align     = this.tipLabelAlign; // 'off'|'aligned'|'dashed'|'dots'|'solid'
+      const alignLabelX = (_align && _align !== 'off')
+        ? this._wx(this.maxX) + outlineR + 3
+        : null;
+
+      // Sub-pass 3-pre: connector lines (aligned + line styles only).
+      if (alignLabelX !== null && _align !== 'aligned') {
+        ctx.save();
+        if      (_align === 'dashed') ctx.setLineDash([3, 4]);
+        else if (_align === 'dots')   ctx.setLineDash([1, 4]);
+        // 'solid': leave dash array empty
+        ctx.lineWidth   = 0.35;
+        ctx.strokeStyle = this.dimLabelColor;
+        ctx.beginPath();
+        for (const node of this.nodes) {
+          if (!node.isTip) continue;
+          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+          if (!this._showLabelAt(node.y)) continue;
+          const tipEdgeX = this._wx(node.x) + outlineR + 2;
+          if (alignLabelX - tipEdgeX < 8) continue;  // tip already at/near label column
+          const sy = this._wy(node.y);
+          ctx.moveTo(tipEdgeX, sy);
+          ctx.lineTo(alignLabelX - 2, sy);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (hasSelection) {
         // Sub-pass 3a: unselected labels in dim grey
@@ -1820,7 +1863,7 @@ export class TreeRenderer {
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
-          if (_t) ctx.fillText(_t, this._wx(node.x) + outlineR + 3, this._wy(node.y));
+          if (_t) ctx.fillText(_t, alignLabelX ?? (this._wx(node.x) + outlineR + 3), this._wy(node.y));
         }
         // Sub-pass 3b: selected labels in bold + selected colour
         ctx.fillStyle = this.selectedLabelColor;
@@ -1830,7 +1873,7 @@ export class TreeRenderer {
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
-          if (_t) ctx.fillText(_t, this._wx(node.x) + outlineR + 3, this._wy(node.y));
+          if (_t) ctx.fillText(_t, alignLabelX ?? (this._wx(node.x) + outlineR + 3), this._wy(node.y));
         }
         ctx.font = `${this.fontSize}px ${this.fontFamily}`;
       } else if (this._labelColourBy && this._labelColourScale) {
@@ -1843,7 +1886,7 @@ export class TreeRenderer {
           if (!_t) continue;
           const val = node.annotations ? node.annotations[key] : undefined;
           ctx.fillStyle = this._labelColourForValue(val) ?? this.labelColor;
-          ctx.fillText(_t, this._wx(node.x) + outlineR + 3, this._wy(node.y));
+          ctx.fillText(_t, alignLabelX ?? (this._wx(node.x) + outlineR + 3), this._wy(node.y));
         }
       } else {
         ctx.fillStyle = this.labelColor;
@@ -1852,7 +1895,7 @@ export class TreeRenderer {
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
-          if (_t) ctx.fillText(_t, this._wx(node.x) + outlineR + 3, this._wy(node.y));
+          if (_t) ctx.fillText(_t, alignLabelX ?? (this._wx(node.x) + outlineR + 3), this._wy(node.y));
         }
       }
     }
