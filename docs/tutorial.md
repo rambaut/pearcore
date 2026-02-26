@@ -252,8 +252,8 @@ The selected node and all its descendants are hidden in the tree and removed fro
 
 To restore hidden nodes:
 
-- **With a node selected** — select the parent node (the branch stub where the hidden subtree was attached) and click **Show** (eye icon). The hidden descendants of that node are restored.
-- **With nothing selected** — click **Show** with no selection to reveal *all* hidden nodes in the current view at once.
+- **With a node selected** — select the parent node (the branch stub where the hidden subtree was attached) and click <img src="images/unhide_button.png" style="width:32px;"/> (**Show** ). The hidden descendants of that node are restored.
+- **With nothing selected** — click click <img src="images/unhide_button.png" style="width:32px;"/> (**Show** ) with no selection to reveal *all* hidden nodes in the current view at once.
 
 > **Note:** Hiding changes the visible tip count, so any active branch ordering (ascending/descending) is automatically cleared when you hide or show nodes.
 
@@ -261,7 +261,7 @@ To restore hidden nodes:
 
 ## 10. Node Info (⌘I)
 
-Select any node or tip, then press **⌘I** or click the <img src="images/get_info_button.png" style="width:32px;"/> button. A dialog lists every annotation on that node — name, divergence, branch length, any BEAST posterior values, or any custom annotations you have imported.
+Select any node or tip, then press **⌘I** or click the <img src="images/get_info_button.png" style="width:32px;"/> button. A dialog lists every annotation on that node — name, divergence, branch length, any posterior support values, or any custom annotations you have imported.
 
 > <img src="images/fig10.png" style="width:400px;"/>
 >
@@ -271,7 +271,7 @@ Select any node or tip, then press **⌘I** or click the <img src="images/get_in
 
 ## 11. Importing Annotations
 
-The EBOV example has some annotations embedded in the tree file. To add extra per-tip metadata from your own CSV or TSV:
+The EBOV example has some annotations embedded in the tree file. These were put there by BEAST during the construction of the tree. To add extra per-tip metadata from your own CSV or TSV:
 
 - Click the <img src="images/load_annotations_button.png" style="width:32px;"/> button (or press **⌘⇧A**).
 
