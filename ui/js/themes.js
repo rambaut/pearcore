@@ -23,7 +23,7 @@ export const THEMES = {
           nodeShapeBgColor: '#000000',
           axisColor:        '#444444',
           legendTextColor:  '#444444',
-          nodeBarsColor:    '#2aa198',
+          nodeBarsColor:    '#f5a700',
           selectedTipStrokeColor:       '#E06961',
           selectedTipFillColor:         '#E06961',
           selectedNodeStrokeColor:      '#19A699',
@@ -38,7 +38,7 @@ export const THEMES = {
           branchColor:      '#19A699',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'Helvetica',
+          fontFamily:       'monospace',
           labelColor:       '#f7eeca',
           tipSize:          '3',
           tipHaloSize:      '1',
@@ -330,6 +330,8 @@ export const DEFAULT_SETTINGS = {
   nodeBarsWidth:      '6',
   nodeBarsShowMedian: 'mean',
   nodeBarsShowRange:  'off',
+  // Negative branch lengths
+  clampNegBranches:   'off',
   // Tip label layout
   tipLabelAlign:      'off',
 };

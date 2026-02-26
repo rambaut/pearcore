@@ -177,11 +177,12 @@ export class TreeRenderer {
     this.tipLabelAnnotation = s.tipLabelAnnotation ?? null;
 
     // ── Layout geometry ─────────────────────────────────────────────────────
-    this.paddingLeft       = s.paddingLeft;
-    this.paddingTop        = s.paddingTop;
-    this.paddingBottom     = s.paddingBottom;
-    this.elbowRadius       = s.elbowRadius;
-    this.rootStubLength    = s.rootStubLength;
+    this.paddingLeft            = s.paddingLeft;
+    this.paddingTop             = s.paddingTop;
+    this.paddingBottom          = s.paddingBottom;
+    this.elbowRadius            = s.elbowRadius;
+    this.rootStubLength         = s.rootStubLength;
+    this.clampNegativeBranches  = !!s.clampNegativeBranches;
 
     // ── Hover ───────────────────────────────────────────────────────────────
     this.tipHoverFillColor       = s.tipHoverFillColor;
@@ -734,7 +735,7 @@ export class TreeRenderer {
     this._mrcaNodeId = null;
 
     // Compute new layout rooted at this node (x = 0).
-    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, layoutNodeId);
+    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, layoutNodeId, { clampNegativeBranches: this.clampNegativeBranches });
     this.nodes = nodes; this.nodeMap = nodeMap; this.maxX = maxX; this.maxY = maxY;
     this._measureLabels();
     this._updateScaleX(false);
@@ -777,7 +778,7 @@ export class TreeRenderer {
     this._selectedTipIds     = new Set(state.selectedTipIds || []);
     this._mrcaNodeId         = state.mrcaNodeId || null;
 
-    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, state.subtreeRootId);
+    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, state.subtreeRootId, { clampNegativeBranches: this.clampNegativeBranches });
     this.nodes = nodes; this.nodeMap = nodeMap; this.maxX = maxX; this.maxY = maxY;
     this._measureLabels();
     this._updateScaleX(false);
@@ -836,7 +837,7 @@ export class TreeRenderer {
     this._selectedTipIds     = new Set(state.selectedTipIds || []);
     this._mrcaNodeId         = state.mrcaNodeId || null;
 
-    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, fwdSubtreeRootId);
+    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, fwdSubtreeRootId, { clampNegativeBranches: this.clampNegativeBranches });
     this.nodes = nodes; this.nodeMap = nodeMap; this.maxX = maxX; this.maxY = maxY;
     this._measureLabels();
     this._updateScaleX(false);
@@ -873,7 +874,7 @@ export class TreeRenderer {
     this._selectedTipIds.clear();
     this._mrcaNodeId = null;
 
-    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, null);
+    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, null, { clampNegativeBranches: this.clampNegativeBranches });
     this.nodes = nodes; this.nodeMap = nodeMap; this.maxX = maxX; this.maxY = maxY;
     this._measureLabels();
     this._updateScaleX(false);
@@ -932,7 +933,7 @@ export class TreeRenderer {
     this._selectedTipIds.clear();
     this._mrcaNodeId = null;
 
-    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, newSubtreeRootId);
+    const { nodes, nodeMap, maxX, maxY } = computeLayoutFromGraph(this.graph, newSubtreeRootId, { clampNegativeBranches: this.clampNegativeBranches });
     this.nodes = nodes; this.nodeMap = nodeMap; this.maxX = maxX; this.maxY = maxY;
     this._measureLabels();
     this._updateScaleX(false);
@@ -1624,8 +1625,8 @@ export class TreeRenderer {
     ctx.lineWidth   = this.branchWidth;
     ctx.strokeStyle = this.branchColor;
 
-    // Draw branches: horizontal segments.  Start each one 'er' px right of the
-    // corner so the arc pass can fill the gap with a rounded elbow.
+    // Draw branches: horizontal segments.  Start each one 'er' px away from the
+    // corner (in the branch direction) so the arc pass can fill the gap.
     ctx.beginPath();
     for (const node of this.nodes) {
       if (!node.parentId) continue;
@@ -1634,15 +1635,17 @@ export class TreeRenderer {
       const parent = nodeMap.get(node.parentId);
       if (!parent) continue;
 
-      const px = this._wx(parent.x);
-      const nx = this._wx(node.x);
-      const ny = this._wy(node.y);
+      const px  = this._wx(parent.x);
+      const nx  = this._wx(node.x);
+      const ny  = this._wy(node.y);
+      const py  = this._wy(parent.y);
 
-      // Clamp er so it never exceeds half the branch length or half the vertical gap.
-      const py = this._wy(parent.y);
-      const cer = Math.min(er, Math.abs(ny - py) * 0.4, (nx - px) * 0.4);
+      // dir: +1 for normal (rightward) branches, -1 for negative (leftward) branches.
+      const dx  = nx - px;
+      const dir = dx >= 0 ? 1 : -1;
+      const cer = Math.min(er, Math.abs(ny - py) * 0.4, Math.abs(dx) * 0.4);
 
-      ctx.moveTo(px + cer, ny); // leave gap at corner for arc
+      ctx.moveTo(px + dir * cer, ny); // leave gap at corner for arc
       ctx.lineTo(nx, ny);
     }
     ctx.stroke();
@@ -1663,12 +1666,14 @@ export class TreeRenderer {
         const py  = this._wy(parent.y);
         if (Math.abs(ny - py) < 0.5) continue; // only child – no corner needed
 
-        const cer = Math.max(0, Math.min(er, Math.abs(ny - py) * 0.4, (nx - px) * 0.4));
+        const dx  = nx - px;
+        const dir = dx >= 0 ? 1 : -1;
+        const cer = Math.max(0, Math.min(er, Math.abs(ny - py) * 0.4, Math.abs(dx) * 0.4));
         if (cer === 0) continue; // zero-length branch — no corner to draw
-        // Approach the corner from the vertical; leave toward horizontal.
+        // Approach the corner from the vertical; leave toward horizontal (direction-aware).
         const fromY = ny + (ny < py ? cer : -cer);
         ctx.moveTo(px, fromY);
-        ctx.arcTo(px, ny, px + cer, ny, cer);
+        ctx.arcTo(px, ny, px + dir * cer, ny, cer);
       }
       ctx.stroke();
     }
@@ -1715,8 +1720,8 @@ export class TreeRenderer {
 
       // Use the same cer formula as the arc pass so the line ends exactly where
       // the arc begins.
-      const cer_top = er > 0 ? Math.min(er, Math.abs(ny_top - py) * 0.4, (this._wx(topChild.x) - nx) * 0.4) : 0;
-      const cer_bot = er > 0 ? Math.min(er, Math.abs(ny_bot - py) * 0.4, (this._wx(botChild.x) - nx) * 0.4) : 0;
+      const cer_top = er > 0 ? Math.min(er, Math.abs(ny_top - py) * 0.4, Math.abs(this._wx(topChild.x) - nx) * 0.4) : 0;
+      const cer_bot = er > 0 ? Math.min(er, Math.abs(ny_bot - py) * 0.4, Math.abs(this._wx(botChild.x) - nx) * 0.4) : 0;
 
       ctx.moveTo(nx, ny_top + cer_top); // just below topmost child's arc start
       ctx.lineTo(nx, ny_bot - cer_bot); // just above bottommost child's arc start

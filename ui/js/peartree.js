@@ -66,6 +66,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   const nodeBarsRangeEl     = document.getElementById('node-bars-range');
   const nodeBarsControlsEl  = document.getElementById('node-bars-controls');
   const nodeBarsUnavailEl   = document.getElementById('node-bars-unavail');
+  const clampNegBranchesEl  = document.getElementById('clamp-neg-branches');
   const fontFamilyEl        = document.getElementById('font-family-select');
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
@@ -371,6 +372,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       nodeBarsWidth:      nodeBarsWidthSlider.value,
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value,
+      clampNegBranches:   clampNegBranchesEl.value,
       tipLabelShow:       tipLabelShow.value,
       tipLabelAlign:      tipLabelAlignEl.value,
       mode:             renderer ? renderer._mode : 'nodes',
@@ -445,6 +447,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       nodeBarsWidth:      nodeBarsWidthSlider.value,
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value,
+      clampNegBranches:   clampNegBranchesEl.value,
       tipLabelShow:       tipLabelShow.value,
       tipLabelAlign:      tipLabelAlignEl.value,
       mode:             renderer ? renderer._mode : 'nodes',
@@ -602,6 +605,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     }
     if (s.nodeBarsShowMedian) nodeBarsMedianEl.value = s.nodeBarsShowMedian;
     if (s.nodeBarsShowRange)  nodeBarsRangeEl.value  = s.nodeBarsShowRange;
+    if (s.clampNegBranches)   clampNegBranchesEl.value = s.clampNegBranches;
     // Set themeSelect to the stored theme name (or 'custom' if not known).
     const themeName = s.theme && themeRegistry.has(s.theme) ? s.theme : (s.theme === 'custom' ? 'custom' : 'custom');
     themeSelect.value = themeName;
@@ -646,6 +650,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     document.getElementById('node-bars-width-value').textContent = DEFAULT_SETTINGS.nodeBarsWidth;
     nodeBarsMedianEl.value = DEFAULT_SETTINGS.nodeBarsShowMedian;
     nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsShowRange;
+    clampNegBranchesEl.value = DEFAULT_SETTINGS.clampNegBranches ?? 'off';
 
     if (renderer) {
       renderer.setTipColourBy('user_colour');
@@ -731,6 +736,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       nodeBarsWidth:      parseInt(nodeBarsWidthSlider.value),
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
+      clampNegativeBranches: clampNegBranchesEl.value === 'on',
       fontFamily:         fontFamilyEl.value,
       tipLabelAnnotation: tipLabelShow.value === 'names' ? null : tipLabelShow.value,
       tipLabelAlign:      tipLabelAlignEl.value,
@@ -1832,7 +1838,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       _updatePaletteSelect(nodePaletteSelect,  nodePaletteRow,  nodeColourBy.value);
       _updatePaletteSelect(labelPaletteSelect, labelPaletteRow, labelColourBy.value);
       applyLegend();   // rebuild legend with new data (may clear it)
-      const layout = computeLayoutFromGraph(graph);
+      const layout = computeLayoutFromGraph(graph, null, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
       renderer.setData(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
 
       // ── Axis renderer setup ───────────────────────────────────────────────
@@ -1970,7 +1976,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const anchorId  = isZoomed ? renderer.nodeIdAtViewportCenter() : null;
 
     reorderGraph(graph, ascending);
-    const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId);
+    const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
     renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
 
     if (isZoomed && anchorId) {
@@ -2256,7 +2262,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       btnOrderDesc.classList.remove('active');
 
       // Recompute layout and animate.
-      const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId);
+      const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
       renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
 
       saveSettings();
@@ -2412,7 +2418,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       currentOrder = null;
       btnOrderAsc .classList.remove('active');
       btnOrderDesc.classList.remove('active');
-      const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId);
+      const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
       renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       _seedRootShiftAnimation(oldRoot, oldNodeMap, layout.nodes, 'in');
       renderer.fitToWindow();
@@ -2470,7 +2476,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       const oldRoot    = renderer.nodes?.find(n => !n.parentId) ?? null;
       const oldNodeMap = renderer.nodeMap;
 
-      const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId);
+      const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
       renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       _seedRootShiftAnimation(oldRoot, oldNodeMap, layout.nodes, 'out');
       renderer.fitToWindow();
@@ -2514,7 +2520,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       if (renderer._onNodeSelectChange)   renderer._onNodeSelectChange(false);
       btnReroot.disabled = true;
 
-      const layout = computeLayoutFromGraph(graph);
+      const layout = computeLayoutFromGraph(graph, null, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
       renderer.setDataCrossfade(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
     }
 
@@ -3313,6 +3319,15 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   });
   nodeBarsMedianEl.addEventListener('change', applyNodeBars);
   nodeBarsRangeEl.addEventListener('change', applyNodeBars);
+
+  clampNegBranchesEl.addEventListener('change', () => {
+    if (!renderer || !graph) { saveSettings(); return; }
+    renderer.setSettings(_buildRendererSettings());
+    const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId,
+      { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
+    renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
+    saveSettings();
+  });
 
   function _showDateTickRows(visible) {
     const d = visible ? 'flex' : 'none';

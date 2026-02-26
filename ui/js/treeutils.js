@@ -156,10 +156,11 @@ function _findEffectiveRoot(gnodes, hiddenNodeIds, startIdx, fromIdx) {
  * Trifurcating root (rootEdge.proportion === 0, nodeA.parentIdx === -1):
  *   nodeA is the real root; no virtual node is needed.
  */
-export function computeLayoutFromGraph(graph, subtreeRootId = null) {
+export function computeLayoutFromGraph(graph, subtreeRootId = null, options = {}) {
   const { nodes: gnodes, root } = graph;
   const { nodeA, nodeB, lenA, lenB } = root;
   const hiddenNodeIds = graph.hiddenNodeIds || new Set();
+  const clampNeg = !!options.clampNegativeBranches;
 
   let tipCounter = 0;
   const layoutNodes = [];
@@ -224,7 +225,8 @@ export function computeLayoutFromGraph(graph, subtreeRootId = null) {
       for (let j = toPush.length - 1; j >= 0; j--) {
         const { adjIdx, len } = toPush[j];
         stack.push({ nodeIdx: adjIdx, fromNodeIdx: nodeIdx,
-                     xFromRoot: xFromRoot + len, parentLayoutId: gnode.origId });
+                     xFromRoot: xFromRoot + (clampNeg ? Math.max(0, len) : len),
+                     parentLayoutId: gnode.origId });
       }
     }
 
