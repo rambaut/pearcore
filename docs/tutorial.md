@@ -126,10 +126,7 @@ Try clicking an internal node near the root of the EBOV tree.
 >
 > Several tips selected (highlighted) and MRCA ring visible on an internal node.
 
-### Branches Mode (⌘B)
-
-> ![NOTE]
-> Branch selection mode is generally used to allow  re-rooting of a tree. However, as the example tree is a rooted, time-calibrated tree, re-rooting is disabled.
+### Branches Mode (⌘B) [^1]: Branch selection mode is generally used to allow  re-rooting of a tree. However, as the example tree is a rooted, time-calibrated tree, re-rooting is disabled.
 
 Press **⌘B** (or click the branch-mode button) to switch to **Branches** mode. Click anywhere along a horizontal branch to place a precise positional marker.
 
