@@ -1078,6 +1078,13 @@
     .ca-hint { font-size:0.72rem; color:rgba(255,255,255,0.4); font-style:italic; }
     .ca-warn { font-size:0.73rem; color:#b58900; margin:2px 0 4px; padding:4px 8px;
       background:rgba(181,137,0,0.1); border-radius:3px; }
+    .ca-del-btn { background:none; border:none; padding:2px 4px; cursor:pointer;
+      color:rgba(255,255,255,0.25); border-radius:3px; line-height:1; }
+    .ca-del-btn:hover { color:#dc3545; background:rgba(220,53,69,0.12); }
+    .ca-reinstate-btn:hover { color:var(--pt-teal) !important; background:rgba(42,161,152,0.12) !important; }
+    .ca-row-deleted td { opacity:0.3; text-decoration:line-through; }
+    .ca-row-deleted td:last-child { opacity:1; text-decoration:none; }
+    .ca-row-deleted .ca-del-btn { color:rgba(255,255,255,0.4); }
   </style>
 </head>
 <body>
@@ -1316,7 +1323,7 @@
           <thead>
             <tr>
               <th>Annotation</th><th>Type</th><th>On</th>
-              <th>Observed range</th><th>Scale bounds</th>
+              <th>Observed range</th><th>Scale bounds</th><th style="width:32px"></th>
             </tr>
           </thead>
           <tbody id="curate-annot-tbody"></tbody>
@@ -1327,8 +1334,55 @@
       </div>
     </div>
     <div class="pt-modal-footer">
+      <button id="curate-annot-parse-tips" class="btn btn-sm btn-outline-secondary me-auto"><i class="bi bi-scissors me-1"></i>Parse Tips</button>
       <button id="curate-annot-cancel" class="btn btn-sm btn-secondary">Cancel</button>
       <button id="curate-annot-apply"  class="btn btn-sm btn-primary">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Parse Tips Sub-dialog -->
+<div id="parse-tips-overlay" class="pt-modal-overlay" style="z-index:1060">
+  <div class="pt-modal" style="width:460px;max-width:calc(100vw - 40px)">
+    <div class="pt-modal-header">
+      <h5 class="modal-title"><i class="bi bi-scissors me-2"></i>Parse Tip Names</h5>
+      <button class="pt-modal-close-btn" id="parse-tips-close" title="Close">&times;</button>
+    </div>
+    <div class="pt-modal-body">
+      <p style="font-size:0.82rem;color:rgba(255,255,255,0.6);margin-bottom:14px">Extract an annotation from tip names split by <code style="background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px">|</code> (pipe character).</p>
+      <div class="ca-row" style="margin-bottom:10px">
+        <label class="ca-row-lbl" style="width:80px">Name</label>
+        <input type="text" id="parse-tips-name" class="ca-num-input" style="flex:1;width:auto" placeholder="annotation name">
+      </div>
+      <div class="ca-row" style="margin-bottom:10px">
+        <label class="ca-row-lbl" style="width:80px">Field</label>
+        <input type="number" id="parse-tips-field" class="ca-num-input" style="width:70px" value="1" step="1">
+        <span class="ca-hint" style="margin-left:8px">1 = first&ensp;&middot;&ensp;2 = second&ensp;&middot;&ensp;&minus;1 = last&ensp;&middot;&ensp;&minus;2 = second from last</span>
+      </div>
+      <div class="ca-row" style="margin-bottom:10px">
+        <label class="ca-row-lbl" style="width:80px">Type</label>
+        <select id="parse-tips-type" class="ca-sel">
+          <option value="auto">Auto-detect</option>
+          <option value="categorical">Categorical</option>
+          <option value="integer">Integer</option>
+          <option value="real">Real</option>
+          <option value="date">Date</option>
+        </select>
+      </div>
+      <div class="ca-row" style="margin-bottom:10px">
+        <label class="ca-row-lbl" style="width:80px">Missing</label>
+        <input type="text" id="parse-tips-missing" class="ca-num-input" style="width:70px" value="?" placeholder="none">
+        <span class="ca-hint" style="margin-left:8px">field value treated as missing data</span>
+      </div>
+      <p id="parse-tips-error" class="ca-warn" style="display:none;margin-top:8px"></p>
+      <div id="parse-tips-examples" style="margin-top:14px;display:none">
+        <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.4);margin-bottom:6px">Example tip labels</div>
+        <div id="parse-tips-examples-list" style="font-family:monospace;font-size:0.78rem;color:rgba(255,255,255,0.65);line-height:1.7"></div>
+      </div>
+    </div>
+    <div class="pt-modal-footer">
+      <button id="parse-tips-cancel" class="btn btn-sm btn-secondary">Cancel</button>
+      <button id="parse-tips-ok"     class="btn btn-sm btn-primary">Add Annotation</button>
     </div>
   </div>
 </div>

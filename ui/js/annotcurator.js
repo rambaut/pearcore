@@ -3,7 +3,7 @@
 // to annotations loaded from a tree file or imported from CSV/TSV.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { makeAnnotationFormatter } from './phylograph.js';
+import { makeAnnotationFormatter, buildAnnotationSchema } from './phylograph.js';
 
 /** @private HTML-escape a value for safe insertion. */
 function esc(s) {
@@ -39,6 +39,7 @@ export function createAnnotCurator({ getGraph, onApply }) {
   // Pending edits per annotation name, cleared on each open().
   // Map<name, { dataType?, min?, max?, fixedBounds?, _boundsMode? }>
   let _pending  = new Map();
+  let _deleted  = new Set();  // names marked for deletion, applied at Apply time
   let _selected = null;   // name of currently selected row
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -47,6 +48,16 @@ export function createAnnotCurator({ getGraph, onApply }) {
   document.getElementById('curate-annot-cancel').addEventListener('click', close);
   applyBtn.addEventListener('click', _apply);
 
+  // Parse Tips sub-dialog
+  const parseTipsOverlay = document.getElementById('parse-tips-overlay');
+  document.getElementById('curate-annot-parse-tips').addEventListener('click', _openParseTips);
+  document.getElementById('parse-tips-close') .addEventListener('click', _closeParseTips);
+  document.getElementById('parse-tips-cancel').addEventListener('click', _closeParseTips);
+  document.getElementById('parse-tips-ok')    .addEventListener('click', _runParseTips);
+  parseTipsOverlay.addEventListener('click', e => { if (e.target === parseTipsOverlay) _closeParseTips(); });
+  // Allow Enter key to submit the sub-dialog
+  parseTipsOverlay.addEventListener('keydown', e => { if (e.key === 'Enter') _runParseTips(); });
+
   // Close on backdrop click (outside the white modal box).
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
@@ -54,6 +65,7 @@ export function createAnnotCurator({ getGraph, onApply }) {
     const graph = getGraph();
     if (!graph?.annotationSchema) return;
     _pending.clear();
+    _deleted.clear();
     _selected = null;
     _renderTable(graph.annotationSchema);
     _renderDetail(null, null);
@@ -67,6 +79,12 @@ export function createAnnotCurator({ getGraph, onApply }) {
   function _apply() {
     const graph = getGraph();
     if (!graph) return;
+
+    if (_deleted.size > 0) {
+      const names = [..._deleted].join(', ');
+      const plural = _deleted.size === 1 ? 'annotation' : 'annotations';
+      if (!confirm(`Permanently delete ${_deleted.size} ${plural}?\n\n${names}\n\nThis cannot be undone.`)) return;
+    }
 
     const schema = _buildModifiedSchema(graph);
     onApply(schema);
@@ -82,6 +100,7 @@ export function createAnnotCurator({ getGraph, onApply }) {
       if (name === 'user_colour') continue;
       if (def.groupMember) continue;
 
+      const isDeleted = _deleted.has(name);
       const p         = _pending.get(name) ?? {};
       const type      = p.dataType  ?? def.dataType;
       const isNum     = type === 'real' || type === 'integer';
@@ -128,10 +147,15 @@ export function createAnnotCurator({ getGraph, onApply }) {
       }
 
       // Has pending changes marker
-      const hasPending = _pending.has(name) && Object.keys(_pending.get(name)).length > 0;
+      const hasPending = !isDeleted && _pending.has(name) && Object.keys(_pending.get(name)).length > 0;
+
+      const rowAttr = isDeleted ? ' class="ca-row-deleted"' : (isSelected ? ' class="selected"' : '');
+      const delBtn  = isDeleted
+        ? `<button class="ca-del-btn ca-reinstate-btn" data-name="${esc(name)}" title="Reinstate" tabindex="-1"><i class="bi bi-arrow-counterclockwise"></i></button>`
+        : `<button class="ca-del-btn" data-name="${esc(name)}" title="Delete annotation" tabindex="-1"><i class="bi bi-trash3"></i></button>`;
 
       rows.push(`
-        <tr data-name="${esc(name)}"${isSelected ? ' class="selected"' : ''}>
+        <tr data-name="${esc(name)}"${rowAttr}>
           <td>
             ${hasPending ? '<span class="ca-pending-dot" title="Unsaved changes"></span>' : ''}
             <span class="ca-name">${esc(name)}</span>
@@ -140,16 +164,38 @@ export function createAnnotCurator({ getGraph, onApply }) {
           <td class="ca-center" style="color:rgba(255,255,255,0.45);font-size:0.72rem">${onStr}</td>
           <td>${obsCell}</td>
           <td>${boundsCell}</td>
+          <td class="ca-center">${delBtn}</td>
         </tr>`);
     }
 
     tbody.innerHTML = rows.length ? rows.join('') :
-      '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.3);padding:16px">No annotations</td></tr>';
+      '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.3);padding:16px">No annotations</td></tr>';
+
+    // Delete / reinstate button handlers (before row-click so stopPropagation works)
+    for (const btn of tbody.querySelectorAll('.ca-del-btn')) {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const btnName = btn.dataset.name;
+        if (_deleted.has(btnName)) {
+          _deleted.delete(btnName);
+        } else {
+          _deleted.add(btnName);
+          _pending.delete(btnName);
+          if (_selected === btnName) {
+            _selected = null;
+            _renderDetail(null, null);
+          }
+        }
+        const schema = getGraph()?.annotationSchema;
+        if (schema) _renderTable(schema);
+      });
+    }
 
     // Row click handlers
     for (const tr of tbody.querySelectorAll('tr[data-name]')) {
       tr.addEventListener('click', () => {
         const clickedName = tr.dataset.name;
+        if (_deleted.has(clickedName)) return;  // greyed-out rows are not selectable
         if (_selected === clickedName) {
           // Clicking selected row again deselects
           _selected = null;
@@ -308,6 +354,156 @@ export function createAnnotCurator({ getGraph, onApply }) {
 
   }
 
+  // ── Parse Tips ────────────────────────────────────────────────────────────
+
+  function _openParseTips() {
+    document.getElementById('parse-tips-name').value    = '';
+    document.getElementById('parse-tips-field').value   = '1';
+    document.getElementById('parse-tips-type').value    = 'auto';
+    document.getElementById('parse-tips-missing').value = '?';
+    document.getElementById('parse-tips-error').style.display = 'none';
+
+    // Populate example tip labels
+    const graph = getGraph();
+    const examplesWrap = document.getElementById('parse-tips-examples');
+    const examplesList = document.getElementById('parse-tips-examples-list');
+    const tips = graph
+      ? graph.nodes.filter(n => n.adjacents.length === 1 && n.name != null)
+      : [];
+    if (tips.length > 0) {
+      const MAX = 5;
+      const sample = tips.slice(0, MAX);
+      examplesList.innerHTML = sample.map(n => {
+        const label = n.name.length > 60 ? n.name.slice(0, 57) + '\u2026' : n.name;
+        return `<div>${esc(label)}</div>`;
+      }).join('') + (tips.length > MAX
+        ? `<div style="color:rgba(255,255,255,0.3)">… ${tips.length - MAX} more</div>`
+        : '');
+      examplesWrap.style.display = '';
+    } else {
+      examplesWrap.style.display = 'none';
+    }
+
+    parseTipsOverlay.classList.add('open');
+    setTimeout(() => document.getElementById('parse-tips-name').focus(), 50);
+  }
+
+  function _closeParseTips() {
+    parseTipsOverlay.classList.remove('open');
+  }
+
+  function _showParseError(msg) {
+    const el = document.getElementById('parse-tips-error');
+    el.textContent = msg;
+    el.style.display = '';
+  }
+
+  function _runParseTips() {
+    const graph = getGraph();
+    if (!graph) return;
+
+    const annotName  = document.getElementById('parse-tips-name').value.trim();
+    const fieldNum   = parseInt(document.getElementById('parse-tips-field').value, 10);
+    const typeHint   = document.getElementById('parse-tips-type').value;
+    const missingStr = document.getElementById('parse-tips-missing').value; // '' = no missing sentinel
+
+    document.getElementById('parse-tips-error').style.display = 'none';
+
+    if (!annotName) { _showParseError('Please enter an annotation name.'); return; }
+    if (isNaN(fieldNum) || fieldNum === 0) { _showParseError('Field must be a non-zero integer.'); return; }
+
+    // Warn if name already exists
+    if (graph.annotationSchema.has(annotName)) {
+      if (!confirm(`An annotation named "${annotName}" already exists. Overwrite it?`)) return;
+    }
+
+    // Collect tip nodes (exactly one adjacent = parent only)
+    const tips = graph.nodes.filter(n => n.adjacents.length === 1 && n.name != null);
+    if (tips.length === 0) { _showParseError('No tip nodes with names found.'); return; }
+
+    // Extract the requested field from each tip name
+    const extracted = [];
+    const missing   = [];
+    for (const node of tips) {
+      const parts = (node.name ?? '').split('|');
+      const idx   = fieldNum > 0 ? fieldNum - 1 : parts.length + fieldNum;
+      if (idx < 0 || idx >= parts.length) {
+        missing.push(node.name);
+      } else {
+        extracted.push({ node, raw: parts[idx].trim() });
+      }
+    }
+
+    if (missing.length > 0) {
+      const sample = missing.slice(0, 3).map(n => `"${n}"`).join(', ');
+      _showParseError(
+        `${missing.length} tip${missing.length > 1 ? 's' : ''} don't have field ${fieldNum}: ` +
+        sample + (missing.length > 3 ? `, …` : '')
+      );
+      return;
+    }
+
+    // Parse values according to type hint, respecting the missing sentinel
+    const parseErrors = [];
+    for (const e of extracted) {
+      // Treat as missing if the raw value matches the missing sentinel
+      if (missingStr !== '' && e.raw === missingStr) {
+        e.value = '?';  // standard missing-data marker used throughout the app
+        continue;
+      }
+      if (typeHint === 'integer') {
+        const n = parseInt(e.raw, 10);
+        if (isNaN(n)) { parseErrors.push(e.raw); } else { e.value = n; }
+      } else if (typeHint === 'real') {
+        const n = parseFloat(e.raw);
+        if (isNaN(n)) { parseErrors.push(e.raw); } else { e.value = n; }
+      } else {
+        e.value = e.raw; // string for auto / categorical / date
+      }
+    }
+    if (parseErrors.length > 0) {
+      const sample = [...new Set(parseErrors)].slice(0, 3).map(v => `"${v}"`).join(', ');
+      _showParseError(`Cannot parse as ${typeHint}: ${sample}${parseErrors.length > 3 ? ', …' : ''}`);
+      return;
+    }
+
+    // Write values onto nodes
+    for (const { node, value } of extracted) {
+      node.annotations[annotName] = value;
+    }
+
+    // Rebuild schema from all nodes
+    const newSchema = buildAnnotationSchema(graph.nodes);
+
+    // If user forced a type that differs from auto-detected, coerce the def
+    if (typeHint !== 'auto' && newSchema.has(annotName)) {
+      const def = newSchema.get(annotName);
+      if (typeHint === 'categorical' && def.dataType !== 'categorical') {
+        const distinct = [...new Set(extracted.map(e => String(e.value)))].sort();
+        def.dataType = 'categorical';
+        def.values   = distinct;
+        delete def.min; delete def.max;
+        delete def.observedMin; delete def.observedMax;
+        delete def.observedRange; delete def.fmt; delete def.fmtValue;
+      } else if (typeHint === 'date' && def.dataType !== 'date') {
+        const distinct = [...new Set(extracted.map(e => String(e.value)))].sort();
+        def.dataType = 'date';
+        def.values   = distinct;
+        def.min      = distinct[0];
+        def.max      = distinct[distinct.length - 1];
+        delete def.observedMin; delete def.observedMax;
+        delete def.observedRange; delete def.fmt; delete def.fmtValue;
+      }
+    }
+
+    // Update live schema and refresh UI
+    graph.annotationSchema = newSchema;
+    _closeParseTips();
+    _selected = null;
+    _renderTable(newSchema);
+    _renderDetail(null, null);
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /** Merge changes into the pending map for this annotation. */
@@ -353,6 +549,14 @@ export function createAnnotCurator({ getGraph, onApply }) {
 
     // Shallow-clone each def so we don't mutate the live objects.
     const out = new Map(Array.from(schema, ([k, v]) => [k, { ...v }]));
+
+    // Remove deleted annotations from the schema and from all node annotations.
+    for (const name of _deleted) {
+      out.delete(name);
+      for (const node of nodes) {
+        delete node.annotations[name];
+      }
+    }
 
     for (const [name, p] of _pending) {
       if (!out.has(name)) continue;

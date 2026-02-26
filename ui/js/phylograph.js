@@ -447,7 +447,7 @@ export function buildAnnotationSchema(nodes) {
     for (const node of nodes) {
       if (Object.prototype.hasOwnProperty.call(node.annotations, name)) {
         const v = node.annotations[name];
-        if (v !== null && v !== undefined) {
+        if (v !== null && v !== undefined && v !== '?') {
           values.push(v);
           // Tips have exactly one adjacent (the parent); internal nodes have more.
           if (node.adjacents.length === 1) onTips  = true;
