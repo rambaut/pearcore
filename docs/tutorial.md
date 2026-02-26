@@ -129,7 +129,7 @@ Try clicking an internal node near the root of the EBOV tree.
 ### Branches Mode (⌘B)
 
 > [!TIP]
-> Branch selection mode is generally used to allow  re-rooting of a tree. However, as the example tree is a rooted, time-calibrated tree, re-rooting is disabled.
+> Branch selection mode is generally used to allow  re-rooting of a tree. However, as the example tree is a rooted, time-calibrated tree, re-rooting is disabled. See [Appendix](#rerooting) for information about re-rooting an unrooted tree.
 
 Press **⌘B** (or click the branch-mode button) to switch to **Branches** mode. Click anywhere along a horizontal branch to place a precise positional marker.
 
@@ -397,7 +397,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 > On Windows and Linux replace **⌘** with **Ctrl**.
 
 
-## Appendix: Rerooting the Tree
+## Appendix: Rerooting the Tree {#rerooting}
 
 Re-rooting of trees is not possible for trees that are explicitly rooted (generally determined by whether they have annotations for the root node). This will be the case for time calibrated trees from BEAST, for example. If the tree is not explicitly rooted then some options for changing the root position will be available.
 
