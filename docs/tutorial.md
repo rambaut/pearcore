@@ -303,35 +303,41 @@ After import the new annotation keys appear in all *Colour by* dropdowns and the
 
 Open the **Visual Options palette** (press **Tab** or click the sliders button).
 
-> <img src="images/tip_shapes_controls.png" style="width:250px;"/>
->
-> The controls in the tool drawer that set options for the tips of the tree.
-
-> <img src="images/tip_labels_controls.png" style="width:250px;"/>
->
-> The controls in the tool drawer that set options for the tips of the tree.
-
-
-
-
 ### Colouring Tip Shapes by Annotation
 
-Under **Tip Shapes**, change **Colour by** from *user colour* to an annotation key (e.g. `location` if present in the EBOV tree).
+Under **Tip Shapes**, change **Colour by** from *user colour* to an annotation key (e.g. `country` if present in the EBOV tree).
 
+> <img src="images/fig12a.png" style="width:250px;"/>
+>
+> The controls for setting the tip shape styles with **Colour by** set to `country`.
 
-> <img src="images/fig12.png" style="width:400px;"/>
+The result will be that the dots on the tips of the will be given a distinct colour depending on the unique country designation.
+
+> <img src="images/fig12b.png" style="width:400px;"/>
 >
 > Tip shapes coloured by the `location` annotation; each unique value has a distinct colour.
 
+Try changing the `Palette` to give alternative colour schemes.
+
 ### Colouring Tip Labels by Annotation
 
-Under **Tip Labels**, change **Colour by** to the same annotation. Labels now match the colours of their shapes.
+You can also have the tip labels coloured by an annotation (the same as the tip shapes or something different)
 
-> **📸 SCREENSHOT PLACEHOLDER** — Tip labels coloured to match tip shapes.
+Under **Tip Labels**, change **Colour by** to the `country`. The tip labels now match the colours of their shapes.
 
 ### Colouring Internal Nodes
 
-Under **Node Shapes**, change **Colour by** to an annotation. Internal node circles inherit the colour of the annotation value inferred or stored at that node.
+Internal node's can also have circles which can be coloured by annotation values. By default these may not be visible so under the **Node Shapes** section of the Tool Drawer, increase the size to change **Colour by** to `posterior`. Internal nodes will only have annotations if they were encoded in the tree --- in this tree Bayesian posterior support values have been supplied using the label `posterior`.
+
+> <img src="images/fig12c.png" style="width:250px;"/>
+>
+> The controls for setting the node shape styles with **Colour by** set to `posterior` and **Palette** set to `Blue-Black-Red`. The size has also been increased to `3` to make the shapes visible. 
+
+The `posterior` annotation is a continuous number between 0 and 1 so will be given a gradient of colours across its possible values. There are a selection of colour palettes to chose from but because, with these types of support values (i.e., also bootstrap values) a three colour palette such as `Blue-Black-Red` will work best because it means that red colours are >0.5 and blue colours are <0.5. 
+
+> <img src="images/fig12d.png" style="width:400px;"/>
+>
+> Node shapes coloured by the `posterior` annotation. Tip shapes have been hidden for clarity. The more red the colour, the closer the value is to 1.0 (high support) and the more blue, the closer the value is to 0.0 (low support).
 
 ---
 
@@ -493,4 +499,14 @@ Press **⌘M** (or click **Midpoint** in the toolbar) to automatically root the 
 > **📸 SCREENSHOT PLACEHOLDER** — Branch mode with marker placed near the base of a clade; tree after rerooting at that position.
 
 ---
+
+## Appendix: The control drawer
+
+> <img src="images/controls_tip_shapes.png" style="width:250px;"/>
+>
+> The controls in the tool drawer that set options for the tips of the tree.
+
+> <img src="images/controls_tip_labels.png" style="width:250px;"/>
+>
+> The controls in the tool drawer that set options for the tips of the tree.
 
