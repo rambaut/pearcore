@@ -1,6 +1,24 @@
 // themes.js — built-in theme presets and application defaults
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Typeface registry: short display name → CSS font-family stack.
+ * Keys are stored in themes and settings; the CSS stack is resolved at
+ * render time via `TYPEFACES[key] ?? key` (the fallback handles any legacy
+ * CSS-stack values that may be present in older saved settings).
+ */
+export const TYPEFACES = {
+  'Monospace':       'monospace',
+  'Sans-serif':      'sans-serif',
+  'Serif':           'serif',
+  'Courier New':     "'Courier New', Courier, monospace",
+  'Helvetica':       "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  'Georgia':         'Georgia, serif',
+  'Times New Roman': "'Times New Roman', Times, serif",
+  'System UI':       "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  'Menlo':           "Menlo, 'DejaVu Sans Mono', 'Lucida Console', monospace",
+};
+
 export const SETTINGS_KEY      = 'peartree-settings';
 export const USER_THEMES_KEY   = 'peartree-user-themes';
 export const DEFAULT_THEME_KEY = 'peartree-default-theme';
@@ -11,7 +29,7 @@ export const THEMES = {
           branchColor:      '#444444',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#000000',
           tipSize:          '2',
           tipHaloSize:      '1',
@@ -38,7 +56,7 @@ export const THEMES = {
           branchColor:      '#19A699',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#f7eeca',
           tipSize:          '3',
           tipHaloSize:      '1',
@@ -65,7 +83,7 @@ export const THEMES = {
           branchColor:      '#68A3BB',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#B1CBB8',
           tipSize:          '3',
           tipHaloSize:      '1',
@@ -106,7 +124,7 @@ export const THEMES = {
           branchColor:      '#edd59c',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#f4c9a8',
           tipSize:          '4',
           tipHaloSize:      '1',
@@ -126,7 +144,7 @@ export const THEMES = {
           branchColor:      '#2b4a2a',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#1c3220',
           tipSize:          '3',
           tipHaloSize:      '1',
@@ -146,7 +164,7 @@ export const THEMES = {
           branchColor:      '#e87830',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#f0c060',
           tipSize:          '3',
           tipHaloSize:      '1',
@@ -166,7 +184,7 @@ export const THEMES = {
           branchColor:      '#c87010',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Monospace',
           labelColor:       '#3a2010',
           tipSize:          '4',
           tipHaloSize:      '1',
@@ -236,7 +254,7 @@ export const THEMES = {
           branchColor:      '#7984BC',
           branchWidth:      '1',
           fontSize:         '11',
-          fontFamily:       'monospace',
+          fontFamily:       'Helvetica',
           labelColor:       '#7984BC',
           tipSize:          '3',
           tipHaloSize:      '1',
@@ -262,7 +280,7 @@ export const THEMES = {
 
 export const DEFAULT_SETTINGS = {
   theme:            'Artic',
-  fontFamily:       'monospace',
+  fontFamily:       'Monospace',
   canvasBgColor:    '#ffffff',
   branchColor:      '#444444',
   branchWidth:      '1',

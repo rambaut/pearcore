@@ -4,7 +4,7 @@ import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointR
 import { TreeRenderer } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
-import { THEMES, DEFAULT_SETTINGS, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY } from './themes.js';
+import { THEMES, DEFAULT_SETTINGS, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY, TYPEFACES } from './themes.js';
 import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
@@ -737,7 +737,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
       clampNegativeBranches: clampNegBranchesEl.value === 'on',
-      fontFamily:         fontFamilyEl.value,
+      fontFamily:         TYPEFACES[fontFamilyEl.value] ?? fontFamilyEl.value,
       tipLabelAnnotation: tipLabelShow.value === 'names' ? null : tipLabelShow.value,
       tipLabelAlign:      tipLabelAlignEl.value,
     };
@@ -787,8 +787,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       renderer.setSettings(_buildRendererSettings());
       if (t.axisColor) axisRenderer.setColor(t.axisColor);
       legendRenderer.setTextColor(legendColor);
-      axisRenderer.setFontFamily(fontFamilyEl.value);
-      legendRenderer.setFontFamily(fontFamilyEl.value);
+      axisRenderer.setFontFamily(TYPEFACES[fontFamilyEl.value] ?? fontFamilyEl.value);
+      legendRenderer.setFontFamily(TYPEFACES[fontFamilyEl.value] ?? fontFamilyEl.value);
       // Invalidate axis hash so next update redraws
       axisRenderer._lastHash = '';
     }
@@ -2874,8 +2874,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   fontFamilyEl.addEventListener('change', () => {
     _markCustomTheme();
     renderer.setSettings(_buildRendererSettings());
-    axisRenderer.setFontFamily(fontFamilyEl.value);
-    legendRenderer.setFontFamily(fontFamilyEl.value);
+    axisRenderer.setFontFamily(TYPEFACES[fontFamilyEl.value] ?? fontFamilyEl.value);
+    legendRenderer.setFontFamily(TYPEFACES[fontFamilyEl.value] ?? fontFamilyEl.value);
     saveSettings();
   });
 

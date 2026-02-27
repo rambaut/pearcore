@@ -2225,18 +2225,25 @@ export class TreeRenderer {
     // Label hit-test for tip nodes when labels are visible
     if (this.scaleY > 1) {
       const r        = this.tipRadius;
-      const outlineR = r + Math.max(1, Math.round(r * 0.45));
-      const labelX0  = outlineR + 3;
+      // Match the outlineR formula used in _drawNodesAndLabels
+      const outlineR = Math.max(r + this.tipHaloSize, 5);
       const halfH    = this.fontSize / 2 + 2;
       this.ctx.font  = `${this.fontSize}px ${this.fontFamily}`;
+      // When labels are right-aligned they are drawn at the rightmost-tip column,
+      // not at each node's own x — mirror that here.
+      const _align      = this.tipLabelAlign;
+      const isAligned   = _align && _align !== 'off';
+      const alignLabelX = isAligned ? this._wx(this.maxX) + outlineR + 3 : null;
       for (const node of this.nodes) {
         if (!node.isTip || !node.name) continue;
         if (node.y < yWorldMin || node.y > yWorldMax) continue;
         const sy = this._wy(node.y);
         if (my < sy - halfH || my > sy + halfH) continue;
-        const lx0 = this._wx(node.x) + labelX0;
+        const lx0 = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
         if (mx < lx0) continue;
-        if (mx <= lx0 + this.ctx.measureText(node.name).width) return node;
+        const labelText = this._tipLabelText(node);
+        if (!labelText) continue;
+        if (mx <= lx0 + this.ctx.measureText(labelText).width) return node;
       }
     }
     return null;
@@ -2586,10 +2593,13 @@ export class TreeRenderer {
           // Pre-compute label geometry (same as _findNodeAtScreen / _draw).
           const r        = this.tipRadius;
           const outlineR = Math.max(r + this.tipHaloSize, 5);
-          const labelX0  = outlineR + 3;           // label starts this many px right of circle centre
           const halfH    = this.fontSize / 2 + 2;  // half-height of a label row
           const showLbls = this.scaleY >= this.fontSize * 0.5;
           this.ctx.font  = `${this.fontSize}px ${this.fontFamily}`;
+          // Respect right-aligned label column (same logic as _findNodeAtScreen and _draw)
+          const _align      = this.tipLabelAlign;
+          const isAligned   = _align && _align !== 'off';
+          const alignLabelX = isAligned ? this._wx(this.maxX) + outlineR + 3 : null;
           for (const node of this.nodes) {
             if (!node.isTip) continue;
             const sx = this._wx(node.x);
@@ -2599,11 +2609,12 @@ export class TreeRenderer {
             // Horizontal: hit either the circle or the label text.
             // Circle bounding box: [sx - r, sx + r]
             const circleHit = rxMax >= sx - r && rxMin <= sx + r;
-            // Label bounding box: [sx + labelX0, sx + labelX0 + textWidth]
+            // Label bounding box: aligned column or per-node x
             let labelHit = false;
             if (showLbls && node.name) {
-              const lx0 = sx + labelX0;
-              const lx1 = lx0 + this.ctx.measureText(node.name).width;
+              const lx0 = alignLabelX ?? (sx + outlineR + 3);
+              const labelText = this._tipLabelText(node) ?? node.name;
+              const lx1 = lx0 + this.ctx.measureText(labelText).width;
               labelHit   = rxMax >= lx0 && rxMin <= lx1;
             }
             if (circleHit || labelHit) hits.push(node.id);

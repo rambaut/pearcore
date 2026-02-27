@@ -242,9 +242,9 @@ The selected tip is removed from the view and the visible tree rescales. The tip
 
 The selected node and all its descendants are hidden in the tree and removed from the view. 
 
-> <img src="images/fig9b.png" style="width:400px;"/>
->
 > <img src="images/fig9c.png" style="width:400px;"/>
+>
+> <img src="images/fig9d.png" style="width:400px;"/>
 >
 > A section of the tree with a node and its descendents selected and after this node has been hidden.
 
@@ -281,7 +281,9 @@ The EBOV example has some annotations embedded in the tree file. These were put 
 >
 > Import Annotations dialog, Step 1 (file-pick drop zone).
 
-- **Step 2** — Select which column contains the taxon name, tick the columns to import.
+> **Note** this dialog box will only appear if running PearTree on a web server - for the desktop app, a native file chooser will appear for you to select the file.
+
+- **Step 2** — Select which column in the metadata file is going to be used to match the tip labels in the tree. By default PearTree will try to match the entire tip label but if the labels are made up of 'fields' separated by the `|` (pipe) character then you can choose which is the field to match. For the example data it is the `lab-id` in the second field.
 
 > <img src="images/fig11b.png" style="width:300px;"/>
 >
@@ -291,9 +293,9 @@ The EBOV example has some annotations embedded in the tree file. These were put 
 
 > <img src="images/fig11c.png" style="width:300px;"/>
 >
-> Import summary dialog box.
+> Import summary dialog box. This confirms that all 1610 tips of the tree were matched with a row in the metadata file annotated with the required columns.
 
-After import the new annotation keys appear in all *Colour by* dropdowns and the *Legend* selector.
+After import the new annotation keys appear in all *Colour by* dropdowns and the *Legend* selector. They will also appear in the *Get Info* dialog box for selected tips.
 
 ---
 
@@ -301,11 +303,25 @@ After import the new annotation keys appear in all *Colour by* dropdowns and the
 
 Open the **Visual Options palette** (press **Tab** or click the sliders button).
 
+> <img src="images/tip_shapes_controls.png" style="width:250px;"/>
+>
+> The controls in the tool drawer that set options for the tips of the tree.
+
+> <img src="images/tip_labels_controls.png" style="width:250px;"/>
+>
+> The controls in the tool drawer that set options for the tips of the tree.
+
+
+
+
 ### Colouring Tip Shapes by Annotation
 
 Under **Tip Shapes**, change **Colour by** from *user colour* to an annotation key (e.g. `location` if present in the EBOV tree).
 
-> **📸 SCREENSHOT PLACEHOLDER** — Tip shapes coloured by the `location` annotation; each unique value has a distinct colour.
+
+> <img src="images/fig12.png" style="width:400px;"/>
+>
+> Tip shapes coloured by the `location` annotation; each unique value has a distinct colour.
 
 ### Colouring Tip Labels by Annotation
 
