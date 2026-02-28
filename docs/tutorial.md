@@ -411,11 +411,15 @@ In the **Tree** section, a **Calibrate** dropdown appears whenever the loaded tr
 
 Once a calibration annotation is chosen, a **Format** row appears immediately below it:
 
-| Format option | Example output |
+| Format code | Example output |
 |---|---|
-| `1977-05-04` | ISO numeric — `2014-09-12` |
-| `1977-May-04` | Month abbreviation — `2014-Sep-12` |
-| `04 May 1977` | Day-first long — `12 Sep 2014` |
+| `yyyy-MM-dd` | `1977-05-04` |
+| `yyyy-MMM-dd` | `1977-May-04` |
+| `dd MMM yyyy` | `04 May 1977` |
+| `dd MMMM yyyy` | `04 May 1977` (full month name — `04 March 1977`) |
+| `MMM dd, yyyy` | `May 04, 1977` |
+| `MMMM dd, yyyy` | `May 04, 1977` (full month name — `March 04, 1977`) |
+| `MMM-dd-yyyy` | `May-04-1977` |
 
 The chosen format applies to all **Full** and **Partial** tick labels on the axis (see below).
 
