@@ -73,6 +73,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   const legendDetailEl      = document.getElementById('legend-detail');
   const axisDetailEl        = document.getElementById('axis-detail');
   const clampNegBranchesEl  = document.getElementById('clamp-neg-branches');
+  const clampNegBranchesRowEl = document.getElementById('clamp-neg-branches-row');
   const fontFamilyEl        = document.getElementById('font-family-select');
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
@@ -2103,6 +2104,10 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
 
       // Capture full-tree axis params for subtree-tracking.
       _axisIsTimedTree = _isTimedTree;
+      // Negative-branch clamping is meaningless in a time-scaled tree (nodes have
+      // fixed calendar positions); hide the control and reset to 'off'.
+      if (clampNegBranchesRowEl) clampNegBranchesRowEl.style.display = _isTimedTree ? 'none' : '';
+      if (_isTimedTree) clampNegBranchesEl.value = 'off';
 
       // Show tick-option rows only when axis is in Time mode with an annotation selected.
       _showDateTickRows(axisShowEl.value === 'time' && !!axisDateAnnotEl.value);
