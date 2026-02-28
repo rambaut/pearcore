@@ -10,6 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "PearTree — Phylogenetic Tree Viewer",
         "url": "peartree.html",
         "width": 1400,

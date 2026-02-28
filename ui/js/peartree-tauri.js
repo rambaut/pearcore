@@ -120,13 +120,14 @@
     const pending = await invoke('take_pending_file');
     if (pending) {
       const content = await invoke('read_file_content', { path: pending });
-      const name = pending.split('/').pop() || 'tree';
+      const name = pending.split(/[\\/]/).pop() || 'tree';
       app.closeModal();
       await app.loadTree(content, name);
       setWindowTitle(name);
     }
   } catch (err) {
     console.error('Failed to load pending file:', err);
+    app.showErrorDialog(err.message ?? String(err));
   }
 
   // ── File opened via drag-to-icon / double-click / file association ─────
@@ -144,7 +145,7 @@
 
     try {
       const content = await invoke('read_file_content', { path: filePath });
-      const name = filePath.split('/').pop() || 'tree';
+      const name = filePath.split(/[\\/]/).pop() || 'tree';
       app.closeModal();
       await app.loadTree(content, name);
       setWindowTitle(name);
