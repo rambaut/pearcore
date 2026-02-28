@@ -2002,10 +2002,15 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       // derived from the observed range of the 'height' annotation.
       axisRenderer.setHeightFormatter(schema.get('height')?.fmt ?? null);
 
-      // Populate date annotation dropdown: only annotations explicitly typed as 'date'.
+      // Populate date annotation dropdown: accept 'date' annotations (ISO strings) and
+      // numeric 'real'/'integer' annotations whose range falls within calendar years
+      // (1000–3000), since BEAST-style decimal years (e.g. 2014.45) are typed as 'real'.
       while (axisDateAnnotEl.options.length > 1) axisDateAnnotEl.remove(1);
       for (const [name, def] of schema) {
-        if (def.dataType === 'date') {
+        const isDate       = def.dataType === 'date';
+        const isDecimalYear = (def.dataType === 'real' || def.dataType === 'integer') &&
+                               def.min >= 1000 && def.max <= 3000;
+        if (isDate || isDecimalYear) {
           const opt = document.createElement('option');
           opt.value = name;
           opt.textContent = name;
