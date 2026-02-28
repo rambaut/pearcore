@@ -2027,6 +2027,7 @@
   const btnPalette       = document.getElementById('btn-palette');
   const btnPaletteClose  = document.getElementById('btn-palette-close');
   const btnPalettePin    = document.getElementById('btn-palette-pin');
+  const PALETTE_PIN_KEY  = 'peartree-palette-pinned';
   let   palettePinned    = false;
 
   function _afterPanelTransition() {
@@ -2061,6 +2062,7 @@
   }
   function pinPalette() {
     palettePinned = true;
+    localStorage.setItem(PALETTE_PIN_KEY, '1');
     palettePanel.classList.add('open', 'pinned');
     document.body.classList.add('palette-pinned');
     btnPalettePin.classList.add('active');
@@ -2071,6 +2073,7 @@
   }
   function unpinPalette() {
     palettePinned = false;
+    localStorage.removeItem(PALETTE_PIN_KEY);
     palettePanel.classList.remove('pinned');
     document.body.classList.remove('palette-pinned');
     btnPalettePin.classList.remove('active');
@@ -2092,6 +2095,9 @@
     if (palettePinned) unpinPalette();
     else               pinPalette();
   });
+
+  // Restore pinned state from previous session.
+  if (localStorage.getItem(PALETTE_PIN_KEY) === '1') pinPalette();
 
   // Slider live value readouts
   const fontSliderEl = document.getElementById('font-size-slider');
