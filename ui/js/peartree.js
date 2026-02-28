@@ -809,6 +809,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       nodeLabelDecimalPlaces: nodeLabelDpEl.value !== '' ? parseInt(nodeLabelDpEl.value) : null,
       calCalibration:      calibration?.isActive ? calibration : null,
       calDateFormat:       axisDateFmtEl.value,
+      introAnimation:      DEFAULT_SETTINGS.introAnimation,
     };
   }
 
@@ -2052,6 +2053,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       applyLegend();   // rebuild legend with new data (may clear it)
       const layout = computeLayoutFromGraph(graph, null, { clampNegativeBranches: clampNegBranchesEl.value === 'on' });
       renderer.setData(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
+      renderer.startIntroAnimation();
 
       // ── Axis renderer setup ───────────────────────────────────────────────
       // Detect time-scaled tree: presence of 'height' in the annotation schema is the

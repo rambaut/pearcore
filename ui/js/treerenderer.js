@@ -108,6 +108,15 @@ export class TreeRenderer {
     this._reorderToY    = null;   // Map<id, newY>
     this._reorderAlpha  = 1;      // 0→1; 1 = not animating
 
+    // Intro animation (played once per tree load)
+    this._introPhase          = null;   // null | 1 | 2
+    this._introAlpha          = 0;      // 0→1 within current phase
+    this._introStyle          = null;   // style name active during current animation
+    this._introAnimationStyle = 'y-then-x';  // configured style (from settings)
+    this._introFinalX         = null;   // Map<id, finalX>
+    this._introFinalY         = null;   // Map<id, finalY>
+    this._introRootY          = 0;
+
     // Root-shift animation (when effective visual root moves deeper/shallower after hide/show)
     this._rootShiftAlpha  = 1;    // 0→1; 1 = not animating
     this._rootShiftFromX  = 0;    // starting offsetX
@@ -251,6 +260,9 @@ export class TreeRenderer {
     const _al = s.tipLabelAlign ?? 'off';
     this.tipLabelAlign = (_al === true || _al === 'on') ? 'aligned' : (_al === false ? 'off' : _al);
 
+    // Intro animation style — persisted across tree loads.
+    if (s.introAnimation !== undefined) this._introAnimationStyle = s.introAnimation;
+
     // Propagate bg colour to an attached legend renderer.
     this._legendRenderer?.setBgColor(this.bgColor, this._skipBg);
 
@@ -264,6 +276,7 @@ export class TreeRenderer {
 
   setData(nodes, nodeMap, maxX, maxY) {
     this._reorderAlpha    = 1;  // cancel any in-progress reorder animation
+    this._introPhase      = null;  // cancel any in-progress intro animation
     this._hypFocusScreenY = null;
     this._hypStrength     = 0;
     this._hypTarget       = 0;
@@ -357,6 +370,70 @@ export class TreeRenderer {
 
     // Install the new layout (resets viewport via fitToWindow).
     this.setData(nodes, nodeMap, maxX, maxY);
+  }
+
+  /**
+   * Trigger the intro animation for a freshly loaded tree.
+   * The style is taken from `this._introAnimationStyle`:
+   *   'y-then-x'    – spread vertically from root, then expand horizontally
+   *   'x-then-y'    – expand horizontally from root, then spread vertically
+   *   'simultaneous'– both axes move together from the root point
+   *   'from-bottom' – all nodes slide up from the bottom of the tree space
+   *   'from-top'    – all nodes slide down from the top of the tree space
+   *   'none'        – no animation
+   * Skipped silently for very large trees (>10 000 nodes).
+   */
+  startIntroAnimation() {
+    if (!this.nodes || this.nodes.length === 0) return;
+    if (this.nodes.length > 10000) return;  // skip for large trees
+
+    const style = this._introAnimationStyle ?? 'y-then-x';
+    if (style === 'none') return;
+
+    // Root node: first entry in the DFS order (always x=0, y ≈ midpoint).
+    const rootNode = this.nodes[0];
+    this._introRootY = rootNode.y;
+    this._introStyle  = style;
+
+    // Capture final positions before we displace any nodes.
+    this._introFinalX = new Map();
+    this._introFinalY = new Map();
+    for (const n of this.nodes) {
+      this._introFinalX.set(n.id, n.x);
+      this._introFinalY.set(n.id, n.y);
+    }
+
+    // Place every node at its starting position for the chosen style.
+    for (const n of this.nodes) {
+      switch (style) {
+        case 'y-then-x':
+        case 'x-then-y':
+        case 'simultaneous':
+          n.x = 0; n.y = this._introRootY;
+          break;
+        case 'from-bottom':
+          n.x = this._introFinalX.get(n.id); n.y = this.maxY;
+          break;
+        case 'from-top':
+          n.x = this._introFinalX.get(n.id); n.y = 0;
+          break;
+      }
+    }
+
+    this._introPhase = 1;
+    this._introAlpha = 0;
+    this._dirty = true;
+  }
+
+  /** Snap all nodes to their final positions and clear intro state. */
+  _introEnd() {
+    for (const node of this.nodes) {
+      node.x = this._introFinalX.get(node.id);
+      node.y = this._introFinalY.get(node.id);
+    }
+    this._introPhase = null;
+    this._introFinalX = null;
+    this._introFinalY = null;
   }
 
   setTipLabelAnnotation(key) {
@@ -1509,6 +1586,84 @@ export class TreeRenderer {
       this._dirty = true;
     }
 
+    // ── Intro animation ──────────────────────────────────────────────────────
+    if (this._introPhase !== null) {
+      const EASE  = 0.04;   // ~25 frames ≈ 415 ms at 60 fps per phase
+      this._introAlpha = Math.min(1, this._introAlpha + EASE);
+      const t    = this._introAlpha;
+      const a    = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;   // ease-in-out
+      const done = this._introAlpha >= 1;
+      const fX   = this._introFinalX;
+      const fY   = this._introFinalY;
+      const rY   = this._introRootY;
+
+      switch (this._introStyle) {
+
+        case 'y-then-x':
+          if (this._introPhase === 1) {
+            for (const node of this.nodes) {
+              node.y = rY + (fY.get(node.id) - rY) * a;
+              node.x = 0;
+            }
+            if (done) {
+              for (const node of this.nodes) { node.y = fY.get(node.id); node.x = 0; }
+              this._introPhase = 2; this._introAlpha = 0;
+            }
+          } else {
+            for (const node of this.nodes) node.x = fX.get(node.id) * a;
+            if (done) this._introEnd();
+          }
+          break;
+
+        case 'x-then-y':
+          if (this._introPhase === 1) {
+            for (const node of this.nodes) {
+              node.x = fX.get(node.id) * a;
+              node.y = rY;
+            }
+            if (done) {
+              for (const node of this.nodes) { node.x = fX.get(node.id); node.y = rY; }
+              this._introPhase = 2; this._introAlpha = 0;
+            }
+          } else {
+            for (const node of this.nodes) node.y = rY + (fY.get(node.id) - rY) * a;
+            if (done) this._introEnd();
+          }
+          break;
+
+        case 'simultaneous':
+          for (const node of this.nodes) {
+            node.x = fX.get(node.id) * a;
+            node.y = rY + (fY.get(node.id) - rY) * a;
+          }
+          if (done) this._introEnd();
+          break;
+
+        case 'from-bottom': {
+          const edgeY = this.maxY;
+          for (const node of this.nodes) {
+            node.x = fX.get(node.id);
+            node.y = edgeY + (fY.get(node.id) - edgeY) * a;
+          }
+          if (done) this._introEnd();
+          break;
+        }
+
+        case 'from-top':
+          for (const node of this.nodes) {
+            node.x = fX.get(node.id);
+            node.y = fY.get(node.id) * a;  // 0 → finalY
+          }
+          if (done) this._introEnd();
+          break;
+
+        default:
+          this._introEnd();  // unknown style — snap immediately
+      }
+
+      this._dirty = true;
+    }
+
     // ── Per-node reorder animation (y positions) ──
     if (this._reorderAlpha < 1) {
       const EASE = 0.05;   // ~20 frames ≈ 330 ms at 60 fps (matches root-shift animation)
@@ -1582,7 +1737,7 @@ export class TreeRenderer {
       this._draw();
       this._dirty = false;
     }
-    if (this._onViewChange && (this._animating || this._reorderAlpha < 1 || this._rootShiftAlpha < 1 || this._crossfadeAlpha > 0 || !this._lastViewHash || this._lastViewHash !== this._viewHash())) {
+    if (this._onViewChange && (this._animating || this._reorderAlpha < 1 || this._rootShiftAlpha < 1 || this._crossfadeAlpha > 0 || this._introPhase !== null || !this._lastViewHash || this._lastViewHash !== this._viewHash())) {
       this._lastViewHash = this._viewHash();
       this._onViewChange(this.scaleX, this.offsetX, this.paddingLeft, this.labelRightPad, this.bgColor, this.fontSize, window.devicePixelRatio || 1);
     }

@@ -48,11 +48,6 @@ async fn pick_tree_file(app: tauri::AppHandle) -> Result<Option<serde_json::Valu
     let result = app
         .dialog()
         .file()
-        .add_filter(
-            "Tree files",
-            &["nex", "nexus", "tre", "tree", "treefile", "nwk", "newick", "txt"],
-        )
-        .add_filter("All files", &["*"])
         .blocking_pick_file();
 
     match result {
