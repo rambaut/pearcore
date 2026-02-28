@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { AxisRenderer } from './axisrenderer.js';
-import { isNumericType } from './phylograph.js';
+import { isNumericType, TreeCalibration } from './phylograph.js';
 import { getSequentialPalette,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE,
          MISSING_DATA_COLOUR, buildCategoricalColourMap } from './palettes.js';
@@ -322,14 +322,14 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     if (ar._dateMode) {
       const majI = ar._majorInterval, minI = ar._minorInterval;
       majorTicks = majI === 'auto'
-        ? AxisRenderer._niceCalendarTicks(minVal, maxVal, targetMajor)
-        : AxisRenderer._calendarTicksForInterval(minVal, maxVal, majI);
+        ? TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor)
+        : TreeCalibration.calendarTicksForInterval(minVal, maxVal, majI);
       if (minI === 'off') {
         minorTicks = [];
       } else {
         const all = minI === 'auto'
-          ? AxisRenderer._niceCalendarTicks(minVal, maxVal, targetMajor * 5)
-          : AxisRenderer._calendarTicksForInterval(minVal, maxVal, minI);
+          ? TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor * 5)
+          : TreeCalibration.calendarTicksForInterval(minVal, maxVal, minI);
         const ms = new Set(majorTicks.map(t => t.toFixed(8)));
         minorTicks = all.filter(t => !ms.has(t.toFixed(8)));
       }
@@ -353,7 +353,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       if (sx < plotLeft + AX - 1 || sx > plotRight + AX + 1) continue;
       axisParts.push(`<line x1="${f(sx)}" y1="${f(AY + Y_BASE + 1)}" x2="${f(sx)}" y2="${f(AY + Y_BASE + 1 + MINOR_H)}" stroke="${MINOR_C}" stroke-width="1"/>`);
       if (showMinorLabel) {
-        const label = ar._formatDateVal(val, minorLabelFmt, ar._minorInterval);
+        const label = ar._calibration.decYearToString(val, minorLabelFmt, ar._minorInterval);
         const tw    = approxW(label, afsMinor);
         const lx2   = Math.max(plotLeft + AX + tw / 2 + 1, Math.min(plotRight + AX - tw / 2 - 1, sx));
         if (lx2 - tw / 2 > minorLabelRight + 2) {
@@ -375,8 +375,8 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
         let label;
         if (ar._dateMode) {
           label = majorLabelFmt === 'auto'
-            ? AxisRenderer._formatDecYear(val, majorTicks)
-            : ar._formatDateVal(val, majorLabelFmt, ar._majorInterval);
+            ? TreeCalibration.formatDecYear(val, majorTicks)
+            : ar._calibration.decYearToString(val, majorLabelFmt, ar._majorInterval);
         } else {
           label = AxisRenderer._formatValue(val);
         }

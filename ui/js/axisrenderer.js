@@ -4,7 +4,7 @@
  * Three modes:
  *   1. divergence — raw branch-length units from root  (auto-selected)
  *   2. height     — "height before present" (auto-selected for time trees)
- *   3. date       — absolute calendar time  (requires setDateAnchor)
+ *   3. date       — absolute calendar time  (requires setCalibration)
  *
  * Tick / label settings (date mode only, via setTickOptions):
  *   majorInterval    'auto'|'decades'|'years'|'quarters'|'months'|'weeks'|'days'
@@ -29,13 +29,10 @@ export class AxisRenderer {
     this._fontSize   = 9;
     this._fontFamily = 'monospace';
 
-    // Date mode — anchor stores one tip's (date, height) pair so any node's date
-    // can be derived as: nodeDate = _anchorDecYear + (_anchorH - nodeH)
-    // Heights are computed from the layout as (maxX - node.x), not from annotations.
-    this._dateMode      = false;
-    this._anchorDecYear = null;  // decimal year of the anchor tip
-    this._anchorH       = null;  // computed height of the anchor tip (maxX - tip.x)
-    this._minTipH       = 0;     // minimum computed height among tips in current view
+    // Date-mode calibration: provided as a TreeCalibration instance via setCalibration().
+    // _viewMinTipH tracks the minimum tip height in the current view (updated by setSubtreeParams).
+    this._calibration   = null;
+    this._viewMinTipH   = 0;
 
     // Tick / label options (effective only in date mode)
     this._majorInterval    = 'auto';
@@ -94,74 +91,27 @@ export class AxisRenderer {
     this._maxX       = maxX;
     this._timed      = isTimedTree;
     this._rootHeight = isTimedTree ? (rootHeight || 0) : 0;
-    this._dateMode      = false;
-    this._anchorDecYear = null;
-    this._anchorH       = null;
-    this._minTipH       = 0;
+    this._calibration   = null;
+    this._viewMinTipH   = 0;
     this._lastHash      = '';
   }
 
   /**
-   * Switch to absolute-date axis using the given annotation key.
-   * We scan nodeMap for the first tip that has both that annotation and 'height',
-   * then compute the decimal-year of the root.
-   *
-   * @param {string|null} annotKey  – null clears date mode (falls back to height mode)
-   * @param {Map}         nodeMap   – renderer's nodeMap (id → layout node with .x)
-   * @param {number}      maxX      – full-tree branch span; used to compute height = maxX - node.x
+   * Activate date-axis mode using a pre-built TreeCalibration.
+   * Pass null to clear date mode and fall back to height / divergence.
+   * @param {TreeCalibration|null} cal
    */
-  setDateAnchor(annotKey, nodeMap, maxX) {
-    if (!annotKey) {
-      this._dateMode      = false;
-      this._anchorDecYear = null;
-      this._anchorH       = null;
-      this._minTipH       = 0;
-      this._lastHash      = '';
-      return;
-    }
-    // For non-BEAST trees (no 'height' annotations) rootHeight = maxX, since the root
-    // sits at worldX=0 and its layout-based height is (maxX - 0).
-    if (!this._timed) this._rootHeight = maxX;
-
-    // Scan ALL tips to:
-    //   a) find the anchor (first tip that carries the date annotation)
-    //   b) find the minimum computed height across all tips
-    // Heights are computed as (maxX - node.x) — no dependence on height annotations.
-    let anchorDecYear = null;
-    let anchorH       = null;
-    let minTipH       = Infinity;
-
-    for (const node of nodeMap.values()) {
-      if (!node.isTip) continue;
-      const h = maxX - node.x;
-      if (isNaN(h)) continue;
-      if (h < minTipH) minTipH = h;
-      if (anchorDecYear == null) {
-        const raw = node.annotations?.[annotKey];
-        if (raw == null) continue;
-        const dec = AxisRenderer._parseDateToDecYear(String(raw));
-        if (dec != null) { anchorDecYear = dec; anchorH = h; }
-      }
-    }
-
-    if (anchorDecYear == null) {
-      this._dateMode      = false;
-      this._anchorDecYear = null;
-      this._anchorH       = null;
-      this._minTipH       = 0;
-    } else {
-      // date(nodeH) = anchorDecYear + (anchorH - nodeH)
-      // root at nodeH = _rootHeight, most-recent tips at nodeH = minTipH
-      this._anchorDecYear = anchorDecYear;
-      this._anchorH       = anchorH;
-      this._minTipH       = isFinite(minTipH) ? minTipH : 0;
-      this._dateMode      = true;
-    }
-    this._lastHash = '';
+  setCalibration(cal) {
+    this._calibration = cal?.isActive ? cal : null;
+    this._viewMinTipH = cal?.minTipH ?? 0;
+    this._lastHash    = '';
   }
 
+  /** True when a valid TreeCalibration is active. Kept as a getter for internal use. */
+  get _dateMode() { return this._calibration?.isActive ?? false; }
+
   /**
-   * Update axis params for a subtree view without re-running setTreeParams / setDateAnchor.
+   * Update axis params for a subtree view without re-running setTreeParams / setCalibration.
    * Call whenever the renderer navigates into or out of a subtree.
    *
    * @param {number}  maxX       – branch span of the new view (root → most distant tip)
@@ -171,7 +121,7 @@ export class AxisRenderer {
   setSubtreeParams({ maxX, rootHeight, minTipH }) {
     this._maxX       = maxX;
     this._rootHeight = rootHeight;
-    if (this._dateMode && minTipH != null) this._minTipH = minTipH;
+    if (this._calibration?.isActive && minTipH != null) this._viewMinTipH = minTipH;
     this._lastHash   = '';
   }
 
@@ -207,7 +157,7 @@ export class AxisRenderer {
     // Only auto-sync font size from tree if the user hasn't explicitly set one
     if (!this._axisFontSizeManual) this._fontSize = Math.max(7, fontSize - 1);
 
-    const hash = `${scaleX.toFixed(4)}|${offsetX.toFixed(2)}|${paddingLeft}|${labelRightPad}|${bgColor}|${this._fontSize}|${this._fontFamily}|${this._axisColor ?? ''}|${this._axisLineWidth}|${W}|${H}|${this._timed}|${this._dateMode}|${this._rootHeight}|${this._anchorDecYear}|${this._anchorH}|${this._minTipH}|${this._majorInterval}|${this._minorInterval}|${this._majorLabelFormat}|${this._minorLabelFormat}|${this._direction}`;
+    const hash = `${scaleX.toFixed(4)}|${offsetX.toFixed(2)}|${paddingLeft}|${labelRightPad}|${bgColor}|${this._fontSize}|${this._fontFamily}|${this._axisColor ?? ''}|${this._axisLineWidth}|${W}|${H}|${this._timed}|${this._dateMode}|${this._rootHeight}|${this._calibration?.anchorDecYear ?? ''}|${this._calibration?.anchorH ?? ''}|${this._viewMinTipH}|${this._majorInterval}|${this._minorInterval}|${this._majorLabelFormat}|${this._minorLabelFormat}|${this._direction}`;
     if (hash === this._lastHash) return;
     this._lastHash = hash;
 
@@ -293,16 +243,16 @@ export class AxisRenderer {
       const majorInt = this._majorInterval;
       const minorInt = this._minorInterval;
       majorTicks = (majorInt === 'auto')
-        ? AxisRenderer._niceCalendarTicks(minVal, maxVal, targetMajor)
-        : AxisRenderer._calendarTicksForInterval(minVal, maxVal, majorInt);
+        ? TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor)
+        : TreeCalibration.calendarTicksForInterval(minVal, maxVal, majorInt);
       if (minorInt === 'off') {
         minorTicks = [];
       } else if (minorInt === 'auto') {
-        const minorAll = AxisRenderer._niceCalendarTicks(minVal, maxVal, targetMajor * 5);
+        const minorAll = TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor * 5);
         const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
         minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
       } else {
-        const minorAll = AxisRenderer._calendarTicksForInterval(minVal, maxVal, minorInt);
+        const minorAll = TreeCalibration.calendarTicksForInterval(minVal, maxVal, minorInt);
         const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
         minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
       }
@@ -365,7 +315,7 @@ export class AxisRenderer {
       ctx.lineTo(sx + 0.5, Y_BASE + 1 + MINOR_H);
       ctx.stroke();
       if (showMinorLabel) {
-        const label = this._formatDateVal(val, minorLabelFmt, this._minorInterval);
+        const label = this._calibration.decYearToString(val, minorLabelFmt, this._minorInterval);
         const tw    = ctx.measureText(label).width;
         const lx    = Math.max(plotLeft + tw / 2 + 1, Math.min(plotRight - tw / 2 - 1, sx));
         if (lx - tw / 2 > minorLabelRight + 2) {
@@ -398,8 +348,8 @@ export class AxisRenderer {
         let label;
         if (this._dateMode) {
           label = (majorLabelFmt === 'auto')
-            ? AxisRenderer._formatDecYear(val, majorTicks)
-            : this._formatDateVal(val, majorLabelFmt, this._majorInterval);
+            ? TreeCalibration.formatDecYear(val, majorTicks)
+            : this._calibration.decYearToString(val, majorLabelFmt, this._majorInterval);
         } else {
           label = this._heightFormatter
             ? this._heightFormatter(val)
@@ -424,11 +374,10 @@ export class AxisRenderer {
     const extraH = this._scaleX > 0
       ? Math.max(0, this._offsetX - this._paddingLeft) / this._scaleX
       : 0;
-    if (this._dateMode) {
-      // date(nodeH) = _anchorDecYear + (_anchorH - nodeH)
-      // root at nodeH=_rootHeight, most-recent tips at nodeH=_minTipH
-      const leftVal  = this._anchorDecYear + this._anchorH - (this._rootHeight + extraH);
-      const rightVal = this._anchorDecYear + this._anchorH - this._minTipH;
+    if (this._calibration?.isActive) {
+      // date(nodeH) = cal.heightToDecYear(nodeH)
+      const leftVal  = this._calibration.heightToDecYear(this._rootHeight + extraH);
+      const rightVal = this._calibration.heightToDecYear(this._viewMinTipH);
       return { leftVal, rightVal };
     }
     if (this._timed) {
@@ -443,9 +392,9 @@ export class AxisRenderer {
   }
 
   _valToWorldX(val) {
-    if (this._dateMode) {
-      // rootDecYear = anchorDecYear + anchorH - rootHeight
-      return val - (this._anchorDecYear + this._anchorH - this._rootHeight);
+    if (this._calibration?.isActive) {
+      // val is a decimal year; worldX = val - rootDecYear
+      return val - this._calibration.heightToDecYear(this._rootHeight);
     }
     if (this._timed)                       return this._rootHeight - val;
     if (this._direction === 'reverse')     return this._maxX - val;
@@ -454,36 +403,6 @@ export class AxisRenderer {
 
   _valToScreenX(val) {
     return this._offsetX + this._valToWorldX(val) * this._scaleX;
-  }
-
-  static _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  /** Format a decimal year using a specific named format or 'component' (interval-specific label). */
-  _formatDateVal(decYear, format, interval) {
-    const { year, month, day } = AxisRenderer._decYearToDate(decYear);
-    if (format === 'component') {
-      switch (interval) {
-        case 'decades':  return String(year);
-        case 'years':    return String(year);
-        case 'quarters': return `Q${Math.ceil(month / 3)}`;
-        case 'months':   return AxisRenderer._MONTHS[month - 1];
-        case 'weeks':
-        case 'days':     return String(day);
-        default:         return AxisRenderer._formatDecYear(decYear, []);
-      }
-    }
-    const mm  = String(month).padStart(2, '0');
-    const dd  = String(day).padStart(2, '0');
-    const mmm = AxisRenderer._MONTHS[month - 1];
-    switch (format) {
-      case 'yyyy':        return String(year);
-      case 'yyyy-MM':     return `${year}-${mm}`;
-      case 'yyyy-MMM':    return `${year}-${mmm}`;
-      case 'yyyy-mm-dd':  return `${year}-${mm}-${dd}`;
-      case 'yyyy-MMM-dd': return `${year}-${mmm}-${dd}`;
-      case 'dd MMM yyyy': return `${dd} ${mmm} ${year}`;
-      default:            return AxisRenderer._formatDecYear(decYear, []);
-    }
   }
 
   // ── Static helpers ────────────────────────────────────────────────────────
@@ -499,7 +418,6 @@ export class AxisRenderer {
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r},${g},${b},${alpha})`;
   }
-
 
   /**
    * Generate nicely-spaced ticks within [min, max].
@@ -531,159 +449,6 @@ export class AxisRenderer {
     return ticks;
   }
 
-  /**
-   * Generate calendar ticks within decimal-year range [minDY, maxDY].
-   * Auto-picks appropriate interval (decade → year → quarter → month → …).
-   */
-  static _niceCalendarTicks(minDY, maxDY, targetCount = 5) {
-    const range = maxDY - minDY;
-    if (range === 0) return [minDY];
-
-    // Candidate intervals in decimal years
-    const candidates = [
-      100, 50, 25, 10, 5, 2, 1,
-      1/2, 1/3, 1/4, 1/6, 1/12, 1/24,
-    ];
-    const roughStep = range / targetCount;
-    let step = candidates[0];
-    for (const c of candidates) {
-      if (c <= roughStep * 1.5) { step = c; break; }
-    }
-
-    // Snap start to a multiple of step in decimal years (using Jan 1 multiples)
-    const ticks = [];
-    if (step >= 1) {
-      // Snap to year boundaries
-      const startYear = Math.ceil(minDY / step - 1e-9) * step;
-      for (let y = startYear; y <= maxDY + step * 1e-9; y += step) {
-        ticks.push(parseFloat(y.toPrecision(10)));
-      }
-    } else {
-      // Sub-year: snap to month/quarter boundaries
-      const monthsPerStep = Math.round(step * 12);
-      const startDate     = AxisRenderer._decYearToDate(minDY);
-      let   m             = startDate.month;
-      let   yr            = startDate.year;
-      // Advance to next tick boundary
-      const rem = m % monthsPerStep;
-      if (rem !== 0) m += monthsPerStep - rem;
-      while (m > 12) { m -= 12; yr++; }
-      for (let i = 0; i < 60; i++) {  // safety cap
-        const dy = AxisRenderer._dateToDecYear(yr, m, 1);
-        if (dy > maxDY + step * 1e-6) break;
-        ticks.push(dy);
-        m += monthsPerStep;
-        while (m > 12) { m -= 12; yr++; }
-      }
-    }
-    return ticks;
-  }
-
-  /**
-   * Generate ticks for a fixed named calendar interval within [minDY, maxDY].
-   */
-  static _calendarTicksForInterval(minDY, maxDY, interval) {
-    const ticks = [];
-    const sd = AxisRenderer._decYearToDate(minDY);
-
-    if (interval === 'decades') {
-      const start = Math.ceil(minDY / 10 - 1e-9) * 10;
-      for (let y = start; y <= maxDY + 1e-6; y += 10)
-        ticks.push(AxisRenderer._dateToDecYear(y, 1, 1));
-
-    } else if (interval === 'years') {
-      let yr = sd.year;
-      if (AxisRenderer._dateToDecYear(yr, 1, 1) < minDY - 1e-9) yr++;
-      for (; AxisRenderer._dateToDecYear(yr, 1, 1) <= maxDY + 1e-6; yr++)
-        ticks.push(AxisRenderer._dateToDecYear(yr, 1, 1));
-
-    } else if (interval === 'quarters') {
-      let yr = sd.year, m = sd.month;
-      // snap to next quarter start (1, 4, 7, 10)
-      m = Math.ceil(m / 3) * 3 - 2;
-      if (m < 1) m = 1;
-      if (AxisRenderer._dateToDecYear(yr, m, 1) < minDY - 1e-9) {
-        m += 3; while (m > 12) { m -= 12; yr++; }
-      }
-      for (let i = 0; i < 500; i++) {
-        const dy = AxisRenderer._dateToDecYear(yr, m, 1);
-        if (dy > maxDY + 1e-6) break;
-        ticks.push(dy);
-        m += 3; while (m > 12) { m -= 12; yr++; }
-      }
-
-    } else if (interval === 'months') {
-      let yr = sd.year, m = sd.month;
-      if (AxisRenderer._dateToDecYear(yr, m, 1) < minDY - 1e-9) {
-        m++; if (m > 12) { m = 1; yr++; }
-      }
-      for (let i = 0; i < 5000; i++) {
-        const dy = AxisRenderer._dateToDecYear(yr, m, 1);
-        if (dy > maxDY + 1e-6) break;
-        ticks.push(dy);
-        m++; if (m > 12) { m = 1; yr++; }
-      }
-
-    } else if (interval === 'weeks') {
-      // Anchor to Jan 1 of start year; step by 7 calendar days
-      const anchor = AxisRenderer._dateToDecYear(sd.year, 1, 1);
-      const WEEK_DY = 7 / 365.25;
-      const n = Math.ceil((minDY - anchor) / WEEK_DY - 1e-9);
-      let { year, month, day } = AxisRenderer._decYearToDate(anchor + n * WEEK_DY);
-      for (let i = 0; i < 5000; i++) {
-        const dy = AxisRenderer._dateToDecYear(year, month, day);
-        if (dy > maxDY + 1e-4) break;
-        if (dy >= minDY - 1e-9) ticks.push(dy);
-        day += 7;
-        const lp = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-        const dim = [0,31,lp?29:28,31,30,31,30,31,31,30,31,30,31];
-        while (day > dim[month]) { day -= dim[month]; month++; if (month > 12) { month = 1; year++; } }
-      }
-
-    } else if (interval === 'days') {
-      let { year, month, day } = AxisRenderer._decYearToDate(minDY);
-      if (AxisRenderer._dateToDecYear(year, month, day) < minDY - 1e-9) {
-        day++;
-        const lp = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-        const dim = [0,31,lp?29:28,31,30,31,30,31,31,30,31,30,31];
-        if (day > dim[month]) { day = 1; month++; if (month > 12) { month = 1; year++; } }
-      }
-      for (let i = 0; i < 100000; i++) {
-        const dy = AxisRenderer._dateToDecYear(year, month, day);
-        if (dy > maxDY + 1e-6) break;
-        ticks.push(dy);
-        day++;
-        const lp = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-        const dim = [0,31,lp?29:28,31,30,31,30,31,31,30,31,30,31];
-        if (day > dim[month]) { day = 1; month++; if (month > 12) { month = 1; year++; } }
-      }
-    }
-    return ticks;
-  }
-
-  /**
-   * Format a decimal year for display.
-   * The ticks array is inspected to decide what precision is needed.
-   */
-  static _formatDecYear(dy, ticks) {
-    if (ticks.length < 2) return String(Math.round(dy));
-    const step = Math.abs(ticks[1] - ticks[0]);
-    if (step >= 1 - 1e-6) {
-      // Annual or coarser: show year only
-      return String(Math.round(dy));
-    }
-    // Sub-annual: figure out the month
-    const { year, month, day } = AxisRenderer._decYearToDate(dy);
-    const mm = String(month).padStart(2, '0');
-    if (step >= 1 / 12 - 1e-6) {
-      // Monthly or quarterly
-      return `${year}-${mm}`;
-    }
-    // Finer: show full date
-    const dd = String(day).padStart(2, '0');
-    return `${year}-${mm}-${dd}`;
-  }
-
   /** Format a plain numeric value (divergence or height). */
   static _formatValue(v) {
     if (v === 0) return '0';
@@ -693,82 +458,5 @@ export class AxisRenderer {
     if (abs >= 1)    return v.toFixed(2);
     if (abs >= 0.01) return v.toFixed(3);
     return v.toExponential(2);
-  }
-
-  /**
-   * Parse a date string into a decimal year.
-   * Supports: "2014", "2014-06", "2014-06-15", "2014.45"
-   * Returns null if not parseable.
-   */
-  static _parseDateToDecYear(str) {
-    if (!str) return null;
-    str = str.trim();
-
-    // Decimal year "2014.45"
-    const decMatch = str.match(/^(\d{4})\.(\d+)$/);
-    if (decMatch) {
-      return parseFloat(str);
-    }
-
-    // Full date "YYYY-MM-DD"
-    const fullMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (fullMatch) {
-      const yr = parseInt(fullMatch[1]);
-      const mo = parseInt(fullMatch[2]);
-      const dy = parseInt(fullMatch[3]);
-      return AxisRenderer._dateToDecYear(yr, mo, dy);
-    }
-
-    // Year-month "YYYY-MM"
-    const ymMatch = str.match(/^(\d{4})-(\d{2})$/);
-    if (ymMatch) {
-      const yr = parseInt(ymMatch[1]);
-      const mo = parseInt(ymMatch[2]);
-      // Mid-month: 15th
-      return AxisRenderer._dateToDecYear(yr, mo, 15);
-    }
-
-    // Year only "YYYY"
-    const yMatch = str.match(/^(\d{4})$/);
-    if (yMatch) {
-      const yr = parseInt(yMatch[1]);
-      // Mid-year: July 2
-      return AxisRenderer._dateToDecYear(yr, 7, 2);
-    }
-
-    return null;
-  }
-
-  /**
-   * Convert a calendar date to a decimal year.
-   * e.g. 2014-01-01 → 2014.0, 2014-07-02 → ~2014.5
-   */
-  static _dateToDecYear(year, month, day) {
-    const isLeap   = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    const days     = [0, 31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    let dayOfYear  = day;
-    for (let m = 1; m < month; m++) dayOfYear += days[m];
-    const totalDays = isLeap ? 366 : 365;
-    return year + (dayOfYear - 1) / totalDays;
-  }
-
-  /**
-   * Convert a decimal year to { year, month, day }.
-   */
-  static _decYearToDate(dy) {
-    const year     = Math.floor(dy);
-    const frac     = dy - year;
-    const isLeap   = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    const totalDays = isLeap ? 366 : 365;
-    let   dayOfYear = Math.round(frac * totalDays) + 1;
-    if (dayOfYear < 1) dayOfYear = 1;
-    if (dayOfYear > totalDays) dayOfYear = totalDays;
-    const days = [0, 31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    let month = 1;
-    while (month < 12 && dayOfYear > days[month]) {
-      dayOfYear -= days[month];
-      month++;
-    }
-    return { year, month, day: dayOfYear };
   }
 }

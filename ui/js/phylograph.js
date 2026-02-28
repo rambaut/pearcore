@@ -902,3 +902,328 @@ export function midpointRootGraph(graph) {
   const last = nodes[path[path.length - 1]];
   return { childNodeId: last.origId, distFromParent: last.lengths[0] / 2 };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TreeCalibration — time-calibration of a phylogenetic tree
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Stores a (date, height) anchor pair derived from a date annotation on tips.
+// The fundamental relationship is:
+//   date(nodeH) = anchorDecYear + (anchorH - nodeH)
+// where heights are computed from the layout as (maxX - node.x).
+//
+// Usage:
+//   const cal = new TreeCalibration();
+//   cal.setAnchor('date', nodeMap, maxX);             // activate
+//   cal.heightToDateString(h, 'yyyy-MM-dd');           // height → formatted string
+//   cal.heightToDateString(h, 'component', 'months'); // using interval context
+// ─────────────────────────────────────────────────────────────────────────────
+export class TreeCalibration {
+  constructor() {
+    this._anchorDecYear = null;
+    this._anchorH       = null;
+    this._minTipH       = 0;
+    this._active        = false;
+  }
+
+  // ── Instance API ───────────────────────────────────────────────────────────
+
+  /**
+   * Set the calibration from a date annotation key.
+   * Scans nodeMap for the first tip that carries the annotation and computes
+   * the decimal-year anchor.  Also records the minimum tip height across all tips.
+   *
+   * @param {string|null} annotKey – annotation key to use; null clears the calibration
+   * @param {Map}         nodeMap  – renderer's nodeMap (id → layout node with .x)
+   * @param {number}      maxX     – full-tree branch span; height = maxX - node.x
+   * @returns {boolean}  true if calibration was successfully established
+   */
+  setAnchor(annotKey, nodeMap, maxX) {
+    if (!annotKey) { this._clear(); return false; }
+
+    let anchorDecYear = null;
+    let anchorH       = null;
+    let minTipH       = Infinity;
+
+    for (const node of nodeMap.values()) {
+      if (!node.isTip) continue;
+      const h = maxX - node.x;
+      if (isNaN(h)) continue;
+      if (h < minTipH) minTipH = h;
+      if (anchorDecYear == null) {
+        const raw = node.annotations?.[annotKey];
+        if (raw == null) continue;
+        const dec = TreeCalibration.parseDateToDecYear(String(raw));
+        if (dec != null) { anchorDecYear = dec; anchorH = h; }
+      }
+    }
+
+    if (anchorDecYear == null) { this._clear(); return false; }
+
+    this._anchorDecYear = anchorDecYear;
+    this._anchorH       = anchorH;
+    this._minTipH       = isFinite(minTipH) ? minTipH : 0;
+    this._active        = true;
+    return true;
+  }
+
+  _clear() {
+    this._anchorDecYear = null;
+    this._anchorH       = null;
+    this._minTipH       = 0;
+    this._active        = false;
+  }
+
+  /** True when the calibration is active (setAnchor was called successfully). */
+  get isActive()      { return this._active; }
+  /** Decimal year of the anchor tip (null when inactive). */
+  get anchorDecYear() { return this._anchorDecYear; }
+  /** Computed height (maxX – tip.x) of the anchor tip (null when inactive). */
+  get anchorH()       { return this._anchorH; }
+  /** Minimum computed height across all tips at the last setAnchor call. */
+  get minTipH()       { return this._minTipH; }
+
+  /**
+   * Convert a node height to a decimal year.
+   * @param {number} height
+   * @returns {number}
+   */
+  heightToDecYear(height) {
+    return this._anchorDecYear + this._anchorH - height;
+  }
+
+  /**
+   * Convert a decimal year to a formatted date string.
+   *
+   * @param {number} decYear
+   * @param {string} format   – 'auto'|'yyyy'|'yyyy-MM'|'yyyy-MMM'|'yyyy-mm-dd'|
+   *                            'yyyy-MMM-dd'|'dd MMM yyyy'|'component'
+   * @param {string} [interval] – interval hint for 'component' format:
+   *                              'decades'|'years'|'quarters'|'months'|'weeks'|'days'
+   * @returns {string}
+   */
+  decYearToString(decYear, format, interval) {
+    const { year, month, day } = TreeCalibration.decYearToDate(decYear);
+    if (format === 'component') {
+      switch (interval) {
+        case 'decades':
+        case 'years':    return String(year);
+        case 'quarters': return `Q${Math.ceil(month / 3)}`;
+        case 'months':   return TreeCalibration.MONTHS[month - 1];
+        case 'weeks':
+        case 'days':     return String(day);
+        default:         return TreeCalibration.formatDecYear(decYear, []);
+      }
+    }
+    const mm  = String(month).padStart(2, '0');
+    const dd  = String(day).padStart(2, '0');
+    const mmm = TreeCalibration.MONTHS[month - 1];
+    switch (format) {
+      case 'yyyy':        return String(year);
+      case 'yyyy-MM':     return `${year}-${mm}`;
+      case 'yyyy-MMM':    return `${year}-${mmm}`;
+      case 'yyyy-mm-dd':  return `${year}-${mm}-${dd}`;
+      case 'yyyy-MMM-dd': return `${year}-${mmm}-${dd}`;
+      case 'dd MMM yyyy': return `${dd} ${mmm} ${year}`;
+      default:            return TreeCalibration.formatDecYear(decYear, []);
+    }
+  }
+
+  /**
+   * Convert a node height directly to a formatted date string.
+   * Convenience wrapper: heightToDateString(h, fmt, interval)
+   *   ≡ decYearToString(heightToDecYear(h), fmt, interval)
+   *
+   * @param {number} height
+   * @param {string} format   – see decYearToString()
+   * @param {string} [interval]
+   * @returns {string}
+   */
+  heightToDateString(height, format, interval) {
+    return this.decYearToString(this.heightToDecYear(height), format, interval);
+  }
+
+  // ── Static helpers ─────────────────────────────────────────────────────────
+
+  static MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  /**
+   * Parse a date string to a decimal year.
+   * Supports: "2014", "2014-06", "2014-06-15", "2014.45"
+   * Returns null if not parseable.
+   * @param {string} str
+   * @returns {number|null}
+   */
+  static parseDateToDecYear(str) {
+    if (!str) return null;
+    str = str.trim();
+    const decFull = str.match(/^(\d{4})\.(\d+)$/);
+    if (decFull) return parseFloat(str);
+    const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (ymd) return TreeCalibration.dateToDecYear(+ymd[1], +ymd[2], +ymd[3]);
+    const ym = str.match(/^(\d{4})-(\d{2})$/);
+    if (ym) return TreeCalibration.dateToDecYear(+ym[1], +ym[2], 15);
+    const y = str.match(/^(\d{4})$/);
+    if (y) return TreeCalibration.dateToDecYear(+y[1], 7, 2);
+    return null;
+  }
+
+  /**
+   * Convert a calendar date to a decimal year.
+   * e.g. 2014-01-01 → 2014.0,  2014-07-02 → ~2014.5
+   */
+  static dateToDecYear(year, month, day) {
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const dims   = [0, 31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let doy = day;
+    for (let m = 1; m < month; m++) doy += dims[m];
+    return year + (doy - 1) / (isLeap ? 366 : 365);
+  }
+
+  /**
+   * Convert a decimal year to { year, month, day }.
+   */
+  static decYearToDate(dy) {
+    const year   = Math.floor(dy);
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const total  = isLeap ? 366 : 365;
+    let doy = Math.round((dy - year) * total) + 1;
+    if (doy < 1) doy = 1;
+    if (doy > total) doy = total;
+    const dims = [0, 31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month = 1;
+    while (month < 12 && doy > dims[month]) { doy -= dims[month]; month++; }
+    return { year, month, day: doy };
+  }
+
+  /**
+   * Format a decimal year for display, automatically choosing precision
+   * based on the step size between adjacent ticks.
+   * @param {number}   dy
+   * @param {number[]} ticks – full tick array (used to infer step size)
+   * @returns {string}
+   */
+  static formatDecYear(dy, ticks) {
+    if (ticks.length < 2) return String(Math.round(dy));
+    const step = Math.abs(ticks[1] - ticks[0]);
+    if (step >= 1 - 1e-6) return String(Math.round(dy));
+    const { year, month, day } = TreeCalibration.decYearToDate(dy);
+    const mm = String(month).padStart(2, '0');
+    if (step >= 1 / 12 - 1e-6) return `${year}-${mm}`;
+    return `${year}-${mm}-${String(day).padStart(2, '0')}`;
+  }
+
+  /**
+   * Generate nicely-spaced calendar ticks within decimal-year range [minDY, maxDY].
+   * Auto-picks the coarsest interval that gives roughly targetCount ticks.
+   * @param {number} minDY
+   * @param {number} maxDY
+   * @param {number} [targetCount=5]
+   * @returns {number[]}  decimal years
+   */
+  static niceCalendarTicks(minDY, maxDY, targetCount = 5) {
+    const range = maxDY - minDY;
+    if (range === 0) return [minDY];
+    const candidates = [100, 50, 25, 10, 5, 2, 1, 1/2, 1/3, 1/4, 1/6, 1/12, 1/24];
+    const roughStep  = range / targetCount;
+    let step = candidates[0];
+    for (const c of candidates) { if (c <= roughStep * 1.5) { step = c; break; } }
+
+    const ticks = [];
+    if (step >= 1) {
+      const startYear = Math.ceil(minDY / step - 1e-9) * step;
+      for (let y = startYear; y <= maxDY + step * 1e-9; y += step)
+        ticks.push(parseFloat(y.toPrecision(10)));
+    } else {
+      const mps  = Math.round(step * 12);
+      const sd   = TreeCalibration.decYearToDate(minDY);
+      let m = sd.month, yr = sd.year;
+      const rem = m % mps;
+      if (rem !== 0) m += mps - rem;
+      while (m > 12) { m -= 12; yr++; }
+      for (let i = 0; i < 60; i++) {
+        const dy = TreeCalibration.dateToDecYear(yr, m, 1);
+        if (dy > maxDY + step * 1e-6) break;
+        ticks.push(dy);
+        m += mps;
+        while (m > 12) { m -= 12; yr++; }
+      }
+    }
+    return ticks;
+  }
+
+  /**
+   * Generate ticks for a fixed named calendar interval within [minDY, maxDY].
+   * @param {number} minDY
+   * @param {number} maxDY
+   * @param {string} interval – 'decades'|'years'|'quarters'|'months'|'weeks'|'days'
+   * @returns {number[]}  decimal years
+   */
+  static calendarTicksForInterval(minDY, maxDY, interval) {
+    const ticks = [];
+    const sd    = TreeCalibration.decYearToDate(minDY);
+    const dy    = (yr, mo, d) => TreeCalibration.dateToDecYear(yr, mo, d);
+
+    if (interval === 'decades') {
+      const start = Math.ceil(minDY / 10 - 1e-9) * 10;
+      for (let y = start; y <= maxDY + 1e-6; y += 10) ticks.push(dy(y, 1, 1));
+
+    } else if (interval === 'years') {
+      let yr = sd.year;
+      if (dy(yr, 1, 1) < minDY - 1e-9) yr++;
+      for (; dy(yr, 1, 1) <= maxDY + 1e-6; yr++) ticks.push(dy(yr, 1, 1));
+
+    } else if (interval === 'quarters') {
+      let yr = sd.year, m = Math.ceil(sd.month / 3) * 3 - 2;
+      if (m < 1) m = 1;
+      if (dy(yr, m, 1) < minDY - 1e-9) { m += 3; while (m > 12) { m -= 12; yr++; } }
+      for (let i = 0; i < 500; i++) {
+        const v = dy(yr, m, 1);
+        if (v > maxDY + 1e-6) break;
+        ticks.push(v);
+        m += 3; while (m > 12) { m -= 12; yr++; }
+      }
+
+    } else if (interval === 'months') {
+      let yr = sd.year, m = sd.month;
+      if (dy(yr, m, 1) < minDY - 1e-9) { m++; if (m > 12) { m = 1; yr++; } }
+      for (let i = 0; i < 5000; i++) {
+        const v = dy(yr, m, 1);
+        if (v > maxDY + 1e-6) break;
+        ticks.push(v);
+        m++; if (m > 12) { m = 1; yr++; }
+      }
+
+    } else if (interval === 'weeks') {
+      const anchor = dy(sd.year, 1, 1);
+      const W_DY   = 7 / 365.25;
+      const n      = Math.ceil((minDY - anchor) / W_DY - 1e-9);
+      let { year, month, day } = TreeCalibration.decYearToDate(anchor + n * W_DY);
+      const dim = yr => { const lp = (yr%4===0&&yr%100!==0)||yr%400===0; return [0,31,lp?29:28,31,30,31,30,31,31,30,31,30,31]; };
+      for (let i = 0; i < 5000; i++) {
+        const v = dy(year, month, day);
+        if (v > maxDY + 1e-4) break;
+        if (v >= minDY - 1e-9) ticks.push(v);
+        day += 7;
+        const d = dim(year);
+        while (day > d[month]) { day -= d[month]; month++; if (month > 12) { month = 1; year++; } }
+      }
+
+    } else if (interval === 'days') {
+      let { year, month, day } = TreeCalibration.decYearToDate(minDY);
+      const dim = yr => { const lp = (yr%4===0&&yr%100!==0)||yr%400===0; return [0,31,lp?29:28,31,30,31,30,31,31,30,31,30,31]; };
+      if (dy(year, month, day) < minDY - 1e-9) {
+        day++; const d = dim(year);
+        if (day > d[month]) { day = 1; month++; if (month > 12) { month = 1; year++; } }
+      }
+      for (let i = 0; i < 100000; i++) {
+        const v = dy(year, month, day);
+        if (v > maxDY + 1e-6) break;
+        ticks.push(v);
+        day++; const d = dim(year);
+        if (day > d[month]) { day = 1; month++; if (month > 12) { month = 1; year++; } }
+      }
+    }
+    return ticks;
+  }
+}

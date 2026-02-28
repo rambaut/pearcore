@@ -1,6 +1,6 @@
 import { parseNexus, parseNewick, graphToNewick, parseDelimited } from './treeio.js';
 import { computeLayoutFromGraph, graphVisibleTipCount, graphSubtreeHasHidden } from './treeutils.js';
-import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, buildAnnotationSchema, isNumericType } from './phylograph.js';
+import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, buildAnnotationSchema, isNumericType, TreeCalibration } from './phylograph.js';
 import { TreeRenderer } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
@@ -1078,6 +1078,11 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     lineWidth: parseFloat(axisLineWidthSlider.value),
   });
 
+  // Shared time-calibration state for the current tree.
+  // setAnchor() is called when the tree is loaded or the annotation selection changes.
+  // axisRenderer.setCalibration() is called by applyAxis() to activate it on the axis.
+  const calibration = new TreeCalibration();
+
   // Apply stored visual settings to the renderer immediately.
   // If no saved theme exists yet, apply the default 'Artic' theme.
   if (!_saved.theme) {
@@ -2009,8 +2014,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       const _canRestoreDate = _hasDateAnnotations && _savedAxisDate &&
                               [...axisDateAnnotEl.options].some(o => o.value === _savedAxisDate);
       axisDateAnnotEl.value = _canRestoreDate ? _savedAxisDate : '';
-      if (_canRestoreDate) axisRenderer.setDateAnchor(_savedAxisDate, layout.nodeMap, layout.maxX);
-      else                 axisRenderer.setDateAnchor(null, layout.nodeMap, layout.maxX);
+      calibration.setAnchor(_canRestoreDate ? _savedAxisDate : null, layout.nodeMap, layout.maxX);
+      // axisRenderer.setCalibration() is called by applyAxis() below.
 
       // Capture full-tree axis params for subtree-tracking.
       _axisIsTimedTree = _isTimedTree;
@@ -3396,15 +3401,14 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const on  = val !== 'off';
     axisCanvas.style.display = on ? 'block' : 'none';
     if (val === 'time') {
-      const key = axisDateAnnotEl.value || null;
-      axisRenderer.setDateAnchor(key, renderer.nodeMap || new Map(), renderer.maxX);
+      axisRenderer.setCalibration(calibration.isActive ? calibration : null);
       axisRenderer.setDirection('forward');
     } else {
-      axisRenderer.setDateAnchor(null, renderer.nodeMap || new Map(), renderer.maxX);
+      axisRenderer.setCalibration(null);
       axisRenderer.setDirection(on ? val : 'forward');
     }
     axisRenderer.setVisible(on);
-    _showDateTickRows(val === 'time' && !!axisDateAnnotEl.value);
+    _showDateTickRows(val === 'time' && calibration.isActive && !!axisDateAnnotEl.value);
     // Resize the tree canvas so it fills the remaining space above/below the axis.
     renderer._resize();
     if (on) {
@@ -3528,13 +3532,14 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
 
   axisDateAnnotEl.addEventListener('change', () => {
     const key = axisDateAnnotEl.value || null;
-    axisRenderer.setDateAnchor(key, renderer.nodeMap || new Map(), renderer.maxX);
-    // If currently viewing a subtree, recompute its params using the new anchor.
-    if (renderer._viewSubtreeRootId && renderer._onLayoutChange) {
-      renderer._onLayoutChange(renderer.maxX, renderer._viewSubtreeRootId);
-    }
-    _showDateTickRows(axisShowEl.value === 'time' && !!key);
+    calibration.setAnchor(key, renderer.nodeMap || new Map(), renderer.maxX);
     if (axisShowEl.value === 'time') {
+      axisRenderer.setCalibration(key && calibration.isActive ? calibration : null);
+      // If currently viewing a subtree, recompute its params using the new anchor.
+      if (renderer._viewSubtreeRootId && renderer._onLayoutChange) {
+        renderer._onLayoutChange(renderer.maxX, renderer._viewSubtreeRootId);
+      }
+      _showDateTickRows(calibration.isActive && !!key);
       axisRenderer.update(
         renderer.scaleX, renderer.offsetX, renderer.paddingLeft,
         renderer.labelRightPad, renderer.bgColor, renderer.fontSize,
