@@ -626,10 +626,10 @@ The distinction matters when you reroot the tree. If you reroot on a branch that
 Bootstrap support values are typically written as the *internal node label* in Newick format:
 
 ```
-((A,B)95,(C,(D,E)72)80);
+((A:0.1,B:0.1)95:0.01,(C:0.1,(D:0.1,E:0.1)72:0.2)80:0.3);
 ```
 
-Here `95`, `72`, and `80` are bootstrap values. They are stored *at* the internal node but they actually describe the branch *leading into* that node from its parent. PearTree automatically recognises annotation keys named `bootstrap`, `support`, `label`, `posterior`, `posterior_probability`, `prob`, and `probability` as branch annotations, and sets the **Branch annotation** flag on them when the tree is first loaded.
+Here `95`, `72`, and `80` are bootstrap values, `:0.1` etc. are the branch lengths. They are stored *at* the internal node but they actually describe the branch *leading from* that node to its parent. PearTree automatically recognises annotation keys named `bootstrap`, `support`, `label`, `posterior`, `posterior_probability`, `prob`, and `probability` as branch annotations, and sets the **Branch annotation** flag on them when the tree is first loaded.
 
 ### The "Branch annotation" flag
 
