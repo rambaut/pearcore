@@ -1020,10 +1020,16 @@ export class TreeCalibration {
         case 'years':    return String(year);
         case 'quarters': return `Q${Math.ceil(month / 3)}`;
         case 'months':   return mmm;
-        case 'weeks':
+        case 'weeks':    return `W${String(TreeCalibration._weekOfYear(year, month, day)).padStart(2, '0')}`;
         case 'days':     return dd;
         default:         return String(year);
       }
+    }
+
+    // Weeks always render as year + week number regardless of labelMode
+    if (interval === 'weeks' && (labelMode === 'full' || labelMode === 'partial' || labelMode === 'auto')) {
+      const ww = String(TreeCalibration._weekOfYear(year, month, day)).padStart(2, '0');
+      return `${year}-W${ww}`;
     }
 
     let fmt;
@@ -1073,9 +1079,7 @@ export class TreeCalibration {
         if (fullFormat === 'yyyy-MMM-dd') return 'yyyy-MMM';
         if (fullFormat === 'dd MMM yyyy') return 'MMM yyyy';
         return 'yyyy-MM';
-      case 'weeks':
-        if (fullFormat === 'dd MMM yyyy' || fullFormat === 'yyyy-MMM-dd') return 'dd MMM';
-        return 'MM-dd';
+      case 'weeks':   return 'yyyy-Www';   // handled specially before _applyFormat is called
       case 'days':
       default:
         return fullFormat;
@@ -1110,6 +1114,18 @@ export class TreeCalibration {
   // ── Static helpers ─────────────────────────────────────────────────────────
 
   static MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  /**
+   * Return the week-of-year number (1–53) for a given date.
+   * Uses simple ordinal day ÷ 7, matching the calendarTicksForInterval 'weeks' generator.
+   */
+  static _weekOfYear(year, month, day) {
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const DIM = [0, 31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let doy = day;
+    for (let m = 1; m < month; m++) doy += DIM[m];
+    return Math.ceil(doy / 7);
+  }
 
   /**
    * Parse a date string to a decimal year.

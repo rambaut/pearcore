@@ -668,6 +668,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     document.getElementById('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
     axisShowEl.value         = DEFAULT_SETTINGS.axisShow;  // 'off'
     axisDateAnnotEl.value    = '';
+    calibration.setAnchor(null, new Map(), 0);
+    axisDateFmtRow.style.display = 'none';
     axisDateFmtEl.value      = DEFAULT_SETTINGS.axisDateFormat;
     axisMajorIntervalEl.value    = DEFAULT_SETTINGS.axisMajorInterval;
     axisMinorIntervalEl.value    = DEFAULT_SETTINGS.axisMinorInterval;
@@ -2031,6 +2033,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       _showDateTickRows(axisShowEl.value === 'time' && !!axisDateAnnotEl.value);
       // Apply stored (or default) tick options to the renderer.
       applyTickOptions();
+      // Apply axis mode (direction, calibration, visibility) now that calibration is established.
+      applyAxis();
 
       // Reset navigation and selection state for the new tree
       renderer._navStack            = [];
