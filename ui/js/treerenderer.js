@@ -3097,16 +3097,12 @@ export class TreeRenderer {
         return;
       }
 
-      // Escape – clear selection; also animate out the hyperbolic lens if active.
+      // Escape – animate out the hyperbolic lens if active.
       if (e.key === 'Escape') {
-        this._selectedTipIds.clear();
-        this._mrcaNodeId = null;
         if (this._hypFocusScreenY !== null && this._hypTarget !== 0) {
           this._hypTarget = 0;   // triggers animated fade-out; focus Y cleared when strength reaches 0
           this._dirty     = true;
         }
-        this._notifyStats();
-        this._dirty = true;
         return;
       }
     });

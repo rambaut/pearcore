@@ -2297,7 +2297,11 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       const matches = [];
       if (renderer.nodeMap) {
         for (const [id, n] of renderer.nodeMap) {
-          if (n.isTip && n.name && n.name.toLowerCase().includes(q)) {
+          if (!n.isTip) continue;
+          // Match against the currently displayed tip label (annotation value,
+          // date string, etc.) and fall back to the raw node name.
+          const label = renderer._tipLabelText(n) ?? n.name ?? '';
+          if (label.toLowerCase().includes(q)) {
             matches.push(n);
           }
         }
@@ -3173,7 +3177,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       }
       if (e.key === 'b' || e.key === 'B') { e.preventDefault(); applyMode(renderer._mode === 'branches' ? 'nodes' : 'branches'); }
       if (e.key === 'm' || e.key === 'M') { e.preventDefault(); applyMidpointRoot(); }
-      if (e.key === 'i' || e.key === 'I') { e.preventDefault(); showNodeInfo(); }
+      if (!e.shiftKey && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); showNodeInfo(); }
     });
   }
 
