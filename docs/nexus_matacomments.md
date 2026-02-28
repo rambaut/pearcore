@@ -1,16 +1,3 @@
----
-title: NEXUS format metacomments
-permalink: nexus_metacomments.html
-sidebar: beast_sidebar
-tags: [reference]
-keywords: nexus, beast
-author: Andrew Rambaut
-last_updated: August 2, 2017
-summary: "This is a brief description of the 'metacomment' format used by BEAST to annotate elements in the standard NEXUS format. This additional information is put in comments so that existing programs should read and ignore them. This format is used by BEAST to insert information into the sampled trees."
-toc: false
-folder: beast
----
-
 ## Metacomments in trees
 
 The standard format for trees in NEXUS format is:
@@ -60,5 +47,3 @@ This is a branch annotation with the colour starting at the time as 0, changing 
 Note that the metacomment doesn't suggest any structure to the data within them and it is up to the parsing software to make sense of them.
 
 A regex to match most metacomments is `("[^"]*"+|[^,=\s]+)\s*(=\s*(\{[^=}]*\}|"[^"]*"+|[^,]+))?`
-
-{% include links.html %}

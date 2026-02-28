@@ -353,7 +353,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       if (sx < plotLeft + AX - 1 || sx > plotRight + AX + 1) continue;
       axisParts.push(`<line x1="${f(sx)}" y1="${f(AY + Y_BASE + 1)}" x2="${f(sx)}" y2="${f(AY + Y_BASE + 1 + MINOR_H)}" stroke="${MINOR_C}" stroke-width="1"/>`);
       if (showMinorLabel) {
-        const label = ar._calibration.decYearToString(val, minorLabelFmt, ar._minorInterval);
+        const label = ar._calibration.decYearToString(val, minorLabelFmt, ar._dateFormat, ar._minorInterval);
         const tw    = approxW(label, afsMinor);
         const lx2   = Math.max(plotLeft + AX + tw / 2 + 1, Math.min(plotRight + AX - tw / 2 - 1, sx));
         if (lx2 - tw / 2 > minorLabelRight + 2) {
@@ -374,9 +374,8 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       if (showMajorLabel) {
         let label;
         if (ar._dateMode) {
-          label = majorLabelFmt === 'auto'
-            ? TreeCalibration.formatDecYear(val, majorTicks)
-            : ar._calibration.decYearToString(val, majorLabelFmt, ar._majorInterval);
+          const effMajorFmt = majorLabelFmt === 'auto' ? 'partial' : majorLabelFmt;
+          label = ar._calibration.decYearToString(val, effMajorFmt, ar._dateFormat, ar._majorInterval);
         } else {
           label = AxisRenderer._formatValue(val);
         }

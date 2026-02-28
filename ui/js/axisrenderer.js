@@ -1,3 +1,5 @@
+import { TreeCalibration } from './phylograph.js';
+
 /**
  * AxisRenderer — draws an x-axis below the tree canvas.
  *
@@ -39,6 +41,7 @@ export class AxisRenderer {
     this._minorInterval    = 'off';
     this._majorLabelFormat = 'auto';
     this._minorLabelFormat = 'off';
+    this._dateFormat       = 'yyyy-MM-dd';
 
     this._lastHash = '';
 
@@ -134,6 +137,15 @@ export class AxisRenderer {
   }
 
   /**
+   * Set the full date format string used for 'full' and 'partial' label modes.
+   * @param {string} fmt  e.g. 'yyyy-MM-dd', 'yyyy-MMM-dd', 'dd MMM yyyy'
+   */
+  setDateFormat(fmt) {
+    this._dateFormat = fmt || 'yyyy-MM-dd';
+    this._lastHash   = '';
+  }
+
+  /**
    * Called every animation frame (from renderer._onViewChange).
    * Redraws if view state has changed.
    */
@@ -157,7 +169,7 @@ export class AxisRenderer {
     // Only auto-sync font size from tree if the user hasn't explicitly set one
     if (!this._axisFontSizeManual) this._fontSize = Math.max(7, fontSize - 1);
 
-    const hash = `${scaleX.toFixed(4)}|${offsetX.toFixed(2)}|${paddingLeft}|${labelRightPad}|${bgColor}|${this._fontSize}|${this._fontFamily}|${this._axisColor ?? ''}|${this._axisLineWidth}|${W}|${H}|${this._timed}|${this._dateMode}|${this._rootHeight}|${this._calibration?.anchorDecYear ?? ''}|${this._calibration?.anchorH ?? ''}|${this._viewMinTipH}|${this._majorInterval}|${this._minorInterval}|${this._majorLabelFormat}|${this._minorLabelFormat}|${this._direction}`;
+    const hash = `${scaleX.toFixed(4)}|${offsetX.toFixed(2)}|${paddingLeft}|${labelRightPad}|${bgColor}|${this._fontSize}|${this._fontFamily}|${this._axisColor ?? ''}|${this._axisLineWidth}|${W}|${H}|${this._timed}|${this._dateMode}|${this._rootHeight}|${this._calibration?.anchorDecYear ?? ''}|${this._calibration?.anchorH ?? ''}|${this._viewMinTipH}|${this._majorInterval}|${this._minorInterval}|${this._majorLabelFormat}|${this._minorLabelFormat}|${this._dateFormat}|${this._direction}`;
     if (hash === this._lastHash) return;
     this._lastHash = hash;
 
@@ -315,7 +327,7 @@ export class AxisRenderer {
       ctx.lineTo(sx + 0.5, Y_BASE + 1 + MINOR_H);
       ctx.stroke();
       if (showMinorLabel) {
-        const label = this._calibration.decYearToString(val, minorLabelFmt, this._minorInterval);
+        const label = this._calibration.decYearToString(val, minorLabelFmt, this._dateFormat, this._minorInterval);
         const tw    = ctx.measureText(label).width;
         const lx    = Math.max(plotLeft + tw / 2 + 1, Math.min(plotRight - tw / 2 - 1, sx));
         if (lx - tw / 2 > minorLabelRight + 2) {
@@ -347,9 +359,8 @@ export class AxisRenderer {
       if (showMajorLabel) {
         let label;
         if (this._dateMode) {
-          label = (majorLabelFmt === 'auto')
-            ? TreeCalibration.formatDecYear(val, majorTicks)
-            : this._calibration.decYearToString(val, majorLabelFmt, this._majorInterval);
+          const effMajorFmt = (majorLabelFmt === 'auto') ? 'partial' : majorLabelFmt;
+          label = this._calibration.decYearToString(val, effMajorFmt, this._dateFormat, this._majorInterval);
         } else {
           label = this._heightFormatter
             ? this._heightFormatter(val)
@@ -375,8 +386,9 @@ export class AxisRenderer {
       ? Math.max(0, this._offsetX - this._paddingLeft) / this._scaleX
       : 0;
     if (this._calibration?.isActive) {
-      // date(nodeH) = cal.heightToDecYear(nodeH)
-      const leftVal  = this._calibration.heightToDecYear(this._rootHeight + extraH);
+      // In calibrated trees, height = maxX − node.x, so the root's height is always maxX.
+      // Use _maxX (not _rootHeight which is 0 for non-BEAST trees) as the root height.
+      const leftVal  = this._calibration.heightToDecYear(this._maxX + extraH);
       const rightVal = this._calibration.heightToDecYear(this._viewMinTipH);
       return { leftVal, rightVal };
     }
@@ -393,8 +405,9 @@ export class AxisRenderer {
 
   _valToWorldX(val) {
     if (this._calibration?.isActive) {
-      // val is a decimal year; worldX = val - rootDecYear
-      return val - this._calibration.heightToDecYear(this._rootHeight);
+      // val is a decimal year; worldX = val − rootDecYear.
+      // Root height in a calibrated tree is always maxX (height = maxX − node.x).
+      return val - this._calibration.heightToDecYear(this._maxX);
     }
     if (this._timed)                       return this._rootHeight - val;
     if (this._direction === 'reverse')     return this._maxX - val;

@@ -332,9 +332,10 @@ export const DEFAULT_SETTINGS = {
   legendFontSize:     '11',
   axisShow:           'off',
   axisDateAnnotation: '',
+  axisDateFormat:     'yyyy-MM-dd',
   axisMajorInterval:    'auto',
   axisMinorInterval:    'off',
-  axisMajorLabelFormat: 'auto',
+  axisMajorLabelFormat: 'partial',
   axisMinorLabelFormat: 'off',
   // Layout geometry (no DOM controls — passed directly to TreeRenderer)
   paddingLeft:    '60',

@@ -1503,6 +1503,14 @@
           <option value="">(none)</option>
         </select>
       </div>
+      <div class="pt-palette-row" id="axis-date-format-row" style="display:none">
+        <span class="pt-palette-label">Format</span>
+        <select class="pt-palette-select" id="axis-date-format">
+          <option value="yyyy-MM-dd">1977-05-04</option>
+          <option value="yyyy-MMM-dd">1977-May-04</option>
+          <option value="dd MMM yyyy">04 May 1977</option>
+        </select>
+      </div>
       <div class="pt-palette-row">
         <span class="pt-palette-label">Background</span>
         <input type="color" class="pt-palette-color" id="canvas-bg-color" value="#02292e" />
@@ -1791,15 +1799,10 @@
       <div class="pt-palette-row" id="axis-major-label-row" style="display:none">
         <span class="pt-palette-label">Major labels</span>
         <select class="pt-palette-select" id="axis-major-label">
-          <option value="auto">Auto</option>
-          <option value="off">Off</option>
+          <option value="partial">Partial</option>
+          <option value="full">Full</option>
           <option value="component">Component</option>
-          <option value="yyyy">yyyy</option>
-          <option value="yyyy-MM">yyyy-MM</option>
-          <option value="yyyy-MMM">yyyy-MMM</option>
-          <option value="yyyy-mm-dd">yyyy-mm-dd</option>
-          <option value="yyyy-MMM-dd">yyyy-MMM-dd</option>
-          <option value="dd MMM yyyy">dd MMM yyyy</option>
+          <option value="off">Off</option>
         </select>
       </div>
       <div class="pt-palette-row" id="axis-minor-label-row" style="display:none">
@@ -1807,12 +1810,8 @@
         <select class="pt-palette-select" id="axis-minor-label">
           <option value="off">Off</option>
           <option value="component">Component</option>
-          <option value="yyyy">yyyy</option>
-          <option value="yyyy-MM">yyyy-MM</option>
-          <option value="yyyy-MMM">yyyy-MMM</option>
-          <option value="yyyy-mm-dd">yyyy-mm-dd</option>
-          <option value="yyyy-MMM-dd">yyyy-MMM-dd</option>
-          <option value="dd MMM yyyy">dd MMM yyyy</option>
+          <option value="partial">Partial</option>
+          <option value="full">Full</option>
         </select>
       </div>
       </div>

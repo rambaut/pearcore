@@ -80,7 +80,7 @@ export const CATEGORICAL_PALETTES = {
   ],
 
   /**
-   * Wes Anderson — a curated palette inspired by the muted, idiosyncratic
+   * Wes — a curated palette inspired by the muted, idiosyncratic
    * colour worlds of his films.  Hues are spread across the full wheel at
    * varied saturation and brightness so all 16 values remain legible and
    * clearly distinct from one another (and from the neutral missing-data grey).
@@ -90,7 +90,7 @@ export const CATEGORICAL_PALETTES = {
    *   Fantastic Mr. Fox · The Grand Budapest Hotel · The Darjeeling Limited
    *   Rushmore · Isle of Dogs
    */
-  'Wes Anderson': [
+  'Wes': [
     '#C1615A', // dusty red        — Tenenbaums burgundy warmth
     '#E07B39', // burnt orange      — Fantastic Mr. Fox
     '#C9A84C', // saffron gold      — Darjeeling Limited
@@ -161,6 +161,19 @@ export const SEQUENTIAL_PALETTES = {
   // ── Spectrum palettes (multi-stop) ──────────────────────────────────────
   // Each sweeps a broad arc of the colour wheel with varied saturation and
   // brightness so every stop is clearly distinct.
+
+  /** ARTIC — colours sampled from the ARTIC network / PearTree Artic theme. */
+    'ARTIC': [
+    '#7D2E46', // deep burgundy     — Rushmore chapel
+    '#C1615A', // dusty red        — Tenenbaums burgundy warmth
+    '#E07B39', // burnt orange      — Fantastic Mr. Fox
+    '#C9A84C', // saffron gold      — Darjeeling Limited
+    '#8D9040', // olive             — Moonrise Kingdom scouts
+    '#4A7C3F', // forest green      — Tenenbaums tennis court
+    '#2A6B5A', // deep teal-green   — Life Aquatic diving suit
+    '#3D5A80', // muted navy        — Life Aquatic ocean
+    '#5C4E8A', // dusty violet      — Budapest lobby carpet
+      ],
 
   /**
    * Rainbow — a full hue sweep: red → orange → yellow → green → blue → violet.

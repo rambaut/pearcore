@@ -100,6 +100,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   const axisShowEl             = document.getElementById('axis-show');
   const axisDateAnnotEl        = document.getElementById('axis-date-annotation');
   const axisDateRow            = document.getElementById('axis-date-row');
+  const axisDateFmtEl          = document.getElementById('axis-date-format');
+  const axisDateFmtRow         = document.getElementById('axis-date-format-row');
   const axisMajorIntervalEl    = document.getElementById('axis-major-interval');
   const axisMinorIntervalEl    = document.getElementById('axis-minor-interval');
   const axisMajorLabelEl       = document.getElementById('axis-major-label');
@@ -371,6 +373,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       legendFontSize:   legendFontSizeSlider.value,
       axisShow:           axisShowEl.value,
       axisDateAnnotation: axisDateAnnotEl.value,
+      axisDateFormat:     axisDateFmtEl.value,
       axisMajorInterval:    axisMajorIntervalEl.value,
       axisMinorInterval:    axisMinorIntervalEl.value,
       axisMajorLabelFormat: axisMajorLabelEl.value,
@@ -446,6 +449,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       legendFontSize:   legendFontSizeSlider.value,
       axisShow:           axisShowEl.value,
       axisDateAnnotation: axisDateAnnotEl.value,
+      axisDateFormat:     axisDateFmtEl.value,
       axisMajorInterval:    axisMajorIntervalEl.value,
       axisMinorInterval:    axisMinorIntervalEl.value,
       axisMajorLabelFormat: axisMajorLabelEl.value,
@@ -601,6 +605,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     if (s.nodeShapeBgColor)      nodeShapeBgEl.value      = s.nodeShapeBgColor;
     // Axis non-annotation settings
     if (s.axisShow) axisShowEl.value = (s.axisShow === 'on') ? 'forward' : s.axisShow;
+    if (s.axisDateFormat)        axisDateFmtEl.value       = s.axisDateFormat;
     if (s.axisMajorInterval)     axisMajorIntervalEl.value = s.axisMajorInterval;
     if (s.axisMinorInterval)     axisMinorIntervalEl.value = s.axisMinorInterval;
     if (s.axisMajorLabelFormat)  axisMajorLabelEl.value   = s.axisMajorLabelFormat;
@@ -663,6 +668,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     document.getElementById('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
     axisShowEl.value         = DEFAULT_SETTINGS.axisShow;  // 'off'
     axisDateAnnotEl.value    = '';
+    axisDateFmtEl.value      = DEFAULT_SETTINGS.axisDateFormat;
     axisMajorIntervalEl.value    = DEFAULT_SETTINGS.axisMajorInterval;
     axisMinorIntervalEl.value    = DEFAULT_SETTINGS.axisMinorInterval;
     axisMajorLabelEl.value       = DEFAULT_SETTINGS.axisMajorLabelFormat;
@@ -2016,6 +2022,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       axisDateAnnotEl.value = _canRestoreDate ? _savedAxisDate : '';
       calibration.setAnchor(_canRestoreDate ? _savedAxisDate : null, layout.nodeMap, layout.maxX);
       // axisRenderer.setCalibration() is called by applyAxis() below.
+      axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
 
       // Capture full-tree axis params for subtree-tracking.
       _axisIsTimedTree = _isTimedTree;
@@ -3429,12 +3436,12 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
 
   function _updateMinorOptions(majorVal, keepVal) {
     const opts = {
-      auto:     [['off','Off'],['auto','Auto']],
-      decades:  [['off','Off'],['auto','Auto'],['years','Years'],['quarters','Quarters'],['months','Months']],
-      years:    [['off','Off'],['auto','Auto'],['quarters','Quarters'],['months','Months']],
-      quarters: [['off','Off'],['auto','Auto'],['months','Months'],['weeks','Weeks']],
-      months:   [['off','Off'],['auto','Auto'],['weeks','Weeks'],['days','Days']],
-      weeks:    [['off','Off'],['auto','Auto'],['days','Days']],
+      auto:     [['off','Off'],['years','Years'],['months','Months']],
+      decades:  [['off','Off'],['years','Years'],['months','Months']],
+      years:    [['off','Off'],['quarters','Quarters'],['months','Months'],['weeks','Weeks'],['days','Days']],
+      quarters: [['off','Off'],['months','Months'],['days','Days']],
+      months:   [['off','Off'],['days','Days']],
+      weeks:    [['off','Off'],['days','Days']],
       days:     [['off','Off']],
     };
     const list = opts[majorVal] || [['off','Off'],['auto','Auto']];
@@ -3449,6 +3456,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   }
 
   function applyTickOptions() {
+    axisRenderer.setDateFormat(axisDateFmtEl.value);
     axisRenderer.setTickOptions({
       majorInterval:    axisMajorIntervalEl.value,
       minorInterval:    axisMinorIntervalEl.value,
@@ -3529,10 +3537,12 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   axisMinorIntervalEl.addEventListener('change', applyTickOptions);
   axisMajorLabelEl   .addEventListener('change', applyTickOptions);
   axisMinorLabelEl   .addEventListener('change', applyTickOptions);
+  axisDateFmtEl      .addEventListener('change', applyTickOptions);
 
   axisDateAnnotEl.addEventListener('change', () => {
     const key = axisDateAnnotEl.value || null;
     calibration.setAnchor(key, renderer.nodeMap || new Map(), renderer.maxX);
+    axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
     if (axisShowEl.value === 'time') {
       axisRenderer.setCalibration(key && calibration.isActive ? calibration : null);
       // If currently viewing a subtree, recompute its params using the new anchor.

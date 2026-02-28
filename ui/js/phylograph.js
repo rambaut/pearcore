@@ -996,51 +996,115 @@ export class TreeCalibration {
    * Convert a decimal year to a formatted date string.
    *
    * @param {number} decYear
-   * @param {string} format   – 'auto'|'yyyy'|'yyyy-MM'|'yyyy-MMM'|'yyyy-mm-dd'|
-   *                            'yyyy-MMM-dd'|'dd MMM yyyy'|'component'
-   * @param {string} [interval] – interval hint for 'component' format:
-   *                              'decades'|'years'|'quarters'|'months'|'weeks'|'days'
+   * @param {string} labelMode  – Label rendering mode:
+   *   'full'      – render using dateFormat exactly
+   *   'partial'   – strip sub-interval components (e.g. months tick → strip day)
+   *   'component' – show only the interval-specific part (Q2, Jan, 14, etc.)
+   *   'auto'      – alias for 'partial'
+   *   Legacy format strings (e.g. 'yyyy-MM-dd') are treated as 'full' with that format.
+   * @param {string} [dateFormat='yyyy-MM-dd']  – full date format chosen by the user:
+   *   'yyyy-MM-dd' | 'yyyy-MMM-dd' | 'dd MMM yyyy'
+   * @param {string} [interval]  – interval hint for 'partial' / 'component':
+   *   'decades'|'years'|'quarters'|'months'|'weeks'|'days'
    * @returns {string}
    */
-  decYearToString(decYear, format, interval) {
+  decYearToString(decYear, labelMode, dateFormat = 'yyyy-MM-dd', interval = '') {
     const { year, month, day } = TreeCalibration.decYearToDate(decYear);
-    if (format === 'component') {
-      switch (interval) {
-        case 'decades':
-        case 'years':    return String(year);
-        case 'quarters': return `Q${Math.ceil(month / 3)}`;
-        case 'months':   return TreeCalibration.MONTHS[month - 1];
-        case 'weeks':
-        case 'days':     return String(day);
-        default:         return TreeCalibration.formatDecYear(decYear, []);
-      }
-    }
     const mm  = String(month).padStart(2, '0');
     const dd  = String(day).padStart(2, '0');
     const mmm = TreeCalibration.MONTHS[month - 1];
-    switch (format) {
-      case 'yyyy':        return String(year);
-      case 'yyyy-MM':     return `${year}-${mm}`;
-      case 'yyyy-MMM':    return `${year}-${mmm}`;
-      case 'yyyy-mm-dd':  return `${year}-${mm}-${dd}`;
-      case 'yyyy-MMM-dd': return `${year}-${mmm}-${dd}`;
-      case 'dd MMM yyyy': return `${dd} ${mmm} ${year}`;
-      default:            return TreeCalibration.formatDecYear(decYear, []);
+
+    if (labelMode === 'component') {
+      switch (interval) {
+        case 'decades':  return String(Math.floor(year / 10) * 10) + 's';
+        case 'years':    return String(year);
+        case 'quarters': return `Q${Math.ceil(month / 3)}`;
+        case 'months':   return mmm;
+        case 'weeks':
+        case 'days':     return dd;
+        default:         return String(year);
+      }
     }
+
+    let fmt;
+    if (labelMode === 'full') {
+      fmt = dateFormat;
+    } else if (labelMode === 'partial' || labelMode === 'auto') {
+      fmt = TreeCalibration._partialFormat(dateFormat, interval);
+    } else {
+      // Legacy: labelMode is itself a format string (e.g. 'yyyy-MMM-dd')
+      fmt = labelMode;
+    }
+
+    return TreeCalibration._applyFormat(fmt, year, mm, dd, mmm);
   }
 
   /**
    * Convert a node height directly to a formatted date string.
-   * Convenience wrapper: heightToDateString(h, fmt, interval)
-   *   ≡ decYearToString(heightToDecYear(h), fmt, interval)
+   * Convenience wrapper: heightToDateString(h, labelMode, dateFormat, interval)
+   *   ≡ decYearToString(heightToDecYear(h), labelMode, dateFormat, interval)
    *
    * @param {number} height
-   * @param {string} format   – see decYearToString()
+   * @param {string} labelMode  – see decYearToString()
+   * @param {string} [dateFormat]
    * @param {string} [interval]
    * @returns {string}
    */
-  heightToDateString(height, format, interval) {
-    return this.decYearToString(this.heightToDecYear(height), format, interval);
+  heightToDateString(height, labelMode, dateFormat, interval) {
+    return this.decYearToString(this.heightToDecYear(height), labelMode, dateFormat, interval);
+  }
+
+  // ── Static format helpers ──────────────────────────────────────────────
+
+  /**
+   * Given a full date format and a tick interval, return a reduced format that
+   * strips sub-interval components (e.g. months tick → remove day portion).
+   * @param {string} fullFormat
+   * @param {string} interval
+   * @returns {string}
+   */
+  static _partialFormat(fullFormat, interval) {
+    switch (interval) {
+      case 'decades':
+      case 'years':
+      case 'quarters':
+        return 'yyyy';
+      case 'months':
+        if (fullFormat === 'yyyy-MMM-dd') return 'yyyy-MMM';
+        if (fullFormat === 'dd MMM yyyy') return 'MMM yyyy';
+        return 'yyyy-MM';
+      case 'weeks':
+        if (fullFormat === 'dd MMM yyyy' || fullFormat === 'yyyy-MMM-dd') return 'dd MMM';
+        return 'MM-dd';
+      case 'days':
+      default:
+        return fullFormat;
+    }
+  }
+
+  /**
+   * Render a (possibly partial) format string with pre-computed date parts.
+   * @param {string} fmt
+   * @param {number} year
+   * @param {string} mm   – zero-padded month number
+   * @param {string} dd   – zero-padded day number
+   * @param {string} mmm  – 3-letter month abbreviation
+   * @returns {string}
+   */
+  static _applyFormat(fmt, year, mm, dd, mmm) {
+    switch (fmt) {
+      case 'yyyy':        return String(year);
+      case 'yyyy-MM':     return `${year}-${mm}`;
+      case 'yyyy-MMM':    return `${year}-${mmm}`;
+      case 'MMM yyyy':    return `${mmm} ${year}`;
+      case 'yyyy-MM-dd':  return `${year}-${mm}-${dd}`;
+      case 'yyyy-mm-dd':  return `${year}-${mm}-${dd}`;   // legacy alias
+      case 'yyyy-MMM-dd': return `${year}-${mmm}-${dd}`;
+      case 'dd MMM yyyy': return `${dd} ${mmm} ${year}`;
+      case 'MM-dd':       return `${mm}-${dd}`;
+      case 'dd MMM':      return `${dd} ${mmm}`;
+      default:            return `${year}-${mm}-${dd}`;
+    }
   }
 
   // ── Static helpers ─────────────────────────────────────────────────────────
