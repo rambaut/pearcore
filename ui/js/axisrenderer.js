@@ -342,6 +342,9 @@ export class AxisRenderer {
     const majorLabelFmt  = this._dateMode ? this._majorLabelFormat : 'auto';
     const showMajorLabel = majorLabelFmt !== 'off';
     let majorLabelRight  = -Infinity;
+    // Step between ticks drives the required decimal precision for non-date labels.
+    const _majorStep = majorTicks.length >= 2
+      ? Math.abs(majorTicks[1] - majorTicks[0]) : 0;
 
     ctx.font         = `${fs}px ${this._fontFamily}`;
     ctx.textAlign    = 'center';
@@ -362,9 +365,7 @@ export class AxisRenderer {
           const effMajorFmt = (majorLabelFmt === 'auto') ? 'partial' : majorLabelFmt;
           label = this._calibration.decYearToString(val, effMajorFmt, this._dateFormat, this._majorInterval);
         } else {
-          label = this._heightFormatter
-            ? this._heightFormatter(val)
-            : AxisRenderer._formatValue(val);
+          label = AxisRenderer._formatValue(val, _majorStep);
         }
         const tw = ctx.measureText(label).width;
         // Allow labels to extend to the canvas edge (W) rather than being hard-clamped
@@ -466,9 +467,18 @@ export class AxisRenderer {
     return ticks;
   }
 
-  /** Format a plain numeric value (divergence or height). */
-  static _formatValue(v) {
-    if (v === 0) return '0';
+  /** Format a plain numeric value (divergence or height).
+   * @param {number} v    – the tick value to format
+   * @param {number} step – the interval between ticks; drives required decimal precision
+   */
+  static _formatValue(v, step) {
+    if (v === 0 && (!step || step >= 1)) return '0';
+    // Decimal places needed = enough to distinguish ticks spaced `step` apart.
+    if (step > 0) {
+      const dp = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+      return v.toFixed(dp);
+    }
+    // Fallback when step is unavailable: magnitude-based heuristic.
     const abs = Math.abs(v);
     if (abs >= 100)  return v.toFixed(0);
     if (abs >= 10)   return v.toFixed(1);
