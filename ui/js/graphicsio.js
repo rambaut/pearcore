@@ -230,7 +230,9 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   const bgTipParts  = [];  // background halo circles for tip shapes
   const fgNodeParts = [];  // foreground fill circles for node shapes
   const fgTipParts  = [];  // foreground fill circles for tip shapes
-  const labelParts  = [];
+  const labelParts      = [];
+  const connectorParts  = [];   // alignment connector lines
+  const shapeParts      = [];   // tip-label shape swatches
   // Stroke width for the bg halo: uses renderer.tipHaloSize directly
   const tipHaloSW  = renderer.tipHaloSize * 2;
   const nodeHaloSW = renderer.nodeHaloSize * 2;
@@ -243,6 +245,25 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     const stub = renderer.rootStubLength ?? 20;
     branchParts.push(`<line x1="${f(rx - stub)}" y1="${f(ry)}" x2="${f(rx)}" y2="${f(ry)}"/>`);
   }
+
+  // ── Tip-label alignment and shape pre-computation ─────────────────────
+  const outlineR     = tr > 0 ? tr + renderer.tipHaloSize : 0;
+  const _align       = renderer.tipLabelAlign;
+  const alignLabelX  = (_align && _align !== 'off')
+    ? toSX(renderer.maxX) + outlineR + 3
+    : null;
+
+  // Shape 1
+  const _svgShape   = renderer._tipLabelShape;
+  const _svgShSz    = _svgShape !== 'off' ? Math.max(2, Math.round(fs * renderer._tipLabelShapeSize / 100)) : 0;
+  const _svgShML    = _svgShape !== 'off' ? renderer._tipLabelShapeMarginLeft  : 0;
+  const _svgShMR    = _svgShape !== 'off' ? renderer._tipLabelShapeMarginRight : 0;
+  const _svgShOff   = _svgShML + _svgShSz + _svgShMR;
+  // Shape 2 (only active when shape 1 is also active)
+  const _svgShape2  = _svgShape !== 'off' ? renderer._tipLabelShape2 : 'off';
+  const _svgShSz2   = _svgShape2 !== 'off' ? Math.max(2, Math.round(fs * renderer._tipLabelShape2Size / 100)) : 0;
+  const _svgSh2MR   = _svgShape2 !== 'off' ? renderer._tipLabelShape2MarginRight : 0;
+  const _svgTxOff   = _svgShOff + _svgShSz2 + _svgSh2MR;  // total x offset from baseX to text
 
   for (const [, node] of nm) {
     const nx = toSX(node.x), ny = toSY(node.y);
@@ -281,12 +302,62 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
           bgNodeParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${nr}" fill="${esc(nodeBgColor)}" stroke="${esc(nodeBgColor)}" stroke-width="${nodeHaloSW}"/>`);
         fgNodeParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${nr}" fill="${esc(fill)}"/>`);
       }
-      if (node.isTip && node.name) {
-        const lx2 = nx + (tr > 0 ? tr + 4 : 4);
-        const labelFill = (renderer._labelColourBy && renderer._labelColourScale)
-          ? (renderer._labelColourForValue(node.annotations?.[renderer._labelColourBy]) ?? lc)
-          : lc;
-        labelParts.push(`<text x="${f(lx2)}" y="${f(ny)}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="${esc(labelFill)}">${svgTextEsc(node.name)}</text>`);
+      if (node.isTip) {
+        const labelText = renderer._tipLabelText ? renderer._tipLabelText(node) : node.name;
+        if (labelText) {
+          const baseX  = alignLabelX ?? (nx + outlineR + 3);
+          // Connector line (dashed / dots / solid aligned modes only).
+          if (alignLabelX !== null && _align !== 'aligned') {
+            const tipEdgeX = nx + outlineR + 2;
+            const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0) - 2;
+            if (lineEndX - tipEdgeX >= 8) {
+              let dashAttr = '';
+              if (_align === 'dashed') dashAttr = ` stroke-dasharray="3 4"`;
+              else if (_align === 'dots') dashAttr = ` stroke-dasharray="1 4"`;
+              connectorParts.push(`<line x1="${f(tipEdgeX)}" y1="${f(ny)}" x2="${f(lineEndX)}" y2="${f(ny)}" stroke="${esc(renderer.dimLabelColor)}" stroke-width="0.35"${dashAttr}/>`);
+            }
+          }
+          // Shape 1.
+          if (_svgShape !== 'off') {
+            const shapeX  = baseX + _svgShML;
+            const halfSz  = _svgShSz / 2;
+            const sFill   = (renderer._tipLabelShapeColourBy && renderer._tipLabelShapeColourScale)
+              ? (renderer._tipLabelShapeColourForValue(node.annotations?.[renderer._tipLabelShapeColourBy]) ?? renderer._tipLabelShapeColor)
+              : renderer._tipLabelShapeColor;
+            if (_svgShape === 'circle') {
+              shapeParts.push(`<circle cx="${f(shapeX + halfSz)}" cy="${f(ny)}" r="${f(halfSz)}" fill="${esc(sFill)}"/>`);
+            } else if (_svgShape === 'block') {
+              const bTop = Math.floor(ny - sy / 2);
+              const bH   = Math.ceil(ny + sy / 2) - bTop;
+              shapeParts.push(`<rect x="${f(shapeX)}" y="${f(bTop)}" width="${f(_svgShSz)}" height="${f(bH)}" fill="${esc(sFill)}"/>`);
+            } else {
+              shapeParts.push(`<rect x="${f(shapeX)}" y="${f(ny - halfSz)}" width="${f(_svgShSz)}" height="${f(_svgShSz)}" fill="${esc(sFill)}"/>`);
+            }
+          }
+          // Shape 2.
+          if (_svgShape2 !== 'off') {
+            const shape2X = baseX + _svgShOff;
+            const halfSz2 = _svgShSz2 / 2;
+            const s2Fill  = (renderer._tipLabelShape2ColourBy && renderer._tipLabelShape2ColourScale)
+              ? (renderer._tipLabelShape2ColourForValue(node.annotations?.[renderer._tipLabelShape2ColourBy]) ?? renderer._tipLabelShape2Color)
+              : renderer._tipLabelShape2Color;
+            if (_svgShape2 === 'circle') {
+              shapeParts.push(`<circle cx="${f(shape2X + halfSz2)}" cy="${f(ny)}" r="${f(halfSz2)}" fill="${esc(s2Fill)}"/>`);
+            } else if (_svgShape2 === 'block') {
+              const bTop = Math.floor(ny - sy / 2);
+              const bH   = Math.ceil(ny + sy / 2) - bTop;
+              shapeParts.push(`<rect x="${f(shape2X)}" y="${f(bTop)}" width="${f(_svgShSz2)}" height="${f(bH)}" fill="${esc(s2Fill)}"/>`);
+            } else {
+              shapeParts.push(`<rect x="${f(shape2X)}" y="${f(ny - halfSz2)}" width="${f(_svgShSz2)}" height="${f(_svgShSz2)}" fill="${esc(s2Fill)}"/>`);
+            }
+          }
+          // Label text.
+          const lx2       = baseX + _svgTxOff;
+          const labelFill = (renderer._labelColourBy && renderer._labelColourScale)
+            ? (renderer._labelColourForValue(node.annotations?.[renderer._labelColourBy]) ?? lc)
+            : lc;
+          labelParts.push(`<text x="${f(lx2)}" y="${f(ny)}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="${esc(labelFill)}">${svgTextEsc(labelText)}</text>`);
+        }
       } else if (!node.isTip && node.label) {
         labelParts.push(`<text x="${f(nx + 3)}" y="${f(ny - 3)}" font-family="monospace" font-size="${Math.round(fs * 0.85)}px" fill="${esc(lc)}" opacity="0.7">${svgTextEsc(node.label)}</text>`);
       }
@@ -411,6 +482,12 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   </g>
   <g clip-path="url(#tc)">
     ${fgTipParts.join('\n    ')}
+  </g>
+  <g clip-path="url(#tc)">
+    ${connectorParts.join('\n    ')}
+  </g>
+  <g clip-path="url(#tc)">
+    ${shapeParts.join('\n    ')}
   </g>
   <g clip-path="url(#tc)">
     ${labelParts.join('\n    ')}
