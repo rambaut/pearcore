@@ -141,7 +141,14 @@ async fn save_file(
 /// file association double-click (the path is emitted via the "open-file" event).
 #[tauri::command]
 fn read_file_content(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+    #[cfg(target_os = "windows")]
+    eprintln!("[read_file_content] Reading file: {}", path);
+    
+    std::fs::read_to_string(&path).map_err(|e| {
+        let error_msg = format!("Failed to read {}: {}", path, e);
+        eprintln!("[read_file_content] {}", error_msg);
+        error_msg
+    })
 }
 
 /// Creates a new PearTree window. If `file_path` is provided the path is stored
@@ -177,7 +184,17 @@ fn take_pending_file(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
 ) -> Option<String> {
-    app.state::<PendingFiles>().0.lock().unwrap().remove(window.label())
+    let label = window.label();
+    let result = app.state::<PendingFiles>().0.lock().unwrap().remove(label);
+    
+    #[cfg(target_os = "windows")]
+    if let Some(ref path) = result {
+        eprintln!("[take_pending_file] Window '{}' taking pending file: {}", label, path);
+    } else {
+        eprintln!("[take_pending_file] Window '{}' has no pending file", label);
+    }
+    
+    result
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -452,9 +469,22 @@ pub fn run() {
                 let mut pending = pending_state.0.lock().unwrap();
                 if !pending.contains_key("main") {
                     if let Some(arg) = std::env::args().nth(1) {
-                        let p = std::path::Path::new(&arg);
-                        if p.is_file() {
-                            pending.insert("main".to_string(), arg);
+                        // Validate and normalize the path before storing
+                        let path = std::path::Path::new(&arg);
+                        if path.is_file() {
+                            // Convert to absolute path and normalize (handles ., .., \\?\, etc.)
+                            if let Ok(canonical) = path.canonicalize() {
+                                if let Some(path_str) = canonical.to_str() {
+                                    eprintln!("[Windows] Storing pending file: {}", path_str);
+                                    pending.insert("main".to_string(), path_str.to_string());
+                                } else {
+                                    eprintln!("[Windows] Warning: file path contains invalid UTF-8: {:?}", canonical);
+                                }
+                            } else {
+                                eprintln!("[Windows] Warning: failed to canonicalize path: {}", arg);
+                            }
+                        } else {
+                            eprintln!("[Windows] Ignoring non-file argument: {}", arg);
                         }
                     }
                 }

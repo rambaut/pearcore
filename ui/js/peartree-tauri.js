@@ -113,21 +113,37 @@
     }
   });
 
-  // ── Pending file (new window opened for a specific file) ───────────────
+  // ─── Pending file (new window opened for a specific file) ───────────────
   // When Rust creates a new window to open a file it stores the path
   // server-side keyed by window label. We retrieve and load it on startup.
   try {
     const pending = await invoke('take_pending_file');
     if (pending) {
-      const content = await invoke('read_file_content', { path: pending });
-      const name = pending.split(/[\\/]/).pop() || 'tree';
-      app.closeModal();
-      await app.loadTree(content, name);
-      setWindowTitle(name);
+      try {
+        const content = await invoke('read_file_content', { path: pending });
+        const name = pending.split(/[\\/]/).pop() || 'tree';
+        // Close modal if it was opened, hide empty state
+        app.closeModal();
+        const emptyState = document.getElementById('empty-state');
+        if (emptyState) emptyState.classList.add('hidden');
+        await app.loadTree(content, name);
+        setWindowTitle(name);
+      } catch (fileErr) {
+        console.error('Failed to read pending file:', fileErr);
+        // Ensure UI is in a recoverable state
+        app.closeModal();
+        const emptyState = document.getElementById('empty-state');
+        if (emptyState) emptyState.classList.remove('hidden');
+        // Show error to user
+        const errorMsg = fileErr.message ?? String(fileErr);
+        app.showErrorDialog(`Failed to open file: ${errorMsg}`);
+      }
     }
   } catch (err) {
     console.error('Failed to load pending file:', err);
-    app.showErrorDialog(err.message ?? String(err));
+    // Non-file-reading errors (e.g., take_pending_file failed) - recoverable
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) emptyState.classList.remove('hidden');
   }
 
   // ── File opened via drag-to-icon / double-click / file association ─────
@@ -144,13 +160,20 @@
     }
 
     try {
+      // Close modal if open, hide empty state before loading
+      app.closeModal();
+      const emptyState = document.getElementById('empty-state');
+      if (emptyState) emptyState.classList.add('hidden');
+      
       const content = await invoke('read_file_content', { path: filePath });
       const name = filePath.split(/[\\/]/).pop() || 'tree';
-      app.closeModal();
       await app.loadTree(content, name);
       setWindowTitle(name);
     } catch (err) {
-      app.showErrorDialog(err.message);
+      // Restore empty state on error
+      const emptyState = document.getElementById('empty-state');
+      if (emptyState) emptyState.classList.remove('hidden');
+      app.showErrorDialog(err.message ?? String(err));
     }
   });
 

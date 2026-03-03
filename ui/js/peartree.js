@@ -148,6 +148,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   let isExplicitlyRooted = false; // true when root node carries annotations — rerooting disabled
   let _loadedFilename    = null;  // filename of the most recently loaded tree
   let _axisIsTimedTree   = false;
+  let treeLoaded         = false; // declared early — referenced by _syncCanvasWrapperBg before modal init
 
   // Live theme registry: built-ins first, then any user-saved themes added on top.
   const themeRegistry = new Map(Object.entries(THEMES));
@@ -1142,13 +1143,14 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   if (_saved.axisMinorLabelFormat) axisMinorLabelEl.value       = _saved.axisMinorLabelFormat;
 
   // Hide the initial loading overlay; the Open Tree modal replaces it on startup
-  loadingEl.style.display = 'none';
+  if (loadingEl) {
+    loadingEl.classList.add('hidden');
+  }
 
   // ── Modal management ──────────────────────────────────────────────────────
 
   const modal         = document.getElementById('open-tree-modal');
   const btnModalClose = document.getElementById('btn-modal-close');
-  let treeLoaded = false;
 
   function openModal() {
     setModalError(null);

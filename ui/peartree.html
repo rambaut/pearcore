@@ -309,6 +309,7 @@
       background: var(--pt-bg);
       gap: 14px;
     }
+    #loading.hidden { display: none !important; }
     #loading p { font-size: 0.72rem; color: var(--pt-gold); }
     .pt-spinner {
       width: 36px; height: 36px;
@@ -1244,7 +1245,7 @@
           <button class="btn btn-sm btn-outline-secondary ms-2" id="empty-state-example-btn"><i class="bi bi-tree me-1"></i>Example…</button>
         </div>
       </div>
-      <div id="loading" style="display:none"><div class="pt-spinner"></div><p id="loading-msg">Fetching tree file…</p></div>
+      <div id="loading" class="hidden"><div class="pt-spinner"></div><p id="loading-msg">Fetching tree file…</p></div>
       <div id="error"></div>
       <canvas id="tree-canvas"></canvas>
       <div id="tooltip"></div>
