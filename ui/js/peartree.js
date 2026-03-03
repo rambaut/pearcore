@@ -79,6 +79,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   const nodeColourBy      = document.getElementById('node-colour-by');
   const labelColourBy     = document.getElementById('label-colour-by');
   const tipLabelShow      = document.getElementById('tip-label-show');
+  const tipLabelControlsEl = document.getElementById('tip-label-controls');
   const tipLabelAlignEl   = document.getElementById('tip-label-align');
   const nodeLabelShowEl         = document.getElementById('node-label-show');
   const nodeLabelPositionEl     = document.getElementById('node-label-position');
@@ -668,6 +669,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     nodeColourBy.value       = 'user_colour';
     labelColourBy.value      = 'user_colour';
     tipLabelShow.value       = 'names';
+    tipLabelControlsEl.style.display = '';
     tipLabelAlignEl.value    = 'off';
     legendShowEl.value       = DEFAULT_SETTINGS.legendShow;
     legendAnnotEl.value      = '';
@@ -817,7 +819,10 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
       clampNegativeBranches: clampNegBranchesEl.value === 'on',
       fontFamily:         TYPEFACES[fontFamilyEl.value] ?? fontFamilyEl.value,
-      tipLabelAnnotation: tipLabelShow.value === 'names' ? null : tipLabelShow.value,
+      tipLabelsOff:       tipLabelShow.value === 'off',
+      tipLabelAnnotation: tipLabelShow.value === 'names' ? null
+                        : tipLabelShow.value === 'off'   ? null
+                        : tipLabelShow.value,
       tipLabelAlign:      tipLabelAlignEl.value,
       tipLabelDecimalPlaces:  tipLabelDpEl.value !== '' ? parseInt(tipLabelDpEl.value) : null,
       tipLabelShape:           tipLabelShapeEl.value,
@@ -1510,7 +1515,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       renderer.setLabelColourBy(labelColourBy.value  || null);
       renderer.setTipLabelShapeColourBy(tipLabelShapeColourBy.value || null);
       renderer.setTipLabelShape2ColourBy(tipLabelShape2ColourBy.value || null);
-      renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
+      renderer.setTipLabelsOff(tipLabelShow.value === 'off');
+      if (tipLabelShow.value !== 'off') renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
       applyLegend();
       renderer._dirty = true;
     },
@@ -1903,10 +1909,11 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     repopulate(tipLabelShapeColourBy, { filter: 'tips' });
     repopulate(tipLabelShape2ColourBy, { filter: 'tips' });
     repopulate(legendAnnotEl,        { isLegend: true  });
-    // Tip label show: first option is 'names'; then all tip annotations.
+    // Tip label show: option[0]='off', option[1]='names', then dynamic annotations.
     {
       const prev = tipLabelShow.value;
-      while (tipLabelShow.options.length > 1) tipLabelShow.remove(1);
+      // Remove dynamic options only — keep the two static ones (off, names).
+      while (tipLabelShow.options.length > 2) tipLabelShow.remove(2);
       for (const [name, def] of schema) {
         if (def.dataType === 'list') continue;
         if (def.groupMember) continue;
@@ -1931,7 +1938,11 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       }
       tipLabelShow.disabled = false;
       tipLabelShow.value = [...tipLabelShow.options].some(o => o.value === prev) ? prev : 'names';
-      if (renderer) renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
+      tipLabelControlsEl.style.display = tipLabelShow.value === 'off' ? 'none' : '';
+      if (renderer) {
+        renderer.setTipLabelsOff(tipLabelShow.value === 'off');
+        if (tipLabelShow.value !== 'off') renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
+      }
     }
     // Node label show: first option is '' (none); then all node annotations.
     {
@@ -2132,8 +2143,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       _populateColourBy(tipLabelShapeColourBy, 'tips');
       _populateColourBy(tipLabelShape2ColourBy, 'tips');
 
-      // Tip-label-show: 'names' is always the first option; then add tip annotations.
-      while (tipLabelShow.options.length > 1) tipLabelShow.remove(1);
+      // Tip-label-show: option[0]='off', option[1]='names', then dynamic annotations.
+      while (tipLabelShow.options.length > 2) tipLabelShow.remove(2);
       for (const [name, def] of schema) {
         if (name === 'user_colour') continue;
         if (def.dataType === 'list') continue;
@@ -2144,6 +2155,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
         tipLabelShow.appendChild(opt);
       }
       tipLabelShow.disabled = false;
+      tipLabelControlsEl.style.display = tipLabelShow.value === 'off' ? 'none' : '';
 
       // Node-label-show: first option is '' (none); then all node annotations.
       while (nodeLabelShowEl.options.length > 1) nodeLabelShowEl.remove(1);
@@ -2184,6 +2196,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       tipLabelShape2ColourBy.value = _hasOpt(tipLabelShape2ColourBy, _eff.tipLabelShape2ColourBy) ? _eff.tipLabelShape2ColourBy : 'user_colour';
       legendAnnotEl.value        = _hasOpt(legendAnnotEl,        _eff.legendAnnotation)      ? _eff.legendAnnotation      : '';
       tipLabelShow.value  = _hasOpt(tipLabelShow,  _eff.tipLabelShow)     ? _eff.tipLabelShow     : 'names';
+      tipLabelControlsEl.style.display = tipLabelShow.value === 'off' ? 'none' : '';
       nodeLabelShowEl.value = _hasOpt(nodeLabelShowEl, _eff.nodeLabelAnnotation) ? _eff.nodeLabelAnnotation : '';
       // Restore node order — only from file-embedded settings, not from saved prefs
       // (order is a per-tree choice and should not persist across different trees).
@@ -2218,7 +2231,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       renderer.setLabelColourBy(labelColourBy.value || null);
       renderer.setTipLabelShapeColourBy(tipLabelShapeColourBy.value || null);
       renderer.setTipLabelShape2ColourBy(tipLabelShape2ColourBy.value || null);
-      renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
+      renderer.setTipLabelsOff(tipLabelShow.value === 'off');
+      if (tipLabelShow.value !== 'off') renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
       renderer.setNodeLabelAnnotation(nodeLabelShowEl.value || null);
       // Show palette selects for active colour-by annotations.
       _updatePaletteSelect(tipPaletteSelect,            tipPaletteRow,            tipColourBy.value);
@@ -3685,9 +3699,12 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   });
 
   tipLabelShow.addEventListener('change', () => {
+    const isOff = tipLabelShow.value === 'off';
+    tipLabelControlsEl.style.display = isOff ? 'none' : '';
     const schema = renderer?._annotationSchema ?? new Map();
     _updateLabelDpRow(tipLabelDpRowEl, tipLabelShow.value, schema);
-    renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
+    renderer.setTipLabelsOff(isOff);
+    if (!isOff) renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
     saveSettings();
   });
 

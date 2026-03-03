@@ -202,6 +202,7 @@ export class TreeRenderer {
     this.selectedLabelColor = s.selectedLabelColor ?? _sel;
     this.selectedLabelStyle = s.selectedLabelStyle ?? 'bold';
     this.tipLabelAnnotation         = s.tipLabelAnnotation ?? null;
+    this._tipLabelsOff               = s.tipLabelsOff ?? false;
     this._tipLabelDecimalPlaces      = s.tipLabelDecimalPlaces  ?? null;  // null = auto (schema formatter)
 
     // ── Tip-label shapes ─────────────────────────────────────────────────────
@@ -462,6 +463,14 @@ export class TreeRenderer {
 
   setTipLabelAnnotation(key) {
     this.tipLabelAnnotation = key || null;
+    this._labelCacheKey = null;
+    this._measureLabels();
+    this._updateScaleX();
+    this._dirty = true;
+  }
+
+  setTipLabelsOff(v) {
+    this._tipLabelsOff = !!v;
     this._labelCacheKey = null;
     this._measureLabels();
     this._updateScaleX();
@@ -1310,6 +1319,7 @@ export class TreeRenderer {
   }
 
   _tipLabelText(node) {
+    if (this._tipLabelsOff) return null;
     return this._labelText(node, this.tipLabelAnnotation, this._tipLabelDecimalPlaces, node.name || null);
   }
 
@@ -1325,7 +1335,7 @@ export class TreeRenderer {
   _measureLabels() {
     if (!this.nodes) return;
     // Only redo the expensive measureText scan when font/annotation settings or node data changes.
-    const cacheKey = `${this.fontSize}|${this.fontFamily}|${this.tipLabelAnnotation ?? ''}|${this._calDateFormat}|${this._tipLabelDecimalPlaces ?? ''}|${this._nodeLabelDecimalPlaces ?? ''}`;    
+    const cacheKey = `${this.fontSize}|${this.fontFamily}|${this.tipLabelAnnotation ?? ''}|${this._calDateFormat}|${this._tipLabelDecimalPlaces ?? ''}|${this._nodeLabelDecimalPlaces ?? ''}|${this._tipLabelsOff ? '0' : '1'}`;        
     if (this._labelCacheKey !== cacheKey) {
       const ctx = this.ctx;
       ctx.font = `${this.fontSize}px ${this.fontFamily}`;
