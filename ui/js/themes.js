@@ -351,13 +351,13 @@ export const DEFAULT_SETTINGS = {
   tipLabelAlign:      'off',
   // Tip label shapes (displayed to the left of label text)
   tipLabelShape:             'off',     // 'off' | 'square' | 'circle' | 'block'
-  tipLabelShapeSize:         '72',      // % of fontSize; 72 ≈ cap-height; 150 ≈ full row height
+  tipLabelShapeSize:         '50',      // 1–100: % of scaleY for square/circle; ×0.1 width factor for block
   tipLabelShapeColor:        '#aaaaaa',
   tipLabelShapeMarginLeft:   '2',
   tipLabelShapeMarginRight:  '3',
   // Second tip label shape (shown immediately to the right of shape 1)
   tipLabelShape2:            'off',
-  tipLabelShape2Size:        '72',
+  tipLabelShape2Size:        '50',
   tipLabelShape2Color:       '#888888',
   tipLabelShape2MarginRight: '3',
   // Node labels (internal-node annotation labels)

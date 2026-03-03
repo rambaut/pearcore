@@ -138,13 +138,13 @@ export class TreeRenderer {
     this._tipLabelShapeColourScale = null;   // Map<value, CSS colour> | null
     this._tipLabelShape            = 'off';  // 'off' | 'square' | 'circle' | 'block'
     this._tipLabelShapeColor       = '#aaaaaa';
-    this._tipLabelShapeSize        = 72;     // % of fontSize
+    this._tipLabelShapeSize        = 50;     // 1–100: % of scaleY (square/circle) or ×0.1 width factor (block)
     this._tipLabelShapeMarginLeft  = 2;      // px gap before shape
     this._tipLabelShapeMarginRight = 3;      // px gap after shape (before text / before shape 2)
     // Second tip-label shape (sits immediately right of shape 1, no left margin)
     this._tipLabelShape2           = 'off';  // 'off' | 'square' | 'circle' | 'block'
     this._tipLabelShape2Color      = '#888888';
-    this._tipLabelShape2Size       = 72;     // % of fontSize
+    this._tipLabelShape2Size       = 50;     // 1–100: % of scaleY (square/circle) or ×0.1 width factor (block)
     this._tipLabelShape2ColourBy   = null;
     this._tipLabelShape2ColourScale = null;
     this._tipLabelShape2MarginRight = 3;     // px gap after shape 2 (before text)
@@ -207,13 +207,13 @@ export class TreeRenderer {
     // ── Tip-label shapes ─────────────────────────────────────────────────────
     this._tipLabelShape            = s.tipLabelShape            ?? 'off';
     this._tipLabelShapeColor       = s.tipLabelShapeColor       ?? '#aaaaaa';
-    this._tipLabelShapeSize        = +(s.tipLabelShapeSize        ?? 72);
+    this._tipLabelShapeSize        = +(s.tipLabelShapeSize        ?? 50);
     this._tipLabelShapeMarginLeft  = +(s.tipLabelShapeMarginLeft  ?? 2);
     this._tipLabelShapeMarginRight = +(s.tipLabelShapeMarginRight ?? 3);
     // ── Second tip-label shape ────────────────────────────────────────────────
     this._tipLabelShape2           = s.tipLabelShape2           ?? 'off';
     this._tipLabelShape2Color      = s.tipLabelShape2Color      ?? '#888888';
-    this._tipLabelShape2Size       = +(s.tipLabelShape2Size       ?? 72);
+    this._tipLabelShape2Size       = +(s.tipLabelShape2Size       ?? 50);
     this._tipLabelShape2MarginRight = +(s.tipLabelShape2MarginRight ?? 3);
 
     // ── Layout geometry ─────────────────────────────────────────────────────
@@ -821,7 +821,7 @@ export class TreeRenderer {
     this._dirty = true;
   }
 
-  /** Set the size of tip-label shape swatches as % of font size (10–200). */
+  /** Set the size of tip-label shape swatches (1–100). For square/circle: % of scaleY. For block: ×0.1 width factor of scaleY. */
   setTipLabelShapeSize(n) {
     this._tipLabelShapeSize = n;
     this._measureLabels();
@@ -870,7 +870,7 @@ export class TreeRenderer {
     this._dirty = true;
   }
 
-  /** Set the size of the second tip-label shape swatch as % of font size (10–200). */
+  /** Set the size of the second tip-label shape swatch (1–100). For square/circle: % of scaleY. For block: ×0.1 width factor of scaleY. */
   setTipLabelShape2Size(n) {
     this._tipLabelShape2Size = n;
     this._measureLabels();
@@ -986,10 +986,15 @@ export class TreeRenderer {
   _tipLabelShapeColourForValue(value)   { return this._colourFromScale(value, this._tipLabelShapeColourScale); }
   _tipLabelShape2ColourForValue(value)  { return this._colourFromScale(value, this._tipLabelShape2ColourScale); }
 
-  /** Pixel size of tip-label shape swatches.
-   *  sizePercent: slider value (% of fontSize). 72 ≈ cap-height; 150 ≈ full line height.
-   *  For blocks this is the *width*; height is always scaleY. */
-  _shapeSize(sizePercent) { return Math.max(2, Math.round(this.fontSize * sizePercent / 100)); }
+  /** Pixel size of tip-label shape swatches, relative to the current inter-tip spacing (scaleY).
+   *  square / circle: sizePercent 1–100 maps to 1–100 % of scaleY.
+   *  block: sizePercent 1–100 maps to 0.1×–10× scaleY (width only; height is always scaleY). */
+  _shapeSize(sizePercent, shape = 'square') {
+    if (shape === 'block') {
+      return Math.max(1, this.scaleY * sizePercent / 10);
+    }
+    return Math.max(2, Math.round(this.scaleY * sizePercent / 100));
+  }
 
   /**
    * Register a LegendRenderer instance.  TreeRenderer will automatically proxy
@@ -1339,10 +1344,10 @@ export class TreeRenderer {
     const r = this.tipRadius;
     const tipOuterR = r > 0 ? r + this.tipHaloSize : 0;
     const shapeExtra = this._tipLabelShape !== 'off'
-      ? this._tipLabelShapeMarginLeft + this._shapeSize(this._tipLabelShapeSize) + this._tipLabelShapeMarginRight
+      ? this._tipLabelShapeMarginLeft + this._shapeSize(this._tipLabelShapeSize, this._tipLabelShape) + this._tipLabelShapeMarginRight
       : 0;
     const shape2Extra = this._tipLabelShape !== 'off' && this._tipLabelShape2 !== 'off'
-      ? this._shapeSize(this._tipLabelShape2Size) + this._tipLabelShape2MarginRight
+      ? this._shapeSize(this._tipLabelShape2Size, this._tipLabelShape2) + this._tipLabelShape2MarginRight
       : 0;
     this.labelRightPad = this._maxLabelWidth + Math.max(tipOuterR, 5) + 5 + shapeExtra + shape2Extra;
   }
@@ -2260,31 +2265,36 @@ export class TreeRenderer {
       }
     }
 
+    // Shape / label variables – hoisted before the labels pass so shapes can
+    // be drawn even when tip labels are hidden due to density.
+    // In aligned mode every label is drawn at the column corresponding to the
+    // rightmost tip; null means normal (per-tip) positioning.
+    const _align     = this.tipLabelAlign; // 'off'|'aligned'|'dashed'|'dots'|'solid'
+    // Always use the aligned column when the layout option is set, even when
+    // tip labels are hidden due to density, so shapes stay in the same column.
+    const alignLabelX = (_align && _align !== 'off')
+      ? this._wx(this.maxX) + outlineR + 3
+      : null;
+
+    // Tip-label shapes: thin coloured swatches drawn to the left of label text.
+    const _shape    = this._tipLabelShape;
+    const _shSz     = _shape !== 'off' ? this._shapeSize(this._tipLabelShapeSize, _shape) : 0;
+    const _shML     = _shape !== 'off' ? this._tipLabelShapeMarginLeft  : 0;
+    const _shMR     = _shape !== 'off' ? this._tipLabelShapeMarginRight : 0;
+    // Amount by which text shifts right to clear shape 1 + margins.
+    const _shOffset = _shML + _shSz + _shMR;
+    // Shape 2: drawn immediately after shape 1 (no left margin).
+    const _shape2   = _shape !== 'off' ? this._tipLabelShape2 : 'off';
+    const _shSz2    = _shape2 !== 'off' ? this._shapeSize(this._tipLabelShape2Size, _shape2) : 0;
+    const _sh2MR    = _shape2 !== 'off' ? this._tipLabelShape2MarginRight : 0;
+    const _sh2Offset = _shSz2 + _sh2MR;
+    // Helper: text x position for a given base x (both shapes accounted for).
+    const _tx = (baseX) => baseX + _shOffset + _sh2Offset;
+
     // Pass 3 – labels (two sub-passes when selection active: dim then bright)
     if (showLabels) {
       const hasSelection  = this._selectedTipIds.size > 0;
       const dimColor      = this.dimLabelColor;
-      // In aligned mode every label is drawn at the column corresponding to the
-      // rightmost tip; null means normal (per-tip) positioning.
-      const _align     = this.tipLabelAlign; // 'off'|'aligned'|'dashed'|'dots'|'solid'
-      const alignLabelX = (_align && _align !== 'off')
-        ? this._wx(this.maxX) + outlineR + 3
-        : null;
-
-      // Tip-label shapes: thin coloured swatches drawn to the left of label text.
-      const _shape    = this._tipLabelShape;
-      const _shSz     = _shape !== 'off' ? this._shapeSize(this._tipLabelShapeSize) : 0;
-      const _shML     = _shape !== 'off' ? this._tipLabelShapeMarginLeft  : 0;
-      const _shMR     = _shape !== 'off' ? this._tipLabelShapeMarginRight : 0;
-      // Amount by which text shifts right to clear shape 1 + margins.
-      const _shOffset = _shML + _shSz + _shMR;
-      // Shape 2: drawn immediately after shape 1 (no left margin).
-      const _shape2   = _shape !== 'off' ? this._tipLabelShape2 : 'off';
-      const _shSz2    = _shape2 !== 'off' ? this._shapeSize(this._tipLabelShape2Size) : 0;
-      const _sh2MR    = _shape2 !== 'off' ? this._tipLabelShape2MarginRight : 0;
-      const _sh2Offset = _shSz2 + _sh2MR;
-      // Helper: text x position for a given base x (both shapes accounted for).
-      const _tx = (baseX) => baseX + _shOffset + _sh2Offset;
 
       // Sub-pass 3-pre: connector lines (aligned + line styles only).
       if (alignLabelX !== null && _align !== 'aligned') {
@@ -2309,67 +2319,6 @@ export class TreeRenderer {
         }
         ctx.stroke();
         ctx.restore();
-      }
-
-      // Sub-pass 3-shapes: coloured swatches (square / circle / block).
-      if (_shape !== 'off') {
-        const _shKey  = this._tipLabelShapeColourBy;
-        const _shScl  = this._tipLabelShapeColourScale;
-        const _hasSc  = !!(_shKey && _shScl);
-        const halfSz  = _shSz / 2;
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          if (!this._showLabelAt(node.y)) continue;
-          const baseX  = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
-          const shapeX = baseX + _shML;
-          const sy     = this._wy(node.y);
-          ctx.fillStyle = _hasSc
-            ? (this._tipLabelShapeColourForValue(node.annotations?.[_shKey]) ?? this._tipLabelShapeColor)
-            : this._tipLabelShapeColor;
-          if (_shape === 'circle') {
-            ctx.beginPath();
-            ctx.arc(shapeX + halfSz, sy, halfSz, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (_shape === 'block') {
-            const _bTop = Math.floor(sy - this.scaleY / 2);
-            ctx.fillRect(shapeX, _bTop, _shSz, Math.ceil(sy + this.scaleY / 2) - _bTop);
-          } else {
-            // 'square'
-            ctx.fillRect(shapeX, sy - halfSz, _shSz, _shSz);
-          }
-        }
-      }
-
-      // Sub-pass 3-shapes-2: second coloured swatch (drawn right of shape 1).
-      if (_shape2 !== 'off') {
-        const _sh2Key = this._tipLabelShape2ColourBy;
-        const _sh2Scl = this._tipLabelShape2ColourScale;
-        const _has2Sc = !!(_sh2Key && _sh2Scl);
-        const halfSz2 = _shSz2 / 2;
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          if (!this._showLabelAt(node.y)) continue;
-          const baseX   = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
-          // Shape 2 starts right after shape 1's block (marginLeft + shape1 + marginRight).
-          const shape2X = baseX + _shOffset;
-          const sy      = this._wy(node.y);
-          ctx.fillStyle = _has2Sc
-            ? (this._tipLabelShape2ColourForValue(node.annotations?.[_sh2Key]) ?? this._tipLabelShape2Color)
-            : this._tipLabelShape2Color;
-          if (_shape2 === 'circle') {
-            ctx.beginPath();
-            ctx.arc(shape2X + halfSz2, sy, halfSz2, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (_shape2 === 'block') {
-            const _bTop = Math.floor(sy - this.scaleY / 2);
-            ctx.fillRect(shape2X, _bTop, _shSz2, Math.ceil(sy + this.scaleY / 2) - _bTop);
-          } else {
-            // 'square'
-            ctx.fillRect(shape2X, sy - halfSz2, _shSz2, _shSz2);
-          }
-        }
       }
 
       if (hasSelection) {
@@ -2417,6 +2366,68 @@ export class TreeRenderer {
           const _t = this._tipLabelText(node);
           const _bX = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
           if (_t) ctx.fillText(_t, _tx(_bX), this._wy(node.y));
+        }
+      }
+    }
+
+    // Pass 3-shapes – label shapes rendered independently of tip-label density
+    // so they remain visible even when labels are too dense to show text.
+    // Note: alignLabelX is null when showLabels is false, so shapes always
+    // fall back to per-tip positioning when labels are hidden.
+    if (_shape !== 'off') {
+      const _shKey  = this._tipLabelShapeColourBy;
+      const _shScl  = this._tipLabelShapeColourScale;
+      const _hasSc  = !!(_shKey && _shScl);
+      const halfSz  = _shSz / 2;
+      for (const node of this.nodes) {
+        if (!node.isTip) continue;
+        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        const baseX  = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
+        const shapeX = baseX + _shML;
+        const sy     = this._wy(node.y);
+        ctx.fillStyle = _hasSc
+          ? (this._tipLabelShapeColourForValue(node.annotations?.[_shKey]) ?? this._tipLabelShapeColor)
+          : this._tipLabelShapeColor;
+        if (_shape === 'circle') {
+          ctx.beginPath();
+          ctx.arc(shapeX + halfSz, sy, halfSz, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (_shape === 'block') {
+          const _bTop = Math.floor(sy - this.scaleY / 2);
+          ctx.fillRect(shapeX, _bTop, _shSz, Math.ceil(sy + this.scaleY / 2) - _bTop);
+        } else {
+          // 'square'
+          ctx.fillRect(shapeX, sy - halfSz, _shSz, _shSz);
+        }
+      }
+    }
+
+    // Pass 3-shapes-2 – second label shape, also density-independent.
+    if (_shape2 !== 'off') {
+      const _sh2Key = this._tipLabelShape2ColourBy;
+      const _sh2Scl = this._tipLabelShape2ColourScale;
+      const _has2Sc = !!(_sh2Key && _sh2Scl);
+      const halfSz2 = _shSz2 / 2;
+      for (const node of this.nodes) {
+        if (!node.isTip) continue;
+        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        const baseX   = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
+        // Shape 2 starts right after shape 1's block (marginLeft + shape1 + marginRight).
+        const shape2X = baseX + _shOffset;
+        const sy      = this._wy(node.y);
+        ctx.fillStyle = _has2Sc
+          ? (this._tipLabelShape2ColourForValue(node.annotations?.[_sh2Key]) ?? this._tipLabelShape2Color)
+          : this._tipLabelShape2Color;
+        if (_shape2 === 'circle') {
+          ctx.beginPath();
+          ctx.arc(shape2X + halfSz2, sy, halfSz2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (_shape2 === 'block') {
+          const _bTop = Math.floor(sy - this.scaleY / 2);
+          ctx.fillRect(shape2X, _bTop, _shSz2, Math.ceil(sy + this.scaleY / 2) - _bTop);
+        } else {
+          // 'square'
+          ctx.fillRect(shape2X, sy - halfSz2, _shSz2, _shSz2);
         }
       }
     }
