@@ -710,6 +710,18 @@
       opacity: 0.35;
       cursor: not-allowed;
     }
+    /* Sub-controls: the block of detail controls under an on/off toggle */
+    .pt-sub-controls {
+      border-left: 2px solid rgba(42, 161, 152, 0.35);
+      margin-left: 2px;
+      padding-left: 9px;
+      margin-top: 4px;
+      border-radius: 0 0 0 2px;
+    }
+    /* Suppress left-border flicker during .pt-detail collapse animation */
+    .pt-detail.pt-sub-controls:not(.pt-detail-open) {
+      border-left-color: transparent;
+    }
     .pt-palette-color {
       width: 36px;
       height: 22px;
@@ -1598,7 +1610,7 @@
           <option value="names">names</option>
         </select>
       </div>
-      <div id="tip-label-controls">
+      <div id="tip-label-controls" class="pt-sub-controls">
       <div class="pt-palette-row" id="tip-label-dp-row" style="display:none">
         <span class="pt-palette-label">Decimal places</span>
         <select class="pt-palette-select" id="tip-label-decimal-places">
@@ -1664,7 +1676,7 @@
           <option value="block">Block</option>
         </select>
       </div>
-      <div id="tip-label-shape-detail" class="pt-detail">
+      <div id="tip-label-shape-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="tip-label-shape-color" value="#aaaaaa" />
@@ -1695,7 +1707,7 @@
           <span class="pt-val" id="tip-label-shape-margin-right-value">3</span>
         </div>
       </div>
-      <div id="tip-label-shape-2-section" class="pt-detail">
+      <div id="tip-label-shape-2-section" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Label shape 2</span>
           <select class="pt-palette-select" id="tip-label-shape-2">
@@ -1741,7 +1753,7 @@
         <input type="range" class="form-range" id="tip-size-slider" min="0" max="12" value="3" />
         <span class="pt-val" id="tip-size-value">3</span>
       </div>
-      <div id="tip-shape-detail" class="pt-detail">
+      <div id="tip-shape-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="tip-shape-color" value="#888888" />
@@ -1775,7 +1787,7 @@
         <input type="range" class="form-range" id="node-size-slider" min="0" max="12" value="0" />
         <span class="pt-val" id="node-size-value">0</span>
       </div>
-      <div id="node-shape-detail" class="pt-detail">
+      <div id="node-shape-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="node-shape-color" value="#888888" />
@@ -1810,7 +1822,7 @@
           <option value="">Off</option>
         </select>
       </div>
-      <div id="node-label-detail" class="pt-detail">
+      <div id="node-label-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row" id="node-label-dp-row" style="display:none">
           <span class="pt-palette-label">Decimal places</span>
           <select class="pt-palette-select" id="node-label-decimal-places">
@@ -1860,7 +1872,7 @@
             <option value="on">On</option>
           </select>
         </div>
-        <div id="node-bars-detail" class="pt-detail">
+        <div id="node-bars-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="node-bars-color" value="#2aa198" />
@@ -1898,7 +1910,7 @@
           <option value="">Off</option>
         </select>
       </div>
-      <div id="legend-detail" class="pt-detail">
+      <div id="legend-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Location</span>
           <select class="pt-palette-select" id="legend-show">
@@ -1944,7 +1956,7 @@
           <option value="time">Time</option>
         </select>
       </div>
-      <div id="axis-detail" class="pt-detail">
+      <div id="axis-detail" class="pt-detail pt-sub-controls">
       <div class="pt-palette-row">
         <span class="pt-palette-label">Colour</span>
         <input type="color" class="pt-palette-color" id="axis-color" value="#f2f1e6" />

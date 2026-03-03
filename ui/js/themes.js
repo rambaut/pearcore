@@ -68,6 +68,7 @@ export const THEMES = {
           nodeHaloSize:     '1',
           nodeShapeColor:   '#E06961',
           nodeShapeBgColor: '#02292e',
+          nodeBarsColor:      '#2aa198',
           axisColor:        '#f7eeca',
           legendTextColor:  '#f7eeca',
           nodeBarsColor:    '#E06961',
@@ -342,7 +343,7 @@ export const DEFAULT_SETTINGS = {
   rootStubLength: '10',
   // Node bars (only shown when tree has 'height' group from BEAST)
   nodeBarsEnabled:    'off',
-  nodeBarsColor:      '#2aa198',
+  nodeBarsColor:      '#444444',
   nodeBarsWidth:      '6',
   nodeBarsShowMedian: 'mean',
   nodeBarsShowRange:  'off',
