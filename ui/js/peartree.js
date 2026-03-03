@@ -1184,6 +1184,37 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     document.getElementById('error-dialog-overlay').classList.remove('open');
   });
 
+  /**
+   * Show a confirm dialog with a custom title, message, and button labels.
+   * Returns a Promise that resolves true (OK) or false (Cancel).
+   * Pressing Escape is treated as Cancel.
+   */
+  function showConfirmDialog(title, msg, { okLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+    return new Promise(resolve => {
+      const overlay   = document.getElementById('confirm-dialog-overlay');
+      document.getElementById('confirm-dialog-title').textContent = title;
+      document.getElementById('confirm-dialog-msg').textContent   = msg;
+      document.getElementById('confirm-dialog-ok').textContent     = okLabel;
+      document.getElementById('confirm-dialog-cancel').textContent = cancelLabel;
+      overlay.classList.add('open');
+      const okBtn     = document.getElementById('confirm-dialog-ok');
+      const cancelBtn = document.getElementById('confirm-dialog-cancel');
+      function close(result) {
+        overlay.classList.remove('open');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        document.removeEventListener('keydown', onKey, true);
+        resolve(result);
+      }
+      function onOk()     { close(true);  }
+      function onCancel() { close(false); }
+      function onKey(e)   { if (e.key === 'Escape') { e.stopPropagation(); close(false); } }
+      okBtn.addEventListener('click',     onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      document.addEventListener('keydown', onKey, true);
+    });
+  }
+
   function setModalLoading(on) {
     document.getElementById('modal-loading').style.display = on ? 'block' : 'none';
     modal.querySelectorAll('.pt-modal-body button, .pt-tab-btn').forEach(b => {
@@ -1861,6 +1892,51 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
           parsedRoot = parseNewick(trimmed);
         } else {
           throw new Error('No trees found. File must be in NEXUS or Newick format.');
+        }
+      }
+
+      // ── Missing branch-length detection ────────────────────────────────
+      // Walk the parsed tree and count nodes that have no `:length` in the
+      // Newick string (their .length property will be undefined).  If ALL
+      // non-root nodes are missing lengths the tree would display as a single
+      // collapsed point, so warn the user and offer to assign 1.0.
+      {
+        let totalBranches = 0;   // non-root nodes
+        let missingLengths = 0;
+        const _stack = parsedRoot.children ? [...parsedRoot.children] : [];
+        while (_stack.length) {
+          const n = _stack.pop();
+          totalBranches++;
+          if (n.length === undefined) missingLengths++;
+          if (n.children) for (const c of n.children) _stack.push(c);
+        }
+        if (totalBranches > 0 && missingLengths > 0) {
+          // Pause the spinner so the dialog doesn't appear beneath the loading overlay.
+          setModalLoading(false);
+          const allMissing = missingLengths === totalBranches;
+          const msg = allMissing
+            ? `This tree has no branch lengths (${totalBranches} branch${totalBranches !== 1 ? 'es' : ''} checked). Without branch lengths the tree cannot be displayed.\n\nAssign a branch length of 1.0 to every branch so the tree can be shown as a cladogram?`
+            : `${missingLengths} of ${totalBranches} branches are missing branch lengths. They will be treated as zero, which may cause nodes to overlap.\n\nAssign 1.0 to the ${missingLengths} missing branch${missingLengths !== 1 ? 'es' : ''}?`;
+          const assign = await showConfirmDialog(
+            'Missing branch lengths',
+            msg,
+            { okLabel: 'Assign 1.0', cancelLabel: 'Cancel' }
+          );
+          if (!assign) {
+            setModalLoading(false);
+            // Restore the empty-state overlay when the load is cancelled and
+            // no tree was previously open (mirrors the closeModal() path).
+            if (!treeLoaded) showEmptyState();
+            return;   // abort the load entirely
+          }
+          // Assign 1.0 to every node whose length is undefined.
+          const _fixStack = parsedRoot.children ? [...parsedRoot.children] : [];
+          while (_fixStack.length) {
+            const n = _fixStack.pop();
+            if (n.length === undefined) n.length = 1.0;
+            if (n.children) for (const c of n.children) _fixStack.push(c);
+          }
+          setModalLoading(true);
         }
       }
 
@@ -3841,6 +3917,9 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     setModalError,
     /** Show a standalone error dialog with an OK button. */
     showErrorDialog,
+
+    /** Show a confirm dialog; returns a Promise<boolean>. */
+    showConfirmDialog,
 
     /** True when a tree is currently loaded in this window. */
     get hasTree() { return treeLoaded; },
