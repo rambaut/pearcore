@@ -209,6 +209,26 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     row.style.display = 'flex';
   }
 
+  /**
+   * After storing a palette change for `key`, sync every other palette <select>
+   * that is currently bound to the same annotation so they all show the same value.
+   */
+  function _syncPaletteSelects(key, paletteName) {
+    // Pairs of [colourByEl, paletteSelectEl] – declared further down but accessible via closure.
+    const pairs = () => [
+      [tipColourBy,            tipPaletteSelect],
+      [nodeColourBy,           nodePaletteSelect],
+      [labelColourBy,          labelPaletteSelect],
+      [tipLabelShapeColourBy,  tipLabelShapePaletteSelect],
+      [tipLabelShape2ColourBy, tipLabelShape2PaletteSelect],
+    ];
+    for (const [colourBy, sel] of pairs()) {
+      if (colourBy.value === key && sel.value !== paletteName) {
+        if ([...sel.options].some(o => o.value === paletteName)) sel.value = paletteName;
+      }
+    }
+  }
+
   /** Persist only user-defined (non-built-in) themes to localStorage. */
   function saveUserThemes() {
     const userObj = {};
@@ -1164,6 +1184,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     fontSize:  parseInt(legendFontSizeSlider.value),
     textColor: legendTextColorEl.value,
     bgColor:   canvasBgColorEl.value,
+    padding:   parseInt(DEFAULT_SETTINGS.legendPadding),
   });
   renderer.setLegendRenderer(legendRenderer);
 
@@ -1188,9 +1209,10 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   // axisRenderer, and const bindings have TDZ — calling the function before this
   // line would throw "Cannot access 'axisRenderer' before initialization").
   const axisRenderer = new AxisRenderer(axisCanvas, {
-    axisColor: axisColorEl.value,
-    fontSize:  parseInt(axisFontSizeSlider.value),
-    lineWidth: parseFloat(axisLineWidthSlider.value),
+    axisColor:  axisColorEl.value,
+    fontSize:   parseInt(axisFontSizeSlider.value),
+    lineWidth:  parseFloat(axisLineWidthSlider.value),
+    paddingTop: parseInt(DEFAULT_SETTINGS.axisPaddingTop),
   });
 
   // Shared time-calibration state for the current tree.
@@ -3760,6 +3782,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const key = tipColourBy.value;
     if (key && key !== 'user_colour') {
       annotationPalettes.set(key, tipPaletteSelect.value);
+      _syncPaletteSelects(key, tipPaletteSelect.value);
       renderer.setAnnotationPalette(key, tipPaletteSelect.value);
       legendRenderer.draw();
       saveSettings();
@@ -3770,6 +3793,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const key = nodeColourBy.value;
     if (key && key !== 'user_colour') {
       annotationPalettes.set(key, nodePaletteSelect.value);
+      _syncPaletteSelects(key, nodePaletteSelect.value);
       renderer.setAnnotationPalette(key, nodePaletteSelect.value);
       legendRenderer.draw();
       saveSettings();
@@ -3780,6 +3804,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const key = labelColourBy.value;
     if (key && key !== 'user_colour') {
       annotationPalettes.set(key, labelPaletteSelect.value);
+      _syncPaletteSelects(key, labelPaletteSelect.value);
       renderer.setAnnotationPalette(key, labelPaletteSelect.value);
       legendRenderer.draw();
       saveSettings();
@@ -3823,6 +3848,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const key = tipLabelShapeColourBy.value;
     if (key && key !== 'user_colour') {
       annotationPalettes.set(key, tipLabelShapePaletteSelect.value);
+      _syncPaletteSelects(key, tipLabelShapePaletteSelect.value);
       renderer.setAnnotationPalette(key, tipLabelShapePaletteSelect.value);
       legendRenderer.draw();
       saveSettings();
@@ -3873,6 +3899,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const key = tipLabelShape2ColourBy.value;
     if (key && key !== 'user_colour') {
       annotationPalettes.set(key, tipLabelShape2PaletteSelect.value);
+      _syncPaletteSelects(key, tipLabelShape2PaletteSelect.value);
       renderer.setAnnotationPalette(key, tipLabelShape2PaletteSelect.value);
       legendRenderer.draw();
       saveSettings();
@@ -3885,16 +3912,18 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     const key  = legendAnnotEl.value || null;
     const show = !!key;                        // visible only when an annotation is selected
     const pos  = legendShowEl.value;           // 'left' | 'right'
-    const W    = 180;   // legend canvas width in CSS pixels
+
+    // Set annotation + font first so measureWidth() has the right state.
+    legendRenderer.setFontSize(parseInt(legendFontSizeSlider.value));
+    legendRenderer.setTextColor(legendTextColorEl.value);
+    legendRenderer.setAnnotation(show ? pos : null, key);
+
+    const W = show ? legendRenderer.measureWidth() : 0;
 
     legendLeftCanvas.style.display  = (show && pos === 'left')  ? 'block' : 'none';
     legendLeftCanvas.style.width    = W + 'px';
     legendRightCanvas.style.display = (show && pos === 'right') ? 'block' : 'none';
     legendRightCanvas.style.width   = W + 'px';
-
-    legendRenderer.setFontSize(parseInt(legendFontSizeSlider.value));
-    legendRenderer.setTextColor(legendTextColorEl.value);
-    legendRenderer.setAnnotation(show ? pos : null, key);
     renderer._resize();   // recalculates tree canvas width after legend canvases shown/hidden
     saveSettings();
     _syncControlVisibility();
@@ -3909,8 +3938,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   });
   legendFontSizeSlider.addEventListener('input', () => {
     document.getElementById('legend-font-size-value').textContent = legendFontSizeSlider.value;
-    legendRenderer.setFontSize(parseInt(legendFontSizeSlider.value));
-    saveSettings();
+    applyLegend();
   });
 
   // ── Axis controls ─────────────────────────────────────────────────────────

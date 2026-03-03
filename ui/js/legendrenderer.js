@@ -69,6 +69,8 @@ export class LegendRenderer {
       lc.addEventListener('mouseleave', () => { lc.style.cursor = 'default'; });
     }
 
+    this._padding = 12;   // internal pad around legend content (px)
+
     this.setSettings(settings, /*redraw*/ false);
   }
 
@@ -76,7 +78,7 @@ export class LegendRenderer {
 
   /**
    * Apply rendering settings.  Recognised keys: fontSize (number), textColor (string),
-   * bgColor (string), skipBg (boolean).
+   * bgColor (string), skipBg (boolean), padding (number).
    * @param {object}  s
    * @param {boolean} redraw  When true (default) triggers a repaint.
    */
@@ -89,7 +91,8 @@ export class LegendRenderer {
         if (lc) lc.style.backgroundColor = s.bgColor;
       }
     }
-    if (s.skipBg != null) this.skipBg = s.skipBg;
+    if (s.skipBg   != null) this.skipBg   = s.skipBg;
+    if (s.padding  != null) this._padding = s.padding;
     if (redraw) this.draw();
   }
 
@@ -180,6 +183,63 @@ export class LegendRenderer {
   }
 
   /**
+   * Measure the minimum canvas width (CSS px) needed to display the current
+   * annotation legend without clipping.  Returns a sensible default when the
+   * schema or annotation are not yet configured.
+   * @returns {number} width in CSS pixels
+   */
+  measureWidth() {
+    const key = this._annotation;
+    const def = key && this._schema?.get(key);
+    if (!def) return 120;
+
+    const PAD   = this._padding ?? 12;
+    const lfs   = this.fontSize  ?? 11;
+    const FONT  = this._fontFamily ?? 'monospace';
+
+    // Use an offscreen canvas just for text measurement.
+    const mc  = document.createElement('canvas');
+    const ctx = mc.getContext('2d');
+
+    const measure = (text, bold = false) => {
+      ctx.font = `${bold ? '700 ' : ''}${lfs}px ${FONT}`;
+      return ctx.measureText(text).width;
+    };
+
+    let contentW = measure(key, true);   // title row
+
+    if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
+      const SWATCH = Math.max(8, lfs);
+      const values = def.values || [];
+      for (const v of values) {
+        contentW = Math.max(contentW, SWATCH + 6 + measure(String(v)));
+      }
+    } else {
+      // Sequential (date / numeric): bar (14px) + gap + tick labels.
+      const BAR_W = 14;
+      const fmt   = def.dataType === 'date'
+        ? (v => v)   // raw strings from def.values
+        : (def.fmt ?? (v => String(v)));
+      const tickCount = 6;
+      const min = def.min ?? 0;
+      const max = def.max ?? 1;
+      if (def.dataType === 'date') {
+        const vals = def.values || [];
+        for (let i = 0; i < Math.min(tickCount, vals.length); i++) {
+          contentW = Math.max(contentW, BAR_W + 6 + measure(String(vals[i])));
+        }
+      } else {
+        for (let i = 0; i < tickCount; i++) {
+          const val = max - (i / (tickCount - 1)) * (max - min);
+          contentW = Math.max(contentW, BAR_W + 6 + measure(fmt(val)));
+        }
+      }
+    }
+
+    return Math.ceil(PAD + contentW + PAD);
+  }
+
+  /**
    * Paint the colour legend onto the active legend canvas.
    * Safe to call at any time; exits early when nothing is configured.
    */
@@ -217,7 +277,7 @@ export class LegendRenderer {
     // Reset hit regions for this draw.
     this._hitRegions = [];
 
-    const PAD  = 12;
+    const PAD  = this._padding ?? 12;
     const FONT = this._fontFamily ?? 'monospace';
     let   y    = PAD;
 

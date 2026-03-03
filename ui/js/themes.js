@@ -339,6 +339,10 @@ export const DEFAULT_SETTINGS = {
   paddingRight:   '20',
   paddingTop:     '20',
   paddingBottom:  '20',
+  // Legend canvas internal padding (px) — controls spacing inside the legend panel
+  legendPadding:  '12',
+  // Axis canvas vertical padding (px) — gap above the baseline line
+  axisPaddingTop: '3',
   elbowRadius:    '2',
   rootStubLength: '10',
   // Node bars (only shown when tree has 'height' group from BEAST)

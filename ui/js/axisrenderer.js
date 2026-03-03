@@ -53,6 +53,7 @@ export class AxisRenderer {
     this._axisLineWidth      = 1;      // stroke width for ticks and baseline
     this._axisFontSizeManual = false;  // true once setFontSize() has been called
     this._heightFormatter    = null;   // (v:number)=>string from annotation def.fmt, for non-date ticks
+    this._paddingTop         = 3;      // gap (px) above the baseline line
 
     this.setSettings(settings, /*redraw*/ false);
   }
@@ -69,6 +70,7 @@ export class AxisRenderer {
     if (s.axisColor  != null) this.setColor(s.axisColor);
     if (s.fontSize   != null) this.setFontSize(s.fontSize);
     if (s.lineWidth  != null) this.setLineWidth(s.lineWidth);
+    if (s.paddingTop != null) { this._paddingTop = s.paddingTop; this._lastHash = ''; }
     if (redraw) this._lastHash = '';
   }
 
@@ -289,7 +291,7 @@ export class AxisRenderer {
     }
 
     // ── Layout constants ──────────────────────────────────────────────────
-    const Y_BASE      = 3;
+    const Y_BASE      = this._paddingTop ?? 3;
     const MAJOR_H     = 9;
     const MINOR_H     = 5;
     const axC = this._axisColor;
