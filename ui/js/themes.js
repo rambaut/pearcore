@@ -340,7 +340,9 @@ export const DEFAULT_SETTINGS = {
   paddingTop:     '20',
   paddingBottom:  '20',
   // Legend canvas internal padding (px) — controls spacing inside the legend panel
-  legendPadding:  '12',
+  legendPadding:   '12',
+  // Legend canvas height as % of the canvas area (1–100, pinned to top)
+  legendHeightPct: '100',
   // Axis canvas vertical padding (px) — gap above the baseline line
   axisPaddingTop: '3',
   elbowRadius:    '2',

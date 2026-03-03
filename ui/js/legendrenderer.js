@@ -69,7 +69,8 @@ export class LegendRenderer {
       lc.addEventListener('mouseleave', () => { lc.style.cursor = 'default'; });
     }
 
-    this._padding = 12;   // internal pad around legend content (px)
+    this._padding    = 12;   // internal pad around legend content (px)
+    this._heightPct  = 100;  // height as % of the canvas-container (1–100)
 
     this.setSettings(settings, /*redraw*/ false);
   }
@@ -91,8 +92,9 @@ export class LegendRenderer {
         if (lc) lc.style.backgroundColor = s.bgColor;
       }
     }
-    if (s.skipBg   != null) this.skipBg   = s.skipBg;
-    if (s.padding  != null) this._padding = s.padding;
+    if (s.skipBg    != null) this.skipBg    = s.skipBg;
+    if (s.padding   != null) this._padding   = s.padding;
+    if (s.heightPct != null) this._heightPct = s.heightPct;
     if (redraw) this.draw();
   }
 
@@ -173,13 +175,24 @@ export class LegendRenderer {
     for (const lc of [this._leftCanvas, this._rightCanvas]) {
       if (!lc || lc.style.display === 'none') continue;
       const LW = lc.clientWidth;
-      const LH = lc.clientHeight || (lc.parentElement?.clientHeight ?? 0);
+      const LH = this._computeHeight(lc);
       lc.style.height = LH + 'px';
       lc.width  = LW * this._dpr;
       lc.height = LH * this._dpr;
       lc.getContext('2d').setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
     }
     this.draw();
+  }
+
+  /**
+   * Compute the legend canvas height in CSS px, honouring _heightPct.
+   * @param {HTMLCanvasElement} lc
+   * @returns {number}
+   */
+  _computeHeight(lc) {
+    const containerH = lc.parentElement?.clientHeight ?? lc.clientHeight ?? 0;
+    if (!containerH) return lc.clientHeight || 0;
+    return Math.round(containerH * Math.min(this._heightPct, 100) / 100);
   }
 
   /**

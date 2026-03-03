@@ -117,8 +117,9 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   const legendShowEl          = document.getElementById('legend-show');
   const legendAnnotEl         = document.getElementById('legend-annotation');
   const legendTextColorEl     = document.getElementById('legend-text-color');
-  const legendFontSizeSlider  = document.getElementById('legend-font-size-slider');
-  const legendFontFamilyEl    = document.getElementById('legend-font-family-select');
+  const legendFontSizeSlider   = document.getElementById('legend-font-size-slider');
+  const legendHeightPctSlider  = document.getElementById('legend-height-pct-slider');
+  const legendFontFamilyEl     = document.getElementById('legend-font-family-select');
   const legendLeftCanvas  = document.getElementById('legend-left-canvas');
   const legendRightCanvas = document.getElementById('legend-right-canvas');
   const axisCanvas             = document.getElementById('axis-canvas');
@@ -432,8 +433,9 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       legendShow:       legendShowEl.value,
       legendAnnotation: legendAnnotEl.value,
       legendTextColor:  legendTextColorEl.value,
-      legendFontSize:   legendFontSizeSlider.value,
-      legendFontFamily: legendFontFamilyEl.value,
+      legendFontSize:    legendFontSizeSlider.value,
+      legendHeightPct:   legendHeightPctSlider.value,
+      legendFontFamily:  legendFontFamilyEl.value,
       axisShow:           axisShowEl.value,
       axisDateAnnotation: axisDateAnnotEl.value,
       axisDateFormat:     axisDateFmtEl.value,
@@ -642,6 +644,10 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     if (s.legendFontSize != null) {
       legendFontSizeSlider.value = s.legendFontSize;
       document.getElementById('legend-font-size-value').textContent = s.legendFontSize;
+    }
+    if (s.legendHeightPct != null) {
+      legendHeightPctSlider.value = s.legendHeightPct;
+      document.getElementById('legend-height-pct-value').textContent = s.legendHeightPct + '%';
     }
     if (s.legendFontFamily)      legendFontFamilyEl.value = s.legendFontFamily;
     // Node bars settings
@@ -892,6 +898,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
    */
   function _syncCanvasWrapperBg(color) {
     if (!treeLoaded) return;
+    document.getElementById('canvas-container').style.background        = color;
     document.getElementById('canvas-wrapper').style.background          = color;
     document.getElementById('canvas-and-axis-wrapper').style.background = color;
   }
@@ -1181,10 +1188,11 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   // ── Legend renderer ────────────────────────────────────────────────────────
   // Must be created before applyTheme() (which calls legendRenderer.setTextColor).
   const legendRenderer = new LegendRenderer(legendLeftCanvas, legendRightCanvas, {
-    fontSize:  parseInt(legendFontSizeSlider.value),
-    textColor: legendTextColorEl.value,
-    bgColor:   canvasBgColorEl.value,
-    padding:   parseInt(DEFAULT_SETTINGS.legendPadding),
+    fontSize:   parseInt(legendFontSizeSlider.value),
+    textColor:  legendTextColorEl.value,
+    bgColor:    canvasBgColorEl.value,
+    padding:    parseInt(DEFAULT_SETTINGS.legendPadding),
+    heightPct:  parseInt(DEFAULT_SETTINGS.legendHeightPct),
   });
   renderer.setLegendRenderer(legendRenderer);
 
@@ -3916,6 +3924,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     // Set annotation + font first so measureWidth() has the right state.
     legendRenderer.setFontSize(parseInt(legendFontSizeSlider.value));
     legendRenderer.setTextColor(legendTextColorEl.value);
+    legendRenderer.setSettings({ heightPct: parseInt(legendHeightPctSlider.value) }, /*redraw*/ false);
     legendRenderer.setAnnotation(show ? pos : null, key);
 
     const W = show ? legendRenderer.measureWidth() : 0;
@@ -3938,6 +3947,10 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   });
   legendFontSizeSlider.addEventListener('input', () => {
     document.getElementById('legend-font-size-value').textContent = legendFontSizeSlider.value;
+    applyLegend();
+  });
+  legendHeightPctSlider.addEventListener('input', () => {
+    document.getElementById('legend-height-pct-value').textContent = legendHeightPctSlider.value + '%';
     applyLegend();
   });
 
