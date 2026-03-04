@@ -10,6 +10,7 @@ import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from './annotationsio.js';
 import { createAnnotCurator  } from './annotcurator.js';
+import { createDataTableRenderer } from './datatablerenderer.js';
 import * as commands from './commands.js';
 
 const EXAMPLE_TREE_PATH = 'data/ebov.tree';
@@ -146,6 +147,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   const btnResetSettings       = document.getElementById('btn-reset-settings');
   const btnImportAnnot         = document.getElementById('btn-import-annot');
   const btnCurateAnnot         = document.getElementById('btn-curate-annot');
+  const btnDataTable           = document.getElementById('btn-data-table');
   const btnExportTree          = document.getElementById('btn-export-tree');
   const btnMPR                 = document.getElementById('btn-midpoint-root');
   const tipColourPickerEl            = document.getElementById('btn-node-colour');
@@ -867,6 +869,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     if (!treeLoaded) return;
     document.getElementById('canvas-wrapper').style.background          = color;
     document.getElementById('canvas-and-axis-wrapper').style.background = color;
+    document.getElementById('data-table-panel').style.background        = color;
   }
 
   /** Apply a named theme: hydrate all visual DOM controls and push to renderer. */
@@ -1211,15 +1214,20 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     // Fill any subpixel gap between the tree canvas and axis canvas with the
     // canvas background colour rather than the page background.
     _syncCanvasWrapperBg(bgColor);
+    // Keep data table rows aligned with the tree canvas.
+    dataTableRenderer.syncView();
   };
 
   // Update axis time span whenever navigation drills into or out of a subtree.
   // Reads renderer._globalHeightMap directly so the values are always current,
   // even after rerooting (which rebuilds the map via _buildGlobalHeightMap).
   renderer._onLayoutChange = (maxX, viewSubtreeRootId) => {
+    // Sync data table with new tip layout
+    const viewNodes = renderer.nodes || [];
+    dataTableRenderer.setTips(viewNodes.filter(n => n.isTip));
+
     if (!_axisIsTimedTree && !(axisShowEl.value === 'time' && axisDateAnnotEl.value)) return;
     const hMap = renderer._globalHeightMap;
-    const viewNodes = renderer.nodes || [];
     // The current layout root (x=0) always has height = maxX of the full-tree layout.
     const rootLayoutNode = viewNodes.find(n => !n.parentId);
     const rootH = rootLayoutNode ? (hMap.get(rootLayoutNode.id) ?? 0) : 0;
@@ -1494,8 +1502,101 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       applyLegend();
       renderer._dirty = true;
     },
+    onTableColumnsChange: (cols) => {
+      dataTableRenderer.setColumns(cols);
+    },
   });
   btnCurateAnnot.addEventListener('click', () => commands.execute('curate-annot'));
+
+  // ── Data Table Panel ─────────────────────────────────────────────────────
+  const dataTableRenderer = createDataTableRenderer({
+    getRenderer: () => renderer,
+    panel:    document.getElementById('data-table-panel'),
+    headerEl: document.getElementById('dt-header'),
+    bodyEl:   document.getElementById('dt-body'),
+    onRowSelect: (selectedIds) => {
+      renderer._selectedTipIds = new Set(selectedIds);
+      renderer._updateMRCA();
+      renderer._notifyStats();
+      if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(renderer._selectedTipIds.size > 0);
+      renderer._dirty = true;
+    },
+    onEditCommit: (nodeId, key, newValue) => {
+      const node = renderer?.nodeMap?.get(nodeId);
+      if (!node) return;
+      if (!node.annotations) node.annotations = {};
+
+      // Parse the new value based on the annotation's data type
+      const schema = graph?.annotationSchema;
+      const def    = schema?.get(key);
+      const dt     = def?.dataType;
+      let parsed   = newValue === '' ? null : newValue;
+      if (dt === 'integer') {
+        const n = parseInt(newValue, 10);
+        parsed = Number.isFinite(n) ? n : (newValue === '' ? null : newValue);
+      } else if (dt === 'real' || dt === 'proportion' || dt === 'percentage') {
+        const n = parseFloat(newValue);
+        parsed = Number.isFinite(n) ? n : (newValue === '' ? null : newValue);
+      }
+      node.annotations[key] = parsed;
+
+      // Patch the observed range in the schema entry (without full rebuild)
+      if (def && schema && isNumericType(dt)) {
+        const values = [];
+        for (const n of graph.nodes) {
+          const v = n.annotations?.[key];
+          if (v != null && v !== '?' && Number.isFinite(Number(v))) values.push(Number(v));
+        }
+        if (values.length > 0) {
+          def.observedMin = Math.min(...values);
+          def.observedMax = Math.max(...values);
+        }
+      }
+
+      if (schema) {
+        renderer.setAnnotationSchema(schema);
+        applyLegend();
+      }
+      renderer._dirty = true;
+    },
+  });
+
+  // Wire the data-table toggle button
+  btnDataTable.addEventListener('click', () => {
+    if (dataTableRenderer.isOpen()) {
+      dataTableRenderer.close();
+      btnDataTable.classList.remove('active');
+    } else {
+      dataTableRenderer.open();
+      btnDataTable.classList.add('active');
+    }
+  });
+
+  // Wire the resize handle
+  const _dtResizeHandle = document.getElementById('data-table-resize-handle');
+  const _dtPanel        = document.getElementById('data-table-panel');
+  if (_dtResizeHandle && _dtPanel) {
+    let _dtDragging = false;
+    let _dtStartX   = 0;
+    let _dtStartW   = 0;
+    _dtResizeHandle.addEventListener('mousedown', e => {
+      _dtDragging = true;
+      _dtStartX   = e.clientX;
+      _dtStartW   = _dtPanel.offsetWidth;
+      document.body.style.cursor = 'ew-resize';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!_dtDragging) return;
+      const delta = _dtStartX - e.clientX;  // dragging left increases width
+      const newW  = Math.max(100, Math.min(700, _dtStartW + delta));
+      _dtPanel.style.flexBasis = `${newW}px`;
+      _dtPanel._dtWidth = `${newW}px`;  // persist for open/close cycle
+    });
+    window.addEventListener('mouseup', () => {
+      if (_dtDragging) { _dtDragging = false; document.body.style.cursor = ''; }
+    });
+  }
 
   document.getElementById('export-tree-close').addEventListener('click', _closeExportDialog);
   btnExportTree.addEventListener('click', _openExportDialog);
@@ -2276,6 +2377,7 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
         if (_btnHypDown) _btnHypDown.disabled = false;
         document.getElementById('btn-mode-nodes').disabled    = false;
         document.getElementById('btn-mode-branches').disabled = false;
+        btnDataTable.disabled = false;
         // Hide the empty-state overlay
         emptyStateEl.classList.add('hidden');
         // Show the axis canvas now if axis was already configured to be visible.
@@ -2588,6 +2690,8 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
       commands.setEnabled('tree-hide',        canHide());
       commands.setEnabled('tree-show',        canShow());
       commands.setEnabled('tree-paint',       hasSelection);
+      // Keep the data table in sync with the canvas selection
+      dataTableRenderer.syncSelection(renderer._selectedTipIds);
     };
 
     btnBack.addEventListener('click',    () => renderer.navigateBack());
