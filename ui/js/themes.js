@@ -68,6 +68,7 @@ export const THEMES = {
           nodeHaloSize:     '1',
           nodeShapeColor:   '#E06961',
           nodeShapeBgColor: '#02292e',
+          nodeBarsColor:      '#2aa198',
           axisColor:        '#f7eeca',
           legendTextColor:  '#f7eeca',
           nodeBarsColor:    '#E06961',
@@ -334,14 +335,25 @@ export const DEFAULT_SETTINGS = {
   axisMajorLabelFormat: 'partial',
   axisMinorLabelFormat: 'off',
   // Layout geometry (no DOM controls — passed directly to TreeRenderer)
-  paddingLeft:    '60',
+  paddingLeft:    '20',
+  paddingRight:   '20',
   paddingTop:     '20',
   paddingBottom:  '20',
+  // Legend canvas internal padding (px) — controls spacing inside the legend panel
+  legendPadding:   '12',
+  // Legend canvas height as % of the canvas area (1–100, pinned to top)
+  legendHeightPct: '100',
+  // Second legend
+  legendAnnotation2: '',
+  legend2Position:   'right',   // 'right' (beside L1) | 'below' (stacked under L1)
+  legendHeightPct2:  '50',
+  // Axis canvas vertical padding (px) — gap above the baseline line
+  axisPaddingTop: '3',
   elbowRadius:    '2',
-  rootStubLength: '20',
+  rootStubLength: '10',
   // Node bars (only shown when tree has 'height' group from BEAST)
   nodeBarsEnabled:    'off',
-  nodeBarsColor:      '#2aa198',
+  nodeBarsColor:      '#444444',
   nodeBarsWidth:      '6',
   nodeBarsShowMedian: 'mean',
   nodeBarsShowRange:  'off',
@@ -351,13 +363,13 @@ export const DEFAULT_SETTINGS = {
   tipLabelAlign:      'off',
   // Tip label shapes (displayed to the left of label text)
   tipLabelShape:             'off',     // 'off' | 'square' | 'circle' | 'block'
-  tipLabelShapeSize:         '72',      // % of fontSize; 72 ≈ cap-height; 150 ≈ full row height
+  tipLabelShapeSize:         '50',      // 1–100: % of scaleY for square/circle; ×0.1 width factor for block
   tipLabelShapeColor:        '#aaaaaa',
   tipLabelShapeMarginLeft:   '2',
   tipLabelShapeMarginRight:  '3',
   // Second tip label shape (shown immediately to the right of shape 1)
   tipLabelShape2:            'off',
-  tipLabelShape2Size:        '72',
+  tipLabelShape2Size:        '50',
   tipLabelShape2Color:       '#888888',
   tipLabelShape2MarginRight: '3',
   // Node labels (internal-node annotation labels)

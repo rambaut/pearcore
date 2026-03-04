@@ -272,6 +272,7 @@
     .pt-legend-canvas {
       flex-shrink: 0;
       display: none;
+      align-self: flex-start;   /* pin to top; height controlled via JS */
       cursor: default !important;
     }
 
@@ -451,6 +452,7 @@
       background: var(--pt-bg);
       gap: 14px;
     }
+    #loading.hidden { display: none !important; }
     #loading p { font-size: 0.72rem; color: var(--pt-gold); }
     .pt-spinner {
       width: 36px; height: 36px;
@@ -851,6 +853,18 @@
       opacity: 0.35;
       cursor: not-allowed;
     }
+    /* Sub-controls: the block of detail controls under an on/off toggle */
+    .pt-sub-controls {
+      border-left: 2px solid rgba(42, 161, 152, 0.35);
+      margin-left: 2px;
+      padding-left: 9px;
+      margin-top: 4px;
+      border-radius: 0 0 0 2px;
+    }
+    /* Suppress left-border flicker during .pt-detail collapse animation */
+    .pt-detail.pt-sub-controls:not(.pt-detail-open) {
+      border-left-color: transparent;
+    }
     .pt-palette-color {
       width: 36px;
       height: 22px;
@@ -1058,6 +1072,45 @@
     }
     #error-dialog-ok {
       float: right;
+    }
+    /* ── Confirm dialog (reuses error-dialog structure) ── */
+    #confirm-dialog-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    #confirm-dialog-overlay.open { display: flex; }
+    #confirm-dialog {
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+      max-width: 460px;
+      width: 90%;
+      padding: 1.5rem 1.5rem 1.25rem;
+    }
+    #confirm-dialog h6 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--bs-warning-text-emphasis);
+    }
+    #confirm-dialog-msg {
+      font-size: 0.875rem;
+      color: var(--bs-body-color);
+      margin-bottom: 1.25rem;
+      word-break: break-word;
+    }
+    #confirm-dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
     }
     /* Example panel */
     .pt-example-center {
@@ -1376,6 +1429,7 @@
 </nav>
 
 <div id="canvas-container">
+  <canvas id="legend2-left-canvas" class="pt-legend-canvas"></canvas>
   <canvas id="legend-left-canvas"  class="pt-legend-canvas"></canvas>
   <div id="canvas-and-axis-wrapper">
     <div id="canvas-wrapper">
@@ -1388,14 +1442,15 @@
           <button class="btn btn-sm btn-outline-secondary ms-2" id="empty-state-example-btn"><i class="bi bi-tree me-1"></i>Example…</button>
         </div>
       </div>
-      <div id="loading" style="display:none"><div class="pt-spinner"></div><p id="loading-msg">Fetching tree file…</p></div>
+      <div id="loading" class="hidden"><div class="pt-spinner"></div><p id="loading-msg">Fetching tree file…</p></div>
       <div id="error"></div>
       <canvas id="tree-canvas"></canvas>
       <div id="tooltip"></div>
     </div>
     <canvas id="axis-canvas"></canvas>
   </div>
-  <canvas id="legend-right-canvas" class="pt-legend-canvas right"></canvas>
+  <canvas id="legend-right-canvas"  class="pt-legend-canvas right"></canvas>
+  <canvas id="legend2-right-canvas" class="pt-legend-canvas right"></canvas>
 
   <!-- Data table panel — annotation values aligned to each visible tip -->
   <div id="data-table-panel">
@@ -1472,6 +1527,17 @@
     <p id="error-dialog-msg"></p>
     <button id="error-dialog-ok" class="btn btn-sm btn-primary">OK</button>
     <div style="clear:both"></div>
+  </div>
+</div>
+
+<div id="confirm-dialog-overlay">
+  <div id="confirm-dialog">
+    <h6><i class="bi bi-exclamation-triangle"></i><span id="confirm-dialog-title">Warning</span></h6>
+    <p id="confirm-dialog-msg"></p>
+    <div id="confirm-dialog-footer">
+      <button id="confirm-dialog-cancel" class="btn btn-sm btn-outline-secondary">Cancel</button>
+      <button id="confirm-dialog-ok"     class="btn btn-sm btn-primary">OK</button>
+    </div>
   </div>
 </div>
 
@@ -1696,9 +1762,11 @@
       <div class="pt-palette-row">
         <span class="pt-palette-label">Show</span>
         <select class="pt-palette-select" id="tip-label-show" disabled>
+          <option value="off">Off</option>
           <option value="names">names</option>
         </select>
       </div>
+      <div id="tip-label-controls" class="pt-sub-controls">
       <div class="pt-palette-row" id="tip-label-dp-row" style="display:none">
         <span class="pt-palette-label">Decimal places</span>
         <select class="pt-palette-select" id="tip-label-decimal-places">
@@ -1750,6 +1818,7 @@
           <option value="normal">Normal</option>
         </select>
       </div>
+      </div><!-- #tip-label-controls -->
     </div>
 
     <div class="pt-palette-section">
@@ -1763,7 +1832,7 @@
           <option value="block">Block</option>
         </select>
       </div>
-      <div id="tip-label-shape-detail" class="pt-detail">
+      <div id="tip-label-shape-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="tip-label-shape-color" value="#aaaaaa" />
@@ -1780,8 +1849,8 @@
         </div>
         <div class="pt-palette-row">
           <span class="pt-palette-label">Size</span>
-          <input type="range" class="form-range" id="tip-label-shape-size-slider" min="10" max="200" step="5" value="72" />
-          <span class="pt-val" id="tip-label-shape-size-value">72</span>
+          <input type="range" class="form-range" id="tip-label-shape-size-slider" min="1" max="100" step="1" value="50" />
+          <span class="pt-val" id="tip-label-shape-size-value">50</span>
         </div>
         <div class="pt-palette-row">
           <span class="pt-palette-label">Margin left</span>
@@ -1794,7 +1863,7 @@
           <span class="pt-val" id="tip-label-shape-margin-right-value">3</span>
         </div>
       </div>
-      <div id="tip-label-shape-2-section" class="pt-detail">
+      <div id="tip-label-shape-2-section" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Label shape 2</span>
           <select class="pt-palette-select" id="tip-label-shape-2">
@@ -1821,8 +1890,8 @@
           </div>
           <div class="pt-palette-row">
             <span class="pt-palette-label">Size</span>
-            <input type="range" class="form-range" id="tip-label-shape-2-size-slider" min="10" max="200" step="5" value="72" />
-            <span class="pt-val" id="tip-label-shape-2-size-value">72</span>
+            <input type="range" class="form-range" id="tip-label-shape-2-size-slider" min="1" max="100" step="1" value="50" />
+            <span class="pt-val" id="tip-label-shape-2-size-value">50</span>
           </div>
           <div class="pt-palette-row">
             <span class="pt-palette-label">Margin right</span>
@@ -1840,7 +1909,7 @@
         <input type="range" class="form-range" id="tip-size-slider" min="0" max="12" value="3" />
         <span class="pt-val" id="tip-size-value">3</span>
       </div>
-      <div id="tip-shape-detail" class="pt-detail">
+      <div id="tip-shape-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="tip-shape-color" value="#888888" />
@@ -1874,7 +1943,7 @@
         <input type="range" class="form-range" id="node-size-slider" min="0" max="12" value="0" />
         <span class="pt-val" id="node-size-value">0</span>
       </div>
-      <div id="node-shape-detail" class="pt-detail">
+      <div id="node-shape-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="node-shape-color" value="#888888" />
@@ -1909,7 +1978,7 @@
           <option value="">Off</option>
         </select>
       </div>
-      <div id="node-label-detail" class="pt-detail">
+      <div id="node-label-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row" id="node-label-dp-row" style="display:none">
           <span class="pt-palette-label">Decimal places</span>
           <select class="pt-palette-select" id="node-label-decimal-places">
@@ -1959,7 +2028,7 @@
             <option value="on">On</option>
           </select>
         </div>
-        <div id="node-bars-detail" class="pt-detail">
+        <div id="node-bars-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
           <input type="color" class="pt-palette-color" id="node-bars-color" value="#2aa198" />
@@ -1997,13 +2066,18 @@
           <option value="">Off</option>
         </select>
       </div>
-      <div id="legend-detail" class="pt-detail">
+      <div id="legend-detail" class="pt-detail pt-sub-controls">
         <div class="pt-palette-row">
-          <span class="pt-palette-label">Location</span>
+          <span class="pt-palette-label">Position</span>
           <select class="pt-palette-select" id="legend-show">
             <option value="right">Right</option>
             <option value="left">Left</option>
           </select>
+        </div>
+        <div class="pt-palette-row">
+          <i class="bi bi-arrows-expand form-label-sm" title="Height"></i>
+          <input type="range" class="form-range" id="legend-height-pct-slider" min="10" max="100" step="5" value="100" />
+          <span class="pt-val" id="legend-height-pct-value">100%</span>
         </div>
         <div class="pt-palette-row">
           <span class="pt-palette-label">Colour</span>
@@ -2029,6 +2103,27 @@
             <option value="Menlo">Menlo</option>
           </select>
         </div>
+        <p class="pt-palette-subhead">Legend 2</p>
+        <div class="pt-palette-row">
+          <span class="pt-palette-label">Show</span>
+          <select class="pt-palette-select" id="legend-annotation-2">
+            <option value="">Off</option>
+          </select>
+        </div>
+        <div id="legend2-detail" class="pt-detail pt-sub-controls">
+          <div class="pt-palette-row">
+            <span class="pt-palette-label">Position</span>
+            <select class="pt-palette-select" id="legend2-show">
+              <option value="right">Right</option>
+              <option value="below">Below</option>
+            </select>
+          </div>
+          <div class="pt-palette-row">
+            <i class="bi bi-arrows-expand form-label-sm" title="Height"></i>
+            <input type="range" class="form-range" id="legend2-height-pct-slider" min="10" max="100" step="5" value="50" />
+            <span class="pt-val" id="legend2-height-pct-value">50%</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2043,7 +2138,7 @@
           <option value="time">Time</option>
         </select>
       </div>
-      <div id="axis-detail" class="pt-detail">
+      <div id="axis-detail" class="pt-detail pt-sub-controls">
       <div class="pt-palette-row">
         <span class="pt-palette-label">Colour</span>
         <input type="color" class="pt-palette-color" id="axis-color" value="#f2f1e6" />
