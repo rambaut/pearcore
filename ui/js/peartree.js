@@ -4312,12 +4312,12 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
     setGraphicsSaveHandler:  (fn) => { _graphicsSaveHandler = fn; },
   };
 
-  // ── URL parameter: auto-load fastaUrl on startup ──────────────────────────
-  // When the page URL contains a `fastaUrl` query parameter, automatically
+  // ── URL parameter: auto-load treeUrl on startup ───────────────────────────
+  // When the page URL contains a `treeUrl` query parameter, automatically
   // fetch that URL and load its content as a tree file on startup.
   {
     const _startParams = new URLSearchParams(window.location.search);
-    const _fastaUrl    = _startParams.get('fastaUrl');
+    const _fastaUrl    = _startParams.get('treeUrl');
     if (_fastaUrl) {
       let _validated = null;
       try {
