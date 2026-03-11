@@ -375,6 +375,7 @@ export class TreeRenderer {
     this._reorderToY    = toY;
     this._reorderAlpha  = 0;
     this._dirty = true;
+    if (this._onLayoutChange) this._onLayoutChange(this.maxX, this._viewSubtreeRootId);
   }
 
   /**

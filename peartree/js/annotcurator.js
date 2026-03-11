@@ -30,7 +30,7 @@ function _fmtNum(v) {
  *                                    renderer.setAnnotationSchema(schema).
  * @returns {{ open: Function, close: Function }}
  */
-export function createAnnotCurator({ getGraph, onApply }) {
+export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, getTableColumns }) {
   const overlay  = document.getElementById('curate-annot-overlay');
   const tbody    = document.getElementById('curate-annot-tbody');
   const detail   = document.getElementById('curate-annot-detail');
@@ -41,6 +41,10 @@ export function createAnnotCurator({ getGraph, onApply }) {
   let _pending  = new Map();
   let _deleted  = new Set();  // names marked for deletion, applied at Apply time
   let _selected = null;   // name of currently selected row
+
+  // Columns currently shown in the data table panel.
+  // Initialised from getTableColumns() if provided, otherwise empty.
+  let _tableColumns = new Set(getTableColumns ? getTableColumns() : []);
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -87,6 +91,14 @@ export function createAnnotCurator({ getGraph, onApply }) {
     }
 
     const schema = _buildModifiedSchema(graph);
+    // Remove any deleted annotations from the table-column selection
+    if (onTableColumnsChange) {
+      let changed = false;
+      for (const name of _deleted) {
+        if (_tableColumns.delete(name)) changed = true;
+      }
+      if (changed) onTableColumnsChange([..._tableColumns]);
+    }
     onApply(schema);
     graph.annotationSchema = schema;
     close();
@@ -96,6 +108,26 @@ export function createAnnotCurator({ getGraph, onApply }) {
 
   function _renderTable(schema) {
     const rows = [];
+
+    // ── Synthetic 'Names' row (always first, never deletable) ────────────────
+    const namesInTable = _tableColumns.has('__names__');
+    rows.push(`
+      <tr data-name="__names__" class="ca-row-fixed">
+        <td><span class="ca-name">Names</span>
+          <span style="margin-left:5px;font-size:0.68rem;color:rgba(255,255,255,0.3);font-style:italic">tip labels</span></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td class="ca-center">
+          <input type="checkbox" class="ca-table-chk" data-name="__names__"
+            ${namesInTable ? 'checked' : ''}
+            title="Show tip names in data table panel"
+            style="cursor:pointer;accent-color:var(--pt-teal,#2aa198)">
+        </td>
+        <td class="ca-center"><span style="color:rgba(255,255,255,0.15)" title="Cannot be deleted">—</span></td>
+      </tr>`);
+
     for (const [name, def] of schema) {
       if (name === 'user_colour') continue;
       if (def.groupMember) continue;
@@ -164,12 +196,29 @@ export function createAnnotCurator({ getGraph, onApply }) {
           <td class="ca-center" style="color:rgba(255,255,255,0.45);font-size:0.72rem">${onStr}</td>
           <td>${obsCell}</td>
           <td>${boundsCell}</td>
+          <td class="ca-center">
+            <input type="checkbox" class="ca-table-chk" data-name="${esc(name)}"
+              ${_tableColumns.has(name) ? 'checked' : ''}
+              title="Show in data table panel"
+              style="cursor:pointer;accent-color:var(--pt-teal,#2aa198)">
+          </td>
           <td class="ca-center">${delBtn}</td>
         </tr>`);
     }
 
     tbody.innerHTML = rows.length ? rows.join('') :
-      '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.3);padding:16px">No annotations</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3);padding:16px">No annotations</td></tr>';
+
+    // Table checkbox handlers
+    for (const chk of tbody.querySelectorAll('.ca-table-chk')) {
+      chk.addEventListener('click', e => {
+        e.stopPropagation();
+        const chkName = chk.dataset.name;
+        if (chk.checked) { _tableColumns.add(chkName); }
+        else             { _tableColumns.delete(chkName); }
+        if (onTableColumnsChange) onTableColumnsChange([..._tableColumns]);
+      });
+    }
 
     // Delete / reinstate button handlers (before row-click so stopPropagation works)
     for (const btn of tbody.querySelectorAll('.ca-del-btn')) {
@@ -195,6 +244,7 @@ export function createAnnotCurator({ getGraph, onApply }) {
     for (const tr of tbody.querySelectorAll('tr[data-name]')) {
       tr.addEventListener('click', () => {
         const clickedName = tr.dataset.name;
+        if (clickedName === '__names__') return;  // fixed row — no detail pane
         if (_deleted.has(clickedName)) return;  // greyed-out rows are not selectable
         if (_selected === clickedName) {
           // Clicking selected row again deselects
