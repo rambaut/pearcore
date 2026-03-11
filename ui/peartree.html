@@ -547,12 +547,24 @@
     .help-md th { color: var(--pt-gold); font-weight: 600; text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--pt-border); }
     .help-md td { padding: 3px 8px; border-bottom: 1px solid rgba(5,73,79,0.5); vertical-align: top; }
     .help-md tr:last-child td { border-bottom: none; }
-    /* ? button in toolbar */
-    #btn-help { flex-shrink: 0; }
-    #btn-help.active {
-      color: var(--bs-primary);
-      border-color: var(--bs-primary);
+    /* ? button in status bar */
+    #btn-help {
+      position: absolute;
+      right: 8px;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      background: none;
+      border: none;
+      padding: 0 2px;
+      font-size: 0.85rem;
+      color: rgba(242,241,230,0.45);
+      cursor: pointer;
+      transition: color 0.15s;
     }
+    #btn-help:hover  { color: var(--pt-gold); }
+    #btn-help.active { color: var(--pt-gold); }
     /* About modal */
     #about-backdrop {
       position: fixed;
@@ -628,7 +640,7 @@
     }
     #btn-about {
       position: absolute;
-      right: 8px; 
+      right: 34px;
       top: 0;
       bottom: 0;
       display: flex;
@@ -882,12 +894,12 @@
     }
     /* Flip carets when the panels are open */
     #btn-palette .bi-caret-right,
-    #btn-help    .bi-caret-left  {
+    #btn-data-table .bi-caret-left  {
       display: inline-block;
       transition: transform 0.22s cubic-bezier(.4,0,.2,1);
     }
-    #btn-palette.active .bi-caret-right { transform: scaleX(-1); }
-    #btn-help.active    .bi-caret-left  { transform: scaleX(-1); }
+    #btn-palette.active .bi-caret-right  { transform: scaleX(-1); }
+    #btn-data-table.active .bi-caret-left { transform: scaleX(-1); }
     #btn-order-desc .bi-sort-up { display: inline-block; transform: scaleY(-1); }
 
     /* ── Tooltip ── */
@@ -1425,9 +1437,7 @@
       <span id="tip-filter-count" class="pt-filter-count" hidden></span>
     </div>
     <div class="pt-toolbar-sep"></div>
-    <button id="btn-data-table" class="btn btn-sm btn-outline-secondary" disabled title="Data table panel"><i class="bi bi-layout-sidebar-reverse"></i></button>
-    <div class="pt-toolbar-sep"></div>
-    <button id="btn-help" class="btn btn-sm btn-outline-secondary" title="Help (⌘?)"><i class="bi bi-caret-left"></i><i class="bi bi-question-circle"></i></button>
+    <button id="btn-data-table" class="btn btn-sm btn-outline-secondary" disabled title="Data table panel"><i class="bi bi-caret-left"></i><i class="bi bi-layout-sidebar-reverse"></i></button>
   </div><!-- /.pt-toolbar-right -->
 
 </nav>
@@ -1468,6 +1478,7 @@
   <a id="status-brand" href="https://github.com/artic-network/peartree" target="_blank" rel="noopener" title="PearTree on GitHub"><i class="bi bi-tree"></i>PearTree</a>
   <span id="status-stats"></span>
   <button id="btn-about" title="About PearTree"><i class="bi bi-info-circle"></i></button>
+  <button id="btn-help" title="Help (⌘?)"><i class="bi bi-question-circle"></i></button>
 </div>
 
 <!-- Open Tree Modal -->
