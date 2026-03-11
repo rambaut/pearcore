@@ -14,6 +14,31 @@ import * as commands from './commands.js';
 
 const EXAMPLE_TREE_PATH = 'data/ebov.tree';
 
+/** Root URL of the deployed GitHub Pages site — used as a fallback when a
+ *  relative path fails (e.g. when the HTML file is opened directly from disk). */
+const PEARTREE_BASE_URL = 'https://artic-network.github.io/peartree/';
+
+/**
+ * Fetch a file by relative path, falling back to the absolute GitHub Pages URL
+ * if the relative fetch fails or returns a non-OK status.
+ * @param {string} relativePath  e.g. 'data/ebov.tree' or 'help.md'
+ * @returns {Promise<string>} The text content of the file.
+ */
+async function fetchWithFallback(relativePath) {
+  try {
+    const r = await fetch(relativePath);
+    if (r.ok) return r.text();
+  } catch (_) { /* fall through to absolute URL */ }
+  const r2 = await fetch(PEARTREE_BASE_URL + relativePath);
+  if (!r2.ok) throw new Error('HTTP ' + r2.status + ' – could not fetch ' + relativePath);
+  return r2.text();
+}
+
+/** Fetch the example tree via fetchWithFallback. */
+async function fetchExampleTree() {
+  return fetchWithFallback(EXAMPLE_TREE_PATH);
+}
+
 (async () => {
   const canvas            = document.getElementById('tree-canvas');
   const loadingEl         = document.getElementById('loading');
@@ -1536,18 +1561,19 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
 
   // ── Example tab ───────────────────────────────────────────────────────────
 
-  document.getElementById('btn-load-example').addEventListener('click', async () => {
-    setModalLoading(true);
-    setModalError(null);
+  async function loadExampleTree(onError) {
     try {
-      const resp = await fetch(EXAMPLE_TREE_PATH);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status + ' – could not fetch ' + EXAMPLE_TREE_PATH);
-      const text = await resp.text();
+      const text = await fetchExampleTree();
       await loadTree(text, EXAMPLE_TREE_PATH);
     } catch (err) {
-      setModalError(err.message);
-      setModalLoading(false);
+      onError(err.message);
     }
+  }
+
+  document.getElementById('btn-load-example').addEventListener('click', () => {
+    setModalLoading(true);
+    setModalError(null);
+    loadExampleTree(msg => { setModalError(msg); setModalLoading(false); });
   });
 
   // ── Empty-state overlay (shown until first tree load) ──────────────────
@@ -1557,17 +1583,9 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
   function showEmptyState() { if (!treeLoaded) emptyStateEl.classList.remove('hidden'); }
 
   document.getElementById('empty-state-open-btn').addEventListener('click', () => pickTreeFile());
-  document.getElementById('empty-state-example-btn').addEventListener('click', async () => {
+  document.getElementById('empty-state-example-btn').addEventListener('click', () => {
     hideEmptyState();
-    try {
-      const resp = await fetch(EXAMPLE_TREE_PATH);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status + ' – could not fetch ' + EXAMPLE_TREE_PATH);
-      const text = await resp.text();
-      await loadTree(text, EXAMPLE_TREE_PATH);
-    } catch (err) {
-      showEmptyState();
-      showErrorDialog(err.message);
-    }
+    loadExampleTree(msg => { showEmptyState(); showErrorDialog(msg); });
   });
   emptyStateEl.addEventListener('dragover', e => {
     e.preventDefault();
@@ -4310,6 +4328,10 @@ const EXAMPLE_TREE_PATH = 'data/ebov.tree';
      *  fn({ content|contentBase64, base64, filename, mimeType, filterName, extensions })
      *  Set to null to restore browser behaviour. */
     setGraphicsSaveHandler:  (fn) => { _graphicsSaveHandler = fn; },
+
+    /** Fetch a file by relative path, falling back to the absolute GitHub Pages
+     *  URL if the relative fetch fails (e.g. file:// context). */
+    fetchWithFallback,
   };
 
   // ── URL parameter: auto-load treeUrl on startup ───────────────────────────

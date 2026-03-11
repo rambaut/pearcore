@@ -2327,9 +2327,7 @@
   async function openHelp() {
     if (!helpLoaded) {
       try {
-        const r = await fetch('help.md');
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const md = await r.text();
+        const md = await window.peartree.fetchWithFallback('help.md');
         helpContent.innerHTML = marked.parse(md);
         helpLoaded = true;
       } catch (err) {
@@ -2363,9 +2361,7 @@
   async function openAbout() {
     if (!aboutLoaded) {
       try {
-        const r = await fetch('about.md');
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const md = await r.text();
+        const md = await window.peartree.fetchWithFallback('about.md');
         aboutContent.innerHTML = marked.parse(md);
         aboutLoaded = true;
       } catch (err) {
