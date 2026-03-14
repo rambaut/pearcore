@@ -4,7 +4,7 @@ import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointR
 import { TreeRenderer, CAL_DATE_KEY, CAL_DATE_HPD_KEY, CAL_DATE_HPD_ONLY_KEY } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
-import { THEMES, DEFAULT_SETTINGS, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY, TYPEFACES } from './themes.js';
+import { THEMES, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY, TYPEFACES } from './themes.js';
 import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
@@ -12,12 +12,7 @@ import { createAnnotImporter } from './annotationsio.js';
 import { createAnnotCurator  } from './annotcurator.js';
 import { createDataTableRenderer } from './datatablerenderer.js';
 import * as commands from './commands.js';
-
-const EXAMPLE_TREE_PATH = 'data/ebov.tree';
-
-/** Root URL of the deployed GitHub Pages site — used as a fallback when a
- *  relative path fails (e.g. when the HTML file is opened directly from disk). */
-const PEARTREE_BASE_URL = 'https://artic-network.github.io/peartree/';
+import { EXAMPLE_TREE_PATH, PEARTREE_BASE_URL, DEFAULT_SETTINGS } from './config.js';
 
 /**
  * Fetch a file by relative path, falling back to the absolute GitHub Pages URL
