@@ -292,9 +292,10 @@ pub fn run() {
             // ── PearTree (app menu) ───────────────────────────────────────────
             let app_menu = Submenu::with_items(app, "PearTree", true, &[
                 &PredefinedMenuItem::about(app, None, Some(AboutMetadata {
-                    name:      Some("PearTree".into()),
-                    version:   Some(env!("CARGO_PKG_VERSION").into()),
-                    copyright: Some("©2026 Andrew Rambaut".into()),
+                    name:          Some("PearTree".into()),
+                    short_version: Some(option_env!("PEARTREE_VERSION_TAG").unwrap_or(env!("CARGO_PKG_VERSION")).into()),
+                    version:       Some(env!("CARGO_PKG_VERSION").into()),
+                    copyright:     Some("© ARTIC Network".into()),
                     ..Default::default()
                 }))?,
                 &PredefinedMenuItem::separator(app)?,

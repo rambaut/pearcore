@@ -96,6 +96,8 @@ jobs:
           # Add the private key + password as GitHub secrets.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Passed to Rust via option_env!() so the About box shows the full tag.
+          PEARTREE_VERSION_TAG: ${{ github.ref_name }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
