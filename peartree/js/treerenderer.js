@@ -209,9 +209,16 @@ export class TreeRenderer {
     this._tipLabelShapeMarginLeft  = +(s.tipLabelShapeMarginLeft  ?? 2);
     this._tipLabelShapeMarginRight = +(s.tipLabelShapeMarginRight ?? 3);
     // ── Extra tip-label shapes 2–10 (share shape 1's colour/size/margins) ────
+    // Always reinitialise the shapes array (setSettings fully resets visual state).
+    // ColourBy/Scale arrays are lazily created here on first call, then preserved
+    // across subsequent setSettings calls (they are maintained by setTipLabelShapeExtraColourBy).
+    this._tipLabelShapesExtra = Array(9).fill('off');
+    if (!this._tipLabelShapeExtraColourBys) {
+      this._tipLabelShapeExtraColourBys    = Array(9).fill(null);
+      this._tipLabelShapeExtraColourScales = Array(9).fill(null);
+    }
     if (Array.isArray(s.tipLabelShapesExtra)) {
-      for (let i = 0; i < this._tipLabelShapesExtra.length; i++)
-        this._tipLabelShapesExtra[i] = s.tipLabelShapesExtra[i] ?? 'off';
+      s.tipLabelShapesExtra.forEach((v, i) => { if (i < 9) this._tipLabelShapesExtra[i] = v ?? 'off'; });
     } else if (s.tipLabelShape2) {
       // Backward compat: old single shape-2 setting
       this._tipLabelShapesExtra[0] = s.tipLabelShape2;
