@@ -2058,7 +2058,7 @@ async function fetchExampleTree() {
         }
       });
     } else {
-      const svgStr = buildGraphicSVG({ renderer, legendRenderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, axisRenderer }, fullTree, transparent);
+      const svgStr = buildGraphicSVG({ renderer, legendRenderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, legend2LeftCanvas, legend2RightCanvas, axisRenderer }, fullTree, transparent);
       if (!svgStr) return;
       if (_graphicsSaveHandler) {
         _graphicsSaveHandler({

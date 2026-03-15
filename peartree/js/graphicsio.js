@@ -138,11 +138,27 @@ export function compositeViewPng(ctx, targetW, targetH, fullTree = false, transp
  * @returns {string|null}
  */
 export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
-  const { renderer, legendRenderer, axisRenderer } = ctx;
+  const { renderer, legendRenderer, axisRenderer,
+          legend2LeftCanvas, legend2RightCanvas } = ctx;
   const nm = renderer.nodeMap;
   if (!nm || !nm.size) return null;
 
-  const { totalW, llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible } = viewportDims(ctx);
+  const { totalW: baseW, llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible } = viewportDims(ctx);
+  // ── Second-legend beside columns ──────────────────────────────────────
+  const lr2Key    = legendRenderer?._annotation2 ?? null;
+  const lr2Pos    = legendRenderer?._position2;   // 'right' (beside own canvas) | 'below'
+  const lr2Beside = !!lr2Key && lr2Pos !== 'below';
+  const lr1Pos    = legendRenderer?._position;    // 'left' | 'right' | null
+
+  let ll2W = 0, lr2W = 0;
+  if (lr2Beside) {
+    if (lr1Pos === 'left'  && legend2LeftCanvas?.style.display  !== 'none')
+      ll2W = legend2LeftCanvas?.clientWidth  ?? 0;
+    if (lr1Pos === 'right' && legend2RightCanvas?.style.display !== 'none')
+      lr2W = legend2RightCanvas?.clientWidth ?? 0;
+  }
+  const totalW = ll2W + baseW + lr2W;
+
   const sx  = renderer.scaleX,  ox = renderer.offsetX;
   // Full tree: keep current scaleY so zoom level is preserved; shift oy so root sits at top.
   const sy  = renderer.scaleY;
@@ -160,7 +176,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   const tr  = renderer.tipRadius;
   const nr  = renderer.nodeRadius;
 
-  const toSX = wx => wx * sx + ox + llW;
+  const toSX = wx => wx * sx + ox + ll2W + llW;
   const toSY = wy => wy * sy + oy;
   const f    = n  => n.toFixed(2);
   // When drawing full tree all nodes are in range; use Infinity to skip y-culling.
@@ -169,7 +185,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   // ── defs: clip paths, gradients ──────────────────────────────────────
   const defs = [];
   // Clip for the main tree area (excludes legend panels)
-  defs.push(`<clipPath id="tc"><rect x="${llW}" y="0" width="${ttW}" height="${ttH_eff}"/></clipPath>`);
+  defs.push(`<clipPath id="tc"><rect x="${ll2W + llW}" y="0" width="${ttW}" height="${ttH_eff}"/></clipPath>`);
 
   // ── Background panels ─────────────────────────────────────────────────
   const bgParts = [];
@@ -183,80 +199,187 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   // it doesn't stretch to the full tree; it stays at its natural on-screen size.
   const legendParts = [];
   const lr = legendRenderer;  // may be undefined for callers that omit it
-  const legendPos = lr?._position;
-  const legendKey = lr?._annotation;
+  const legendPos    = lr?._position;
+  const legendKey    = lr?._annotation;
   const legendSchema = lr?._schema;
+
+  // Helper: appends one legend block's SVG elements into `out`.
+  // lx = left edge in SVG coords; legendH = usable height; yOffset = top offset.
+  // gradId = unique linearGradient id prefix (must differ across both legends).
+  const _appendLegendBlock = (out, key, lx, legendH, yOffset = 0, gradId = 'lgrd') => {
+    if (!key || !legendSchema) return;
+    const def = legendSchema.get(key);
+    if (!def) return;
+    const lfs   = lr.fontSize ?? fs;
+    const ltc   = lr.textColor ?? '#F7EECA';
+    const lfont = lr._fontFamily ?? 'monospace';
+    const PAD   = 12;
+    let   ly    = yOffset + PAD;
+    const maxY  = yOffset + legendH - PAD;
+
+    out.push(`<text x="${lx + PAD}" y="${ly}" dominant-baseline="hanging" font-family="${lfont}" font-size="${lfs}px" font-weight="700" fill="#b58900">${svgTextEsc(key)}</text>`);
+    ly += lfs + 10;
+
+    if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
+      const paletteName = lr._paletteOverrides?.get(key);
+      const colourMap   = buildCategoricalColourMap(def.values || [], paletteName);
+      const SWATCH = Math.max(8, lfs);
+      const ROW_H  = Math.max(SWATCH + 4, lfs + 4);
+      (def.values || []).forEach((val) => {
+        if (ly + SWATCH > maxY) return;
+        const colour = colourMap.get(val) ?? MISSING_DATA_COLOUR;
+        out.push(`<rect x="${lx + PAD}" y="${ly}" width="${SWATCH}" height="${SWATCH}" fill="${esc(colour)}"/>`);
+        out.push(`<text x="${lx + PAD + SWATCH + 6}" y="${ly + SWATCH / 2}" dominant-baseline="central" font-family="${lfont}" font-size="${lfs}px" fill="${esc(ltc)}">${svgTextEsc(String(val))}</text>`);
+        ly += ROW_H;
+      });
+    } else if (def.dataType === 'date' || isNumericType(def.dataType)) {
+      // Vertical gradient bar (top = max, bottom = min) — matches canvas rendering.
+      const BAR_W    = 14;
+      const BAR_H    = Math.max(40, maxY - ly);
+      const gid      = gradId;
+      const seqStops = getSequentialPalette(lr._paletteOverrides?.get(key));
+      const ns       = seqStops.length;
+      // Vertical gradient: stop 0 = top = max colour (last stop), stop 1 = bottom = min colour.
+      const stopMarkup = seqStops.map((c, i) =>
+        `<stop offset="${(ns === 1 ? 0 : i / (ns - 1) * 100).toFixed(1)}%" stop-color="${esc(seqStops[ns - 1 - i])}"/>`
+      ).join('');
+      defs.push(`<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">${stopMarkup}</linearGradient>`);
+      out.push(`<rect x="${lx + PAD}" y="${ly}" width="${BAR_W}" height="${BAR_H}" fill="url(#${gid})"/>`);
+
+      // Tick labels spread evenly from top (max) to bottom (min).
+      const LABEL_X  = lx + PAD + BAR_W + 6;
+      const tickCount = Math.max(2, Math.min(6, Math.floor(BAR_H / (lfs + 6))));
+      const min = def.min ?? 0, max = def.max ?? 1;
+      const range = (def.dataType === 'date')
+        ? (new Date(max).getFullYear() - new Date(min).getFullYear() || 1)
+        : ((max - min) || 1);
+      const fmt = def.fmt ?? (v => String(v));
+      for (let i = 0; i < tickCount; i++) {
+        const t     = i / (tickCount - 1);
+        const tickY = ly + t * BAR_H;
+        const val   = def.dataType === 'date' ? null : (max - t * range);
+        const label = (def.dataType === 'date')
+          ? (() => {
+              const targetDec = max - t * range;
+              let best = (def.values || [])[0] ?? String(max);
+              let bestDist = Infinity;
+              for (const v of (def.values || [])) {
+                const d = Math.abs(new Date(v).getFullYear() - targetDec);
+                if (d < bestDist) { bestDist = d; best = v; }
+              }
+              return best;
+            })()
+          : fmt(val);
+        // Tick mark
+        out.push(`<rect x="${lx + PAD + BAR_W}" y="${f(tickY - 0.5)}" width="4" height="1" fill="${esc(ltc)}"/>`);
+        const baseline = i === 0 ? 'hanging' : (i === tickCount - 1 ? 'auto' : 'central');
+        out.push(`<text x="${LABEL_X}" y="${f(tickY)}" dominant-baseline="${baseline}" font-family="${lfont}" font-size="${lfs}px" fill="${esc(ltc)}">${svgTextEsc(String(label))}</text>`);
+      }
+    }
+  };
+
   if (legendPos && legendKey && legendSchema) {
-    const def = legendSchema.get(legendKey);
-    if (def) {
-      const lx       = legendPos === 'left' ? 0 : llW + ttW;
-      const lfs      = lr.fontSize ?? fs;
-      const ltc      = lr.textColor ?? '#F7EECA';
-      const lfont    = lr._fontFamily ?? 'monospace';
-      const PAD      = 12;
-      // Use the window height (ttH) to cap legend entries — it should not stretch
-      // to match a full-tree export height.
-      const legendH  = ttH;
-      let   ly       = PAD;
+    const lx = legendPos === 'left' ? ll2W : ll2W + llW + ttW;
+    // Compute h1/h2 when second legend is stacked below legend 1.
+    const below = !!lr2Key && lr2Pos === 'below';
+    let h1 = ttH, h2 = 0;
+    if (below) {
+      const pct1 = Math.max(1, lr._heightPct  ?? 100);
+      const pct2 = Math.max(1, lr._heightPct2 ?? 50);
+      if (pct1 + pct2 < 100) {
+        h1 = Math.round(ttH * pct1 / 100);
+        h2 = Math.round(ttH * pct2 / 100);
+      } else {
+        h1 = Math.round(ttH * pct1 / (pct1 + pct2));
+        h2 = ttH - h1;
+      }
+    }
+    _appendLegendBlock(legendParts, legendKey, lx, h1, 0, 'lgrd');
+    if (below && lr2Key && h2 > 0) {
+      // Separator line between stacked legends.
+      const panelW = legendPos === 'left' ? llW : lrW;
+      legendParts.push(`<line x1="${lx}" y1="${h1}" x2="${lx + panelW}" y2="${h1}" stroke="${esc(lr.textColor ?? '#ffffff')}44" stroke-width="1"/>`);
+      _appendLegendBlock(legendParts, lr2Key, lx, h2, h1, 'lgrd2');
+    }
+  }
+  // Second legend — 'beside' mode: drawn in its own outermost-side panel.
+  if (lr2Beside && lr2Key && legendSchema) {
+    const lx2 = lr1Pos === 'left' ? 0 : ll2W + llW + ttW + lrW;
+    _appendLegendBlock(legendParts, lr2Key, lx2, ttH, 0, 'lgrd2');
+  }
 
-      // Title
-      legendParts.push(`<text x="${lx + PAD}" y="${ly}" dominant-baseline="hanging" font-family="${lfont}" font-size="${lfs}px" font-weight="700" fill="#b58900">${svgTextEsc(legendKey)}</text>`);
-      ly += lfs + 10;
+  // ── Node bars (HPD intervals, drawn behind branches) ──────────────────
+  const nodeBarParts = [];
+  if (renderer.nodeBarsEnabled) {
+    const schema    = renderer._annotationSchema;
+    const heightDef = schema?.get('height');
+    if (heightDef?.group?.hpd) {
+      const hpdKey    = heightDef.group.hpd;
+      const medianKey = heightDef.group.median;
+      const rangeKey  = heightDef.group.range;
+      const maxX      = renderer.maxX;
+      const halfW     = renderer.nodeBarsWidth / 2;
+      const col       = renderer.nodeBarsColor;
 
-      if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
-        const paletteName = lr._paletteOverrides?.get(legendKey);
-        const colourMap  = buildCategoricalColourMap(def.values || [], paletteName);
-        const SWATCH  = Math.max(8, lfs);
-        const ROW_H   = Math.max(SWATCH + 4, lfs + 4);
-        (def.values || []).forEach((val) => {
-          if (ly + SWATCH > legendH - PAD) return;
-          const colour = colourMap.get(val) ?? MISSING_DATA_COLOUR;
-          legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${SWATCH}" height="${SWATCH}" fill="${esc(colour)}"/>`);
-          legendParts.push(`<text x="${lx + PAD + SWATCH + 6}" y="${ly + SWATCH / 2}" dominant-baseline="central" font-family="${lfont}" font-size="${lfs}px" fill="${esc(ltc)}">${svgTextEsc(String(val))}</text>`);
-          ly += ROW_H;
-        });
-      } else if (def.dataType === 'date' || isNumericType(def.dataType)) {
-        // Vertical gradient bar (top = max, bottom = min) — matches canvas rendering.
-        const BAR_W    = 14;
-        const BAR_H    = Math.max(40, legendH - ly - PAD);
-        const gid      = 'lgrd';
-        const seqStops = getSequentialPalette(lr._paletteOverrides?.get(legendKey));
-        const ns       = seqStops.length;
-        // Vertical gradient: stop 0 = top = max colour (last stop), stop 1 = bottom = min colour.
-        const stopMarkup = seqStops.map((c, i) =>
-          `<stop offset="${(ns === 1 ? 0 : i / (ns - 1) * 100).toFixed(1)}%" stop-color="${esc(seqStops[ns - 1 - i])}"/>`
-        ).join('');
-        defs.push(`<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">${stopMarkup}</linearGradient>`);
-        legendParts.push(`<rect x="${lx + PAD}" y="${ly}" width="${BAR_W}" height="${BAR_H}" fill="url(#${gid})"/>`);
+      // Passes 1 + 2: translucent fill box and border outlined box per HPD interval.
+      for (const [, node] of nm) {
+        if (node.isTip) continue;
+        const ny = toSY(node.y);
+        if (ny < -MARGIN || ny > ttH_eff + MARGIN) continue;
+        const hpd = node.annotations?.[hpdKey];
+        if (!Array.isArray(hpd) || hpd.length < 2) continue;
+        const xLeft  = toSX(maxX - hpd[1]);
+        const xRight = toSX(maxX - hpd[0]);
+        if (xRight <= xLeft) continue;
+        nodeBarParts.push(`<rect x="${f(xLeft)}" y="${f(ny - halfW)}" width="${f(xRight - xLeft)}" height="${f(halfW * 2)}" fill="${esc(col)}" opacity="0.22"/>`);
+        nodeBarParts.push(`<rect x="${f(xLeft)}" y="${f(ny - halfW)}" width="${f(xRight - xLeft)}" height="${f(halfW * 2)}" fill="none" stroke="${esc(col)}" stroke-width="1" opacity="0.55"/>`);
+      }
 
-        // Tick labels spread evenly from top (max) to bottom (min).
-        const LABEL_X  = lx + PAD + BAR_W + 6;
-        const tickCount = Math.max(2, Math.min(6, Math.floor(BAR_H / (lfs + 6))));
-        const min = def.min ?? 0, max = def.max ?? 1;
-        const range = (def.dataType === 'date')
-          ? (new Date(max).getFullYear() - new Date(min).getFullYear() || 1)
-          : ((max - min) || 1);
-        const fmt = def.fmt ?? (v => String(v));
-        for (let i = 0; i < tickCount; i++) {
-          const t    = i / (tickCount - 1);
-          const tickY = ly + t * BAR_H;
-          const val   = def.dataType === 'date' ? null : (max - t * range);
-          const label = (def.dataType === 'date')
-            ? (() => {
-                const targetDec = max - t * range;
-                let best = (def.values || [])[0] ?? String(max);
-                let bestDist = Infinity;
-                for (const v of (def.values || [])) {
-                  const d = Math.abs(new Date(v).getFullYear() - targetDec);
-                  if (d < bestDist) { bestDist = d; best = v; }
-                }
-                return best;
-              })()
-            : fmt(val);
-          // Tick mark
-          legendParts.push(`<rect x="${lx + PAD + BAR_W}" y="${f(tickY - 0.5)}" width="4" height="1" fill="${esc(ltc)}"/>`);
-          const baseline = i === 0 ? 'hanging' : (i === tickCount - 1 ? 'auto' : 'central');
-          legendParts.push(`<text x="${LABEL_X}" y="${f(tickY)}" dominant-baseline="${baseline}" font-family="${lfont}" font-size="${lfs}px" fill="${esc(ltc)}">${svgTextEsc(String(label))}</text>`);
+      // Pass 3: mean or median centre line.
+      if (renderer.nodeBarsShowMedian !== 'none') {
+        const useMedian = renderer.nodeBarsShowMedian === 'median';
+        for (const [, node] of nm) {
+          if (node.isTip) continue;
+          const ny = toSY(node.y);
+          if (ny < -MARGIN || ny > ttH_eff + MARGIN) continue;
+          const hpd = node.annotations?.[hpdKey];
+          if (!Array.isArray(hpd) || hpd.length < 2) continue;
+          let xLine;
+          if (useMedian) {
+            if (!medianKey) continue;
+            const medVal = node.annotations?.[medianKey];
+            if (medVal == null) continue;
+            xLine = toSX(maxX - medVal);
+          } else {
+            const meanVal = node.annotations?.['height'];
+            if (meanVal == null) continue;
+            xLine = toSX(maxX - meanVal);
+          }
+          nodeBarParts.push(`<line x1="${f(xLine)}" y1="${f(ny - halfW)}" x2="${f(xLine)}" y2="${f(ny + halfW)}" stroke="${esc(col)}" stroke-width="2" opacity="0.85"/>`);
+        }
+      }
+
+      // Pass 4: range whiskers (line to full-range extent + end cap).
+      if (renderer.nodeBarsShowRange && rangeKey) {
+        const capH = halfW * 0.6;
+        for (const [, node] of nm) {
+          if (node.isTip) continue;
+          const ny = toSY(node.y);
+          if (ny < -MARGIN || ny > ttH_eff + MARGIN) continue;
+          const hpd   = node.annotations?.[hpdKey];
+          const range = node.annotations?.[rangeKey];
+          if (!Array.isArray(hpd) || hpd.length < 2) continue;
+          if (!Array.isArray(range) || range.length < 2) continue;
+          const xHpdL   = toSX(maxX - hpd[1]);
+          const xHpdR   = toSX(maxX - hpd[0]);
+          const xRangeL = toSX(maxX - range[1]);
+          const xRangeR = toSX(maxX - range[0]);
+          // Left whisker: horizontal line + end cap
+          nodeBarParts.push(`<line x1="${f(xHpdL)}" y1="${f(ny)}" x2="${f(xRangeL)}" y2="${f(ny)}" stroke="${esc(col)}" stroke-width="1" opacity="0.45"/>`);
+          nodeBarParts.push(`<line x1="${f(xRangeL)}" y1="${f(ny - capH)}" x2="${f(xRangeL)}" y2="${f(ny + capH)}" stroke="${esc(col)}" stroke-width="1" opacity="0.45"/>`);
+          // Right whisker: horizontal line + end cap
+          nodeBarParts.push(`<line x1="${f(xHpdR)}" y1="${f(ny)}" x2="${f(xRangeR)}" y2="${f(ny)}" stroke="${esc(col)}" stroke-width="1" opacity="0.45"/>`);
+          nodeBarParts.push(`<line x1="${f(xRangeR)}" y1="${f(ny - capH)}" x2="${f(xRangeR)}" y2="${f(ny + capH)}" stroke="${esc(col)}" stroke-width="1" opacity="0.45"/>`);
         }
       }
     }
@@ -340,62 +463,80 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       }
       if (node.isTip) {
         const labelText = renderer._tipLabelText ? renderer._tipLabelText(node) : node.name;
+        const baseX  = alignLabelX ?? (nx + outlineR + 3);
+        // Connector line (dashed / dots / solid aligned modes only — only when labels are shown).
+        if (labelText && alignLabelX !== null && _align !== 'aligned') {
+          const tipEdgeX = nx + outlineR + 2;
+          const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0) - 2;
+          if (lineEndX - tipEdgeX >= 8) {
+            let dashAttr = '';
+            if (_align === 'dashed') dashAttr = ` stroke-dasharray="3 4"`;
+            else if (_align === 'dots') dashAttr = ` stroke-dasharray="1 4"`;
+            connectorParts.push(`<line x1="${f(tipEdgeX)}" y1="${f(ny)}" x2="${f(lineEndX)}" y2="${f(ny)}" stroke="${esc(renderer.dimLabelColor)}" stroke-width="0.35"${dashAttr}/>`);
+          }
+        }
+        // Shape 1 — rendered independently of label text visibility (mirrors canvas pass 3-shapes).
+        if (_svgShape !== 'off') {
+          const shapeX  = baseX + _svgShML;
+          const halfSz  = _svgShSz / 2;
+          const sFill   = (renderer._tipLabelShapeColourBy && renderer._tipLabelShapeColourScale)
+            ? (renderer._tipLabelShapeColourForValue(node.annotations?.[renderer._tipLabelShapeColourBy]) ?? renderer._tipLabelShapeColor)
+            : renderer._tipLabelShapeColor;
+          if (_svgShape === 'circle') {
+            shapeParts.push(`<circle cx="${f(shapeX + halfSz)}" cy="${f(ny)}" r="${f(halfSz)}" fill="${esc(sFill)}"/>`);
+          } else if (_svgShape === 'block') {
+            const bTop = Math.floor(ny - sy / 2);
+            const bH   = Math.ceil(ny + sy / 2) - bTop;
+            shapeParts.push(`<rect x="${f(shapeX)}" y="${f(bTop)}" width="${f(_svgShSz)}" height="${f(bH)}" fill="${esc(sFill)}"/>`);
+          } else {
+            shapeParts.push(`<rect x="${f(shapeX)}" y="${f(ny - halfSz)}" width="${f(_svgShSz)}" height="${f(_svgShSz)}" fill="${esc(sFill)}"/>`);
+          }
+        }
+        // Shape 2 — rendered independently of label text visibility.
+        if (_svgShape2 !== 'off') {
+          const shape2X = baseX + _svgShOff;
+          const halfSz2 = _svgShSz2 / 2;
+          const s2Fill  = (renderer._tipLabelShape2ColourBy && renderer._tipLabelShape2ColourScale)
+            ? (renderer._tipLabelShape2ColourForValue(node.annotations?.[renderer._tipLabelShape2ColourBy]) ?? renderer._tipLabelShape2Color)
+            : renderer._tipLabelShape2Color;
+          if (_svgShape2 === 'circle') {
+            shapeParts.push(`<circle cx="${f(shape2X + halfSz2)}" cy="${f(ny)}" r="${f(halfSz2)}" fill="${esc(s2Fill)}"/>`);
+          } else if (_svgShape2 === 'block') {
+            const bTop = Math.floor(ny - sy / 2);
+            const bH   = Math.ceil(ny + sy / 2) - bTop;
+            shapeParts.push(`<rect x="${f(shape2X)}" y="${f(bTop)}" width="${f(_svgShSz2)}" height="${f(bH)}" fill="${esc(s2Fill)}"/>`);
+          } else {
+            shapeParts.push(`<rect x="${f(shape2X)}" y="${f(ny - halfSz2)}" width="${f(_svgShSz2)}" height="${f(_svgShSz2)}" fill="${esc(s2Fill)}"/>`);
+          }
+        }
+        // Label text.
         if (labelText) {
-          const baseX  = alignLabelX ?? (nx + outlineR + 3);
-          // Connector line (dashed / dots / solid aligned modes only).
-          if (alignLabelX !== null && _align !== 'aligned') {
-            const tipEdgeX = nx + outlineR + 2;
-            const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0) - 2;
-            if (lineEndX - tipEdgeX >= 8) {
-              let dashAttr = '';
-              if (_align === 'dashed') dashAttr = ` stroke-dasharray="3 4"`;
-              else if (_align === 'dots') dashAttr = ` stroke-dasharray="1 4"`;
-              connectorParts.push(`<line x1="${f(tipEdgeX)}" y1="${f(ny)}" x2="${f(lineEndX)}" y2="${f(ny)}" stroke="${esc(renderer.dimLabelColor)}" stroke-width="0.35"${dashAttr}/>`);
-            }
-          }
-          // Shape 1.
-          if (_svgShape !== 'off') {
-            const shapeX  = baseX + _svgShML;
-            const halfSz  = _svgShSz / 2;
-            const sFill   = (renderer._tipLabelShapeColourBy && renderer._tipLabelShapeColourScale)
-              ? (renderer._tipLabelShapeColourForValue(node.annotations?.[renderer._tipLabelShapeColourBy]) ?? renderer._tipLabelShapeColor)
-              : renderer._tipLabelShapeColor;
-            if (_svgShape === 'circle') {
-              shapeParts.push(`<circle cx="${f(shapeX + halfSz)}" cy="${f(ny)}" r="${f(halfSz)}" fill="${esc(sFill)}"/>`);
-            } else if (_svgShape === 'block') {
-              const bTop = Math.floor(ny - sy / 2);
-              const bH   = Math.ceil(ny + sy / 2) - bTop;
-              shapeParts.push(`<rect x="${f(shapeX)}" y="${f(bTop)}" width="${f(_svgShSz)}" height="${f(bH)}" fill="${esc(sFill)}"/>`);
-            } else {
-              shapeParts.push(`<rect x="${f(shapeX)}" y="${f(ny - halfSz)}" width="${f(_svgShSz)}" height="${f(_svgShSz)}" fill="${esc(sFill)}"/>`);
-            }
-          }
-          // Shape 2.
-          if (_svgShape2 !== 'off') {
-            const shape2X = baseX + _svgShOff;
-            const halfSz2 = _svgShSz2 / 2;
-            const s2Fill  = (renderer._tipLabelShape2ColourBy && renderer._tipLabelShape2ColourScale)
-              ? (renderer._tipLabelShape2ColourForValue(node.annotations?.[renderer._tipLabelShape2ColourBy]) ?? renderer._tipLabelShape2Color)
-              : renderer._tipLabelShape2Color;
-            if (_svgShape2 === 'circle') {
-              shapeParts.push(`<circle cx="${f(shape2X + halfSz2)}" cy="${f(ny)}" r="${f(halfSz2)}" fill="${esc(s2Fill)}"/>`);
-            } else if (_svgShape2 === 'block') {
-              const bTop = Math.floor(ny - sy / 2);
-              const bH   = Math.ceil(ny + sy / 2) - bTop;
-              shapeParts.push(`<rect x="${f(shape2X)}" y="${f(bTop)}" width="${f(_svgShSz2)}" height="${f(bH)}" fill="${esc(s2Fill)}"/>`);
-            } else {
-              shapeParts.push(`<rect x="${f(shape2X)}" y="${f(ny - halfSz2)}" width="${f(_svgShSz2)}" height="${f(_svgShSz2)}" fill="${esc(s2Fill)}"/>`);
-            }
-          }
-          // Label text.
           const lx2       = baseX + _svgTxOff;
           const labelFill = (renderer._labelColourBy && renderer._labelColourScale)
             ? (renderer._labelColourForValue(node.annotations?.[renderer._labelColourBy]) ?? lc)
             : lc;
           labelParts.push(`<text x="${f(lx2)}" y="${f(ny)}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="${esc(labelFill)}">${svgTextEsc(labelText)}</text>`);
         }
-      } else if (!node.isTip && node.label) {
-        labelParts.push(`<text x="${f(nx + 3)}" y="${f(ny - 3)}" font-family="monospace" font-size="${Math.round(fs * 0.85)}px" fill="${esc(lc)}" opacity="0.7">${svgTextEsc(node.label)}</text>`);
+      } else if (!node.isTip) {
+        const nodeLabel = renderer._nodeLabelText ? renderer._nodeLabelText(node) : null;
+        if (nodeLabel) {
+          const nlfs    = renderer.nodeLabelFontSize ?? Math.round(fs * 0.85);
+          const nlc     = renderer.nodeLabelColor ?? lc;
+          const spacing = renderer.nodeLabelSpacing ?? 4;
+          const pos     = renderer.nodeLabelPosition ?? 'right';
+          let tx, ty, baseline, anchor;
+          if (pos === 'right') {
+            tx = nx + nr + spacing;  ty = ny;
+            baseline = 'central';   anchor = 'start';
+          } else if (pos === 'below-left') {
+            tx = nx - nr - spacing;  ty = ny + spacing;
+            baseline = 'hanging';   anchor = 'end';
+          } else { // 'above-left'
+            tx = nx - nr - spacing;  ty = ny - spacing;
+            baseline = 'auto';      anchor = 'end';
+          }
+          labelParts.push(`<text x="${f(tx)}" y="${f(ty)}" dominant-baseline="${baseline}" text-anchor="${anchor}" font-family="monospace" font-size="${nlfs}px" fill="${esc(nlc)}">${svgTextEsc(nodeLabel)}</text>`);
+        }
       }
     }
   }
@@ -406,7 +547,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     const ar        = axisRenderer;
     const plotLeft  = ar._offsetX;
     const plotRight = ar._offsetX + ar._maxX * ar._scaleX;
-    const AX        = llW;          // SVG x-offset for the axis canvas origin
+    const AX        = ll2W + llW;   // SVG x-offset for the axis canvas origin
     const AY        = ttH_eff;      // SVG y-offset for the axis canvas origin
     const Y_BASE    = 3;
     const MAJOR_H   = 9;
@@ -504,6 +645,9 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   </defs>
   ${bgParts.join('\n  ')}
   ${legendParts.join('\n  ')}
+  <g clip-path="url(#tc)">
+    ${nodeBarParts.join('\n    ')}
+  </g>
   <g clip-path="url(#tc)" stroke="${esc(bc)}" stroke-width="${bw}" fill="none" stroke-linecap="round">
     ${branchParts.join('\n    ')}
   </g>
