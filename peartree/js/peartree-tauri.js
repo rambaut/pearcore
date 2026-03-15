@@ -182,4 +182,23 @@
   await listen('menu-event', ({ payload: id }) => {
     registry.execute(id);
   });
+
+  // ── Check for Updates ─────────────────────────────────────────────────────
+  registry.get('check-for-updates').exec = async () => {
+    try {
+      const update = await invoke('check_for_updates');
+      if (!update) {
+        alert('PearTree is up to date.');
+        return;
+      }
+      const notes     = update.body ? `\n\nRelease notes:\n${update.body}` : '';
+      const confirmed = confirm(
+        `PearTree v${update.version} is available (you have v${update.current}).${notes}\n\nDownload and install now?`
+      );
+      if (!confirmed) return;
+      await invoke('install_update');
+    } catch (err) {
+      app.showErrorDialog(`Update check failed: ${err.message ?? String(err)}`);
+    }
+  };
 })();

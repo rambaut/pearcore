@@ -53,6 +53,12 @@
       "desktop": {
         "schemes": []
       }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYzMTMyNjVCMDAwOEEwNDMKUldSRG9BZ0FXeVlUOHd4NGlhb28yTTRGM0xGaXZEWmg4UlB4Z0ZlR04wSWNNc0tXZGQ2NkNPK28K",
+      "endpoints": [
+        "https://github.com/artic-network/peartree/releases/latest/download/latest.json"
+      ]
     }
   }
 }

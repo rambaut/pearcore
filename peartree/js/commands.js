@@ -76,7 +76,8 @@ _define({ id: 'tree-paint',         label: 'Paint Node',     shortcut: null,    
 _define({ id: 'tree-clear-colours', label: 'Clear Colours',  shortcut: null,          group: 'tree', enabled: false, buttonId: 'btn-clear-user-colour'   });
 
 // Help
-_define({ id: 'show-help', label: 'PearTree Help', shortcut: 'CmdOrCtrl+?', group: 'help', enabled: true, buttonId: 'btn-help' });
+_define({ id: 'show-help',          label: 'PearTree Help',        shortcut: 'CmdOrCtrl+?', group: 'help', enabled: true, buttonId: 'btn-help' });
+_define({ id: 'check-for-updates',  label: 'Check for Updates…', shortcut: null,           group: 'help', enabled: true });
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

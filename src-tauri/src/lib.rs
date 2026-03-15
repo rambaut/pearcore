@@ -197,13 +197,57 @@ fn take_pending_file(
     result
 }
 
+/// Checks for an available update against the configured GitHub Releases
+/// endpoint.  Returns null if already up to date, or a JSON object with
+/// { version, date, body, current } if a newer release exists.
+#[tauri::command]
+async fn check_for_updates(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let update = app
+        .updater_builder()
+        .build()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(update.map(|u| serde_json::json!({
+        "version": u.version,
+        "date":    u.date,
+        "body":    u.body,
+        "current": env!("CARGO_PKG_VERSION"),
+    })))
+}
+
+/// Downloads and installs the latest available update.  On macOS the app is
+/// relaunched automatically by the updater; on Windows/Linux a restart is
+/// required manually.
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    if let Some(update) = app
+        .updater_builder()
+        .build()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        update
+            .download_and_install(|_chunk, _total| {}, || {})
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![set_menu_item_enabled, pick_tree_file, pick_annot_file, save_file, read_file_content, new_window, take_pending_file])
+        .invoke_handler(tauri::generate_handler![set_menu_item_enabled, pick_tree_file, pick_annot_file, save_file, read_file_content, new_window, take_pending_file, check_for_updates, install_update])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Forward any file opened via drag-to-icon or double-click (macOS file
             // association) to the frontend as an "open-file" event with the file path.
@@ -359,10 +403,13 @@ pub fn run() {
             ])?;
 
             // ── Help ──────────────────────────────────────────────────────────
-            let show_help = MenuItem::with_id(app, "show-help", "PearTree Help", true, Some("CmdOrCtrl+?"))?;
+            let show_help     = MenuItem::with_id(app, "show-help",         "PearTree Help",            true, Some("CmdOrCtrl+?"))?;
+            let check_updates = MenuItem::with_id(app, "check-for-updates", "Check for Updates\u{2026}", true, None::<&str>)?;
 
             let help_menu = Submenu::with_items(app, "Help", true, &[
                 &show_help,
+                &PredefinedMenuItem::separator(app)?,
+                &check_updates,
             ])?;
 
             let menu = Menu::with_items(app, &[
@@ -434,7 +481,8 @@ pub fn run() {
                 ("tree-show",        tree_show),
                 ("tree-paint",       tree_paint),
                 ("tree-clear-colours", tree_clear_colours),
-                ("show-help",        show_help),
+                ("show-help",           show_help),
+                ("check-for-updates",   check_updates),
             ] {
                 map.insert(id.to_string(), item);
             }
