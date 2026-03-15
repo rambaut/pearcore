@@ -5,32 +5,6 @@ on:
     tags: ['v*']
 
 jobs:
-  webapp:
-    permissions:
-      contents: write
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Package webapp archives
-        run: |
-          zip -r peartree-webapp.zip peartree/
-          tar -czf peartree-webapp.tgz peartree/
-
-      - name: Upload webapp archives to release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: 'PearTree ${{ github.ref_name }}'
-          body: 'See the assets below to download PearTree for your platform.'
-          draft: true
-          prerelease: false
-          files: |
-            peartree-webapp.zip
-            peartree-webapp.tgz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   release:
     permissions:
       contents: write
