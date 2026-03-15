@@ -225,8 +225,7 @@ async fn check_for_updates(app: tauri::AppHandle) -> Result<Option<serde_json::V
 }
 
 /// Downloads and installs the update stored by check_for_updates.
-/// On macOS the app relaunches automatically; on Windows/Linux the user
-/// must restart manually.
+/// On all platforms, restarts the app after a successful install.
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     let update = app.state::<PendingUpdate>().0.lock().unwrap().take();
@@ -235,6 +234,7 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
             .download_and_install(|_chunk, _total| {}, || {})
             .await
             .map_err(|e| e.to_string())?;
+        app.restart();
     }
     Ok(())
 }
