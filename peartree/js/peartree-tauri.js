@@ -200,4 +200,21 @@
       app.showErrorDialog(`Update check failed: ${err.message ?? String(err)}`);
     }
   };
+
+  // ── Background update check on startup ───────────────────────────────────
+  // Fire-and-forget: don't await, so startup is never delayed.
+  // Silently ignores network errors (offline, no release yet, etc.).
+  (async () => {
+    try {
+      const update = await invoke('check_for_updates');
+      if (!update) return;
+      const notes     = update.body ? `\n\nRelease notes:\n${update.body}` : '';
+      const msg       = `PearTree v${update.version} is available (you have v${update.current}).${notes}`;
+      const confirmed = await app.showConfirmDialog('Update Available', msg, { okLabel: 'Install', cancelLabel: 'Later' });
+      if (!confirmed) return;
+      await invoke('install_update');
+    } catch {
+      // Silently ignore — background check should never surface errors to the user.
+    }
+  })();
 })();
