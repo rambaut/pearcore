@@ -207,8 +207,13 @@ fn take_pending_file(
 #[tauri::command]
 async fn check_for_updates(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, String> {
     use tauri_plugin_updater::UpdaterExt;
-    let update = app
-        .updater_builder()
+    // The macOS release is a universal binary; override the auto-detected
+    // arch-specific target so the updater looks for "darwin-universal" in
+    // latest.json rather than "darwin-aarch64" / "darwin-x86_64".
+    let builder = app.updater_builder();
+    #[cfg(target_os = "macos")]
+    let builder = builder.target("darwin-universal");
+    let update = builder
         .build()
         .map_err(|e| e.to_string())?
         .check()
