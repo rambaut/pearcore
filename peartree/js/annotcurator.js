@@ -329,6 +329,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       return;
     }
 
+    const p           = _pending.get(name) ?? {};
     const currentType = p.dataType ?? def.dataType;
     const isNumeric   = isNumericType(currentType);
     const isDate      = currentType === 'date';

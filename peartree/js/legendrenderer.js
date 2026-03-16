@@ -407,7 +407,7 @@ export class LegendRenderer {
     // Title.
     ctx.font = `700 ${lfs}px ${FONT}`; ctx.fillStyle = ltc;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(key, PAD, y, W - PAD * 2);
+    ctx.fillText(def.label ?? key, PAD, y, W - PAD * 2);
     y += lfs + 10;
 
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
