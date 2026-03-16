@@ -80,8 +80,9 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
   function open() {
     _open = true;
     panel.classList.add('open');
-    // Restore previously saved width (default 280px) so the flex flow makes space
-    panel.style.flexBasis = panel._dtWidth || '280px';
+    // Width will be set by _redraw() once column widths are computed.
+    // Use a minimal seed so the flex transition starts from near-zero.
+    panel.style.flexBasis = panel.style.flexBasis || '1px';
     // Populate from current renderer state immediately
     const r = getRenderer();
     if (r?.nodes) _tips = r.nodes.filter(n => n.isTip).sort((a, b) => a.y - b.y);
@@ -198,8 +199,16 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
     }
   }
 
+  function _isEmpty() {
+    return !_showNames && _columns.length === 0;
+  }
+
   function _renderHeader() {
     if (!headerEl) return;
+    if (_isEmpty()) {
+      headerEl.innerHTML = '<div class="dt-header-cell dt-header-empty" style="flex:1;width:100%;color:rgba(255,255,255,0.2);font-style:italic;text-transform:none;letter-spacing:0">No columns selected</div>';
+      return;
+    }
     let html = '';
     let wi   = 0;
     if (_showNames) {
@@ -234,6 +243,10 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
       _computeColWidths(dtFontPx, renderer.fontFamily || 'monospace');
       _clearRows();
       _renderHeader();
+      // Auto-size the panel to fit the computed column widths exactly.
+      // In empty state use a fixed minimum width so the hint text is readable.
+      const totalW = _colWidths.reduce((s, w) => s + w, 0);
+      panel.style.flexBasis = (_isEmpty() ? '130' : (totalW + 2)) + 'px';
     }
 
     const visible  = new Set();
@@ -381,5 +394,5 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
   // Initialise header on creation (no columns yet but builds the "Tip" stub)
   _renderHeader();
 
-  return { setColumns, setTips, syncView, syncSelection, open, close, isOpen, getState };
+  return { setColumns, setTips, syncView, syncSelection, open, close, isOpen, getState, invalidate };
 }

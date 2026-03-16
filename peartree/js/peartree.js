@@ -1638,10 +1638,18 @@ async function fetchExampleTree() {
       axisRenderer.setHeightFormatter(schema.get('height')?.fmt ?? null);
       applyLegend();
       dataTableRenderer.invalidate();
+      // Panel may have resized (e.g. column widths changed) — keep canvas in sync.
+      _resizeDuringTransition();
       renderer._dirty = true;
+    },
+    getTableColumns: () => {
+      const { columns, showNames } = dataTableRenderer.getState();
+      return showNames ? ['__names__', ...columns] : columns;
     },
     onTableColumnsChange: (cols) => {
       dataTableRenderer.setColumns(cols);
+      // Panel width changes when columns are added/removed — resize the canvas to match.
+      _resizeDuringTransition();
     },
     getAnnotationPalette: (key) => annotationPalettes.get(key) ?? null,
     onPaletteChange: (key, paletteName) => {

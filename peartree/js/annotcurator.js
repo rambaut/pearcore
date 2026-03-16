@@ -40,14 +40,15 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
 
   // Pending edits per annotation name, cleared on each open().
   // Map<name, { dataType?, min?, max?, fixedBounds?, _boundsMode? }>
-  let _pending  = new Map();
-  let _deleted  = new Set();  // names marked for deletion, applied at Apply time
-  let _selected = null;   // name of currently selected row
+  let _pending         = new Map();
+  let _deleted         = new Set();  // names marked for deletion, applied at Apply time
+  let _selected        = null;   // name of currently selected row
+  let _pendingPalettes = new Map(); // name → paletteName — committed on Apply only
+  let _savedTableColumns = new Set(); // snapshot of _tableColumns at open() for cancel
 
   // Columns currently shown in the data table panel.
-  // Initialised from getTableColumns() if provided, otherwise empty.
-  // '__names__' is no longer an option in the curator — filter it out if present.
-  let _tableColumns = new Set([...(getTableColumns ? getTableColumns() : [])].filter(c => c !== '__names__'));
+  // Re-read from getTableColumns() on each open() so it always reflects live state.
+  let _tableColumns = new Set();
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -73,6 +74,10 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
     if (!graph?.annotationSchema) return;
     _pending.clear();
     _deleted.clear();
+    _pendingPalettes.clear();
+    // Re-read the current live columns so the checkboxes reflect the actual table state.
+    _tableColumns = new Set([...(getTableColumns ? getTableColumns() : [])].filter(c => c !== '__names__'));
+    _savedTableColumns = new Set(_tableColumns);
     _selected = null;
     _renderTable(graph.annotationSchema);
     _renderDetail(null, null);
@@ -80,6 +85,9 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
   }
 
   function close() {
+    // Abandon uncommitted palette and column-toggle changes
+    _pendingPalettes.clear();
+    _tableColumns = new Set(_savedTableColumns);
     overlay.classList.remove('open');
   }
 
@@ -94,13 +102,14 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
     }
 
     const schema = _buildModifiedSchema(graph);
-    // Remove any deleted annotations from the table-column selection
+    // Commit table-column selection (including removal of deleted annotations)
     if (onTableColumnsChange) {
-      let changed = false;
-      for (const name of _deleted) {
-        if (_tableColumns.delete(name)) changed = true;
-      }
-      if (changed) onTableColumnsChange([..._tableColumns]);
+      for (const name of _deleted) _tableColumns.delete(name);
+      onTableColumnsChange([..._tableColumns]);
+    }
+    // Commit palette changes
+    for (const [key, paletteName] of _pendingPalettes) {
+      if (onPaletteChange) onPaletteChange(key, paletteName);
     }
     onApply(schema);
     graph.annotationSchema = schema;
@@ -233,7 +242,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
         const chkName = chk.dataset.name;
         if (chk.checked) { _tableColumns.add(chkName); }
         else             { _tableColumns.delete(chkName); }
-        if (onTableColumnsChange) onTableColumnsChange([..._tableColumns]);
+        // Column changes are committed to the live panel only on Apply.
       });
     }
 
@@ -293,7 +302,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       const isCat    = def.dataType === 'categorical' || def.dataType === 'ordinal';
       const palettes = isCat ? CATEGORICAL_PALETTES : SEQUENTIAL_PALETTES;
       const defPal   = isCat ? DEFAULT_CATEGORICAL_PALETTE : DEFAULT_SEQUENTIAL_PALETTE;
-      const stored   = (getAnnotationPalette ? getAnnotationPalette(name) : null) ?? defPal;
+      const stored   = _pendingPalettes.get(name) ?? (getAnnotationPalette ? getAnnotationPalette(name) : null) ?? defPal;
       const opts = Object.keys(palettes)
         .map(p => `<option value="${esc(p)}"${p === stored ? ' selected' : ''}>${esc(p)}</option>`)
         .join('');
@@ -306,7 +315,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
         + `<select id="cd-palette" class="ca-sel" style="width:auto">${opts}</select>`
         + `</div>`;
       document.getElementById('cd-palette')?.addEventListener('change', e => {
-        if (onPaletteChange) onPaletteChange(name, e.target.value);
+        _pendingPalettes.set(name, e.target.value);
       });
       return;
     }
@@ -453,7 +462,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       const isCat    = currentType === 'categorical' || currentType === 'ordinal';
       const palettes = isCat ? CATEGORICAL_PALETTES : SEQUENTIAL_PALETTES;
       const defPal   = isCat ? DEFAULT_CATEGORICAL_PALETTE : DEFAULT_SEQUENTIAL_PALETTE;
-      const stored   = (getAnnotationPalette ? getAnnotationPalette(name) : null) ?? defPal;
+      const stored   = _pendingPalettes.get(name) ?? (getAnnotationPalette ? getAnnotationPalette(name) : null) ?? defPal;
       const opts = Object.keys(palettes)
         .map(p => `<option value="${esc(p)}"${p === stored ? ' selected' : ''}>${esc(p)}</option>`)
         .join('');
@@ -498,7 +507,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
 
     // Palette
     document.getElementById('cd-palette')?.addEventListener('change', e => {
-      if (onPaletteChange) onPaletteChange(name, e.target.value);
+      _pendingPalettes.set(name, e.target.value);
     });
 
     // Branch-annotation toggle
