@@ -4447,9 +4447,20 @@ async function fetchExampleTree() {
     if (dataTableRenderer.isOpen()) {
       const { columns } = dataTableRenderer.getState();
       if (columns.length > 0) {
-        const header = ['name', ...columns].join('\t');
+        const schema = renderer._annotationSchema;
+        const colLabels = columns.map(k => schema?.get(k)?.label ?? k);
+        const header = ['name', ...colLabels].join('\t');
         const rows   = targetTips.map(n => {
-          const vals = columns.map(k => n.annotations?.[k] ?? '');
+          const vals = columns.map(k => {
+            const def = schema?.get(k);
+            const actualKey = def?.dataKey ?? k;
+            const raw = k.startsWith('__')
+              ? (renderer._statValue ? renderer._statValue(n, k) : null)
+              : (n.annotations?.[actualKey] ?? null);
+            if (raw == null) return '';
+            if (typeof raw === 'number' && def?.fmtValue) return def.fmtValue(raw);
+            return String(raw);
+          });
           return [n.name ?? n.id, ...vals].join('\t');
         });
         await navigator.clipboard.writeText([header, ...rows].join('\n'));
