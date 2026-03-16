@@ -1,10 +1,25 @@
 // datatablerenderer.js — Data table panel for PearTree.
 //
 // Shows annotation values for each tip aligned with the tree canvas rows.
-// Rows are positioned absolutely in CSS pixels using renderer.scaleY /
-// renderer.offsetY so they stay in sync with the canvas as the user scrolls
-// or zooms.  Only rows within the visible viewport (plus a small buffer) are
-// kept in the DOM.
+// Rows are positioned absolutely in CSS pixels so they stay locked to the
+// canvas as the user pans/zooms.  Only rows within the visible viewport
+// (plus a small render buffer) are kept in the DOM.
+//
+// Layout overview:
+//   #data-table-panel
+//     #data-table-resize-handle  (left edge drag; active only when pinned)
+//     #dt-num-col (frozen strip)
+//       #dt-num-header            ← pin + close buttons
+//       #dt-num-body              ← absolutely-placed number cells
+//     #dt-scroll-area (overflow-x: auto)
+//       .dt-header                ← column labels
+//       .dt-body                  ← absolutely-placed data rows
+//
+// Overlay vs pinned:
+//   Overlay (default) – panel is position:absolute over the canvas, slides in
+//   from the right.  Canvas width is unchanged.
+//   Pinned            – panel joins the flex flow; canvas-container gains
+//   padding-right via body.dt-pinned, shrinking the canvas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** HTML-escape a value for safe insertion. */
@@ -13,49 +28,61 @@ function _esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
 /** Shared offscreen canvas used only for text measurement. */
 const _measureCanvas = document.createElement('canvas');
+
+/** Height of the column-name header row (px).  Must match the CSS rule. */
+const HEADER_H = 24;
+
 /**
  * Create the data table panel renderer.
  *
- * @param {Object}       opts
- * @param {Function}     opts.getRenderer   – () => TreeRenderer instance
- * @param {Function}     opts.onEditCommit  – (nodeId, key, newValue:string) called when a
- *                                           cell value is committed (Return or blur).
- * @param {HTMLElement}  opts.panel         – the #data-table-panel element
- * @param {HTMLElement}  opts.headerEl      – the .dt-header element inside the panel
- * @param {HTMLElement}  opts.bodyEl        – the .dt-body element inside the panel
- * @returns {{ setColumns, setTips, syncView, open, close, isOpen }}
+ * @param {Object}      opts
+ * @param {Function}    opts.getRenderer    – () => TreeRenderer instance
+ * @param {Function}    opts.onEditCommit   – (nodeId, key, newValue) on cell blur
+ * @param {Function}    opts.onRowSelect    – (Set<id>) on row click
+ * @param {Function}    opts.onPinChange    – (pinned:boolean) called when pin toggled
+ * @param {Function}    opts.onClose        – () called when close button pressed
+ * @param {HTMLElement} opts.panel          – #data-table-panel
+ * @param {HTMLElement} opts.headerEl       – .dt-header #dt-header
+ * @param {HTMLElement} opts.bodyEl         – .dt-body   #dt-body
+ * @param {HTMLElement} opts.numHeaderEl    – #dt-num-header (holds pin/close btns)
+ * @param {HTMLElement} opts.numBodyEl      – #dt-num-body   (number cells go here)
  */
-export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect, panel, headerEl, bodyEl }) {
-  let _columns        = [];      // array of annotation key strings to show (never contains '__names__')
-  let _showNames      = false;   // whether to render the tip-name column
-  let _columnSig      = '';      // serialised column list; change → rebuild all rows
-  let _tips           = [];      // visible tip nodes, sorted by node.y (ascending)
-  let _tipsVersion    = 0;       // incremented on each setTips(); forces column-width recompute
-  let _colWidths      = [];      // computed px widths per column slot [namesCol?, ...annotCols]
-  let _rowEls         = new Map(); // nodeId → { el:HTMLElement, cells:Map<key,HTMLInputElement> }
+export function createDataTableRenderer({
+  getRenderer, onEditCommit, onRowSelect, onPinChange, onClose,
+  panel, headerEl, bodyEl, numHeaderEl, numBodyEl,
+}) {
+  let _columns        = [];       // annotation keys to display (never '__names__')
+  let _showNames      = false;    // whether the tip-name column is visible
+  let _columnSig      = '';       // serialised; change → rebuild rows + measure widths
+  let _tips           = [];       // visible tips sorted by node.y ascending
+  let _tipsVersion    = 0;        // incremented on setTips(); forces width recompute
+  let _colWidths      = [];       // px width per data column slot
+  let _numColW        = 36;       // px width of the frozen number column
+  let _rowEls         = new Map(); // nodeId → { rowEl, numEl, cells:Map<key,input> }
   let _open           = false;
-  let _selectedIds    = new Set(); // tip IDs currently highlighted as selected
-  let _lastClickedIdx = -1;        // index in _tips of last clicked row (for shift-range)
+  let _pinned         = false;
+  let _selectedIds    = new Set();
+  let _lastClickedIdx = -1;
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  /** Replace the set of displayed columns.  Triggers a full row rebuild.
-   *  The special key '__names__' controls visibility of the tip-name column. */
+  /** Replace the displayed column set.  Triggers a full row rebuild. */
   function setColumns(cols) {
     const raw  = (cols || []).filter(Boolean);
     _showNames = raw.includes('__names__');
     _columns   = raw.filter(c => c !== '__names__');
-    _columnSig = '';   // invalidate; _redraw() will recompute widths and rebuild
+    _columnSig = '';
     _clearRows();
     if (_open) _redraw();
   }
 
-  /** Replace the set of tip nodes (called on layout / tree change). */
+  /** Replace the tip list (called on layout / tree change). */
   function setTips(tips) {
     _tips = [...(tips || [])].sort((a, b) => a.y - b.y);
-    _tipsVersion++;  // force column-width recompute on next _redraw
+    _tipsVersion++;
     _clearRows();
     if (_open) _redraw();
   }
@@ -66,24 +93,19 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
     _redraw();
   }
 
-  /**
-   * Update highlighted rows to reflect the given set of selected tip IDs.
-   * Called from peartree.js whenever the canvas selection changes.
-   */
+  /** Update selection highlight without a full redraw. */
   function syncSelection(ids) {
     _selectedIds = ids instanceof Set ? ids : new Set(ids);
-    for (const [tipId, { el }] of _rowEls) {
-      el.classList.toggle('dt-row-selected', _selectedIds.has(tipId));
+    for (const [tipId, { rowEl, numEl }] of _rowEls) {
+      const sel = _selectedIds.has(tipId);
+      rowEl.classList.toggle('dt-row-selected', sel);
+      numEl.classList.toggle('dt-row-selected', sel);
     }
   }
 
   function open() {
     _open = true;
     panel.classList.add('open');
-    // Width will be set by _redraw() once column widths are computed.
-    // Use a minimal seed so the flex transition starts from near-zero.
-    panel.style.flexBasis = panel.style.flexBasis || '1px';
-    // Populate from current renderer state immediately
     const r = getRenderer();
     if (r?.nodes) _tips = r.nodes.filter(n => n.isTip).sort((a, b) => a.y - b.y);
     if (r?._selectedTipIds) _selectedIds = new Set(r._selectedTipIds);
@@ -92,32 +114,46 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
   }
 
   function close() {
-    // Save the current width so it's restored on next open()
-    if (panel.style.flexBasis && panel.style.flexBasis !== '0px') {
-      panel._dtWidth = panel.style.flexBasis;
-    }
     _open = false;
+    if (_pinned) _setPin(false);   // unpin first so the canvas can re-expand
     panel.classList.remove('open');
-    panel.style.flexBasis = '0';
+    _clearRows();
+    if (onClose) onClose();
   }
 
-  function isOpen() { return _open; }
+  function isOpen()   { return _open;   }
+  function isPinned() { return _pinned; }
+
+  function pin()   { if (!_pinned) _setPin(true);  }
+  function unpin() { if (_pinned)  _setPin(false); }
+
+  function _setPin(pinned) {
+    _pinned = pinned;
+    panel.classList.toggle('pinned', pinned);
+    _syncPinButton();
+    if (onPinChange) onPinChange(pinned);
+  }
+
+  function _syncPinButton() {
+    const btn = numHeaderEl?.querySelector('#dt-btn-pin');
+    if (!btn) return;
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = _pinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle';
+    btn.classList.toggle('active', _pinned);
+    btn.title = _pinned ? 'Unpin table' : 'Pin table';
+  }
 
   /**
-   * Notify the table that the annotation schema has changed (e.g. formatters
-   * were updated in the curator).  Invalidates all cached rows so the next
-   * syncView() / _redraw() rebuilds them with the new formatters.
+   * Invalidate cached formatters (e.g. after decimal-places change in the
+   * annotation curator).  Forces a full row rebuild on next syncView().
    */
   function invalidate() {
-    _columnSig = '';  // force full rebuild on next _redraw
+    _columnSig = '';
     _clearRows();
     if (_open) _redraw();
   }
 
-  /**
-   * Return current visible-column keys and the current tip list.
-   * Used by peartree.js to build the tab-delimited copy-tips string.
-   */
+  /** Return visible-column keys + tips (used by copy-tips and export). */
   function getState() {
     return { columns: [..._columns], showNames: _showNames, tips: [..._tips] };
   }
@@ -125,45 +161,39 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
   // ── Internal helpers ────────────────────────────────────────────────────────
 
   function _clearRows() {
-    for (const { el } of _rowEls.values()) el.remove();
+    for (const { rowEl, numEl } of _rowEls.values()) {
+      rowEl.remove();
+      numEl.remove();
+    }
     _rowEls.clear();
-    if (bodyEl) bodyEl.innerHTML = '';
+    if (bodyEl)    bodyEl.innerHTML    = '';
+    if (numBodyEl) numBodyEl.innerHTML = '';
   }
 
-  /**
-   * Return the display label for an annotation key, using the schema if available.
-   * Falls back to the raw key.
-   */
   function _colLabel(key) {
     const schema = getRenderer()?._annotationSchema;
     return schema?.get(key)?.label ?? key;
   }
 
   /**
-   * Resolve the value for `key` on `tip`.  For built-in sentinel keys reads
-   * from tree geometry via the renderer; for regular keys reads annotations.
-   * Returns null when the value is unavailable.
+   * Resolve the raw value for `key` on `tip`.
+   * For __builtin__ keys delegates to renderer._statValue(); otherwise reads
+   * tip.annotations, honouring any schema dataKey redirect.
    */
   function _tipValue(tip, key) {
     if (key.startsWith('__')) {
       const r = getRenderer();
       return r?._statValue ? r._statValue(tip, key) : null;
     }
-    // For synthesised base keys (e.g. 'height' promoted from 'height_mean'),
-    // the actual data lives under a different annotation key.
-    const schema = getRenderer()?._annotationSchema;
-    const def = schema?.get(key);
+    const schema    = getRenderer()?._annotationSchema;
+    const def       = schema?.get(key);
     const actualKey = def?.dataKey ?? key;
     return tip.annotations?.[actualKey] ?? null;
   }
 
-  /**
-   * Format a raw value for display in a table cell.
-   */
+  /** Format a raw value for display, respecting any schema formatter. */
   function _fmtValue(key, rawVal) {
     if (rawVal == null) return '';
-    // Use the schema formatter for any numeric annotation (builtins and user-defined)
-    // so that custom decimal-place settings and auto-precision are both respected.
     const schema = getRenderer()?._annotationSchema;
     const def    = schema?.get(key);
     if (typeof rawVal === 'number' && def?.fmtValue) return def.fmtValue(rawVal);
@@ -171,27 +201,28 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
   }
 
   /**
-   * Measure the widest content in each column (header + all tip values) and
-   * store pixel widths in _colWidths.  Uses an offscreen canvas so no DOM
-   * layout is triggered.  Samples at most MAX_SAMPLE tips to keep the loop
-   * fast for large trees.
+   * Measure the widest content for the frozen number column and each data
+   * column and store results in _numColW / _colWidths.
+   * Uses an offscreen canvas to avoid DOM layout.
+   * Samples at most MAX_SAMPLE tips for performance on large trees.
    */
   function _computeColWidths(fontPx, fontFamily) {
     const ctx = _measureCanvas.getContext('2d');
-    ctx.font   = `${fontPx}px ${fontFamily}`;
-    const PAD  = 14;   // left + right padding per cell
-    const MIN  = 48;   // minimum column width
-    _colWidths  = [];
+    ctx.font  = `${fontPx}px ${fontFamily}`;
+    const PAD = 14;
+    const MIN = 48;
+    _colWidths = [];
 
-    // Sample evenly across the tip list — enough to find representative widths
-    // without scanning all 15K+ nodes per column every zoom step.
+    // Frozen number column: wide enough for the largest row number.
+    const numDigits = String(_tips.length || 1).length;
+    _numColW = Math.max(36, Math.ceil(ctx.measureText('0'.repeat(numDigits)).width) + 16);
+
     const MAX_SAMPLE = 500;
-    const tips = _tips;
+    const tips   = _tips;
     const sample = tips.length <= MAX_SAMPLE
       ? tips
       : Array.from({ length: MAX_SAMPLE }, (_, i) => tips[Math.floor(i * tips.length / MAX_SAMPLE)]);
 
-    // Cache schema + renderer once rather than re-fetching per tip.
     const renderer = getRenderer();
     const schema   = renderer?._annotationSchema;
 
@@ -202,20 +233,18 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
     }
 
     for (const col of _columns) {
-      const def    = schema?.get(col);
-      const label  = def?.label ?? col;
-      let w = ctx.measureText(label).width;
-      const isBuiltin  = col.startsWith('__');
-      const actualKey  = def?.dataKey ?? col;
+      const def       = schema?.get(col);
+      const label     = def?.label ?? col;
+      let w           = ctx.measureText(label).width;
+      const isBuiltin = col.startsWith('__');
+      const actualKey = def?.dataKey ?? col;
       for (const tip of sample) {
         const raw = isBuiltin
           ? (renderer?._statValue ? renderer._statValue(tip, col) : null)
           : (tip.annotations?.[actualKey] ?? null);
         if (raw == null) continue;
-        let str;
-        if (typeof raw === 'number' && def?.fmtValue) str = def.fmtValue(raw);
-        else str = String(raw);
-        const tw = ctx.measureText(str).width;
+        const str = (typeof raw === 'number' && def?.fmtValue) ? def.fmtValue(raw) : String(raw);
+        const tw  = ctx.measureText(str).width;
         if (tw > w) w = tw;
       }
       _colWidths.push(Math.max(MIN, Math.ceil(w) + PAD));
@@ -229,7 +258,12 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
   function _renderHeader() {
     if (!headerEl) return;
     if (_isEmpty()) {
-      headerEl.innerHTML = '<div class="dt-header-cell dt-header-empty" style="flex:1;width:100%;color:rgba(255,255,255,0.2);font-style:italic;text-transform:none;letter-spacing:0">No columns selected</div>';
+      headerEl.style.minWidth = '120px';
+      headerEl.innerHTML =
+        '<div class="dt-header-cell dt-header-empty"' +
+        ' style="flex:1;min-width:120px;color:rgba(255,255,255,0.2);' +
+        'font-style:italic;text-transform:none;letter-spacing:0">' +
+        'No columns selected</div>';
       return;
     }
     let html = '';
@@ -243,98 +277,137 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
       const label = _colLabel(col);
       html += `<div class="dt-header-cell" style="flex:0 0 ${w}px;width:${w}px" title="${_esc(label)}">${_esc(label)}</div>`;
     }
+    const totalW = _colWidths.reduce((s, w) => s + w, 0);
+    headerEl.style.minWidth = totalW + 'px';
     headerEl.innerHTML = html;
   }
 
+  // ── Core render loop ────────────────────────────────────────────────────────
+
   function _redraw() {
     const renderer = getRenderer();
-    if (!renderer || !bodyEl) return;
+    if (!renderer || !bodyEl || !numBodyEl) return;
 
     const scaleY  = renderer.scaleY;
     const offsetY = renderer.offsetY;
-    const rowH      = Math.max(12, Math.min(40, scaleY));   // clamp row height to readable range
-    // Label font: the *tree* tip-label font size — used for column-width measurement,
-    // cell text size, and the label-visibility threshold.  Independent of zoom.
-    const labelFontPx = renderer.fontSize || 11;
-    panel.style.setProperty('--dt-font-size', labelFontPx + 'px');
-    panel.style.setProperty('--dt-cell-font-family', renderer.fontFamily || 'monospace');
-    const bodyH   = bodyEl.clientHeight;
-    const BUFFER  = rowH * 4;   // render rows this many px outside visible range
+    const rowH    = Math.max(12, Math.min(40, scaleY));
 
-    // Rebuild columns only when columns, tips, or the tree's label font changes —
-    // NOT on every zoom step (dtFontPx is zoom-dependent; labelFontPx is not).
-    const currentSig = `${Math.round(labelFontPx)}|${_tipsVersion}|${_showNames ? '1':'0'}|${_columns.join('\0')}`;
+    // Use the tree's label font for cell sizing and column-width measurement.
+    const labelFontPx = renderer.fontSize || 11;
+    panel.style.setProperty('--dt-font-size',        labelFontPx + 'px');
+    panel.style.setProperty('--dt-cell-font-family', renderer.fontFamily || 'monospace');
+
+    const bodyH  = bodyEl.clientHeight;
+    const BUFFER = rowH * 4;
+
+    // Rebuild column layout only when column set, tip list, or label font changes —
+    // never on every zoom step.
+    const currentSig = `${Math.round(labelFontPx)}|${_tipsVersion}|${_showNames ? '1' : '0'}|${_columns.join('\0')}`;
     if (currentSig !== _columnSig) {
       _columnSig = currentSig;
       _computeColWidths(labelFontPx, renderer.fontFamily || 'monospace');
       _clearRows();
       _renderHeader();
-      // Auto-size the panel to fit the computed column widths exactly.
-      // In empty state use a fixed minimum width so the hint text is readable.
+
       const totalW = _colWidths.reduce((s, w) => s + w, 0);
-      panel.style.flexBasis = (_isEmpty() ? '130' : (totalW + 2)) + 'px';
-      // The flex layout reflow hasn't happened yet at this point in the rAF.
-      // Defer _resize() to the next frame so the canvas container has its new
-      // dimensions before we read clientWidth.
-      requestAnimationFrame(() => renderer._resize());
+      const dataW  = Math.max(120, totalW);
+
+      // Setting min-width on bodyEl causes #dt-scroll-area to show a scrollbar
+      // when the data columns are wider than the visible scroll area.
+      bodyEl.style.minWidth = dataW + 'px';
+
+      // Total panel width = frozen number column + data area
+      const panelW = _numColW + dataW;
+      panel.style.width = panelW + 'px';
+
+      // CSS variables used by #dt-num-col width and (when pinned) flex-basis /
+      // canvas-container padding-right.
+      panel.style.setProperty('--dt-num-w', _numColW + 'px');
+      document.documentElement.style.setProperty('--dt-panel-w', panelW + 'px');
+
+      // When pinned the canvas width changes — defer _resize() until after the
+      // browser has applied the new flex layout.
+      if (_pinned) requestAnimationFrame(() => renderer._resize());
     }
 
-    const visible  = new Set();
-    // Mirror the tree renderer's label-visibility rule: blank cells when tips
-    // are too close together to show labels (same threshold as treerenderer.js).
+    // Mirror the tree renderer's label-visibility threshold: hide rows when tips
+    // are too close together to show labels.
     const labelsVisible = scaleY >= labelFontPx * 0.5;
 
-    for (const tip of _tips) {
-      const screenY = tip.y * scaleY + offsetY;   // centre of row in CSS px
-      const topY    = screenY - rowH * 0.5;
+    const visible = new Set();
 
-      const inView = screenY + BUFFER >= 0 && screenY - BUFFER <= bodyH;
+    for (let i = 0; i < _tips.length; i++) {
+      const tip     = _tips[i];
+      const screenY = tip.y * scaleY + offsetY;
+      // topY is in bodyEl / numBodyEl coordinates (both start at panel.top + HEADER_H)
+      const topY    = screenY - rowH * 0.5 - HEADER_H;
+
+      const inView = (topY + rowH + BUFFER) >= 0 && (topY - BUFFER) <= bodyH;
       if (!inView || !labelsVisible) {
-        // Hide rows that are out of view, or when tip labels aren't visible
         const existing = _rowEls.get(tip.id);
         if (existing) {
-          existing.el.style.display = 'none';
+          existing.rowEl.style.display = 'none';
+          existing.numEl.style.display = 'none';
         }
         continue;
       }
 
       visible.add(tip.id);
+      const tipNum = i + 1;   // 1-based position in displayed order
 
       if (_rowEls.has(tip.id)) {
-        // Update position and selection highlight
-        const { el, cells } = _rowEls.get(tip.id);
-        el.style.top    = `${topY}px`;
-        el.style.height = `${rowH}px`;
-        el.style.display = 'flex';
-        el.classList.toggle('dt-row-selected', _selectedIds.has(tip.id));
+        // ── Update existing row ─────────────────────────────────────────────
+        const { rowEl, numEl, cells } = _rowEls.get(tip.id);
 
-        // Refresh annotation values (skip focused inputs to avoid clobbering edits)
+        rowEl.style.top     = `${topY}px`;
+        rowEl.style.height  = `${rowH}px`;
+        rowEl.style.display = 'flex';
+
+        numEl.style.top     = `${topY}px`;
+        numEl.style.height  = `${rowH}px`;
+        numEl.style.display = 'flex';
+        numEl.textContent   = tipNum;
+
+        const sel = _selectedIds.has(tip.id);
+        rowEl.classList.toggle('dt-row-selected', sel);
+        numEl.classList.toggle('dt-row-selected', sel);
+
         for (const [key, input] of cells) {
           if (document.activeElement !== input) {
-            const str = labelsVisible ? _fmtValue(key, _tipValue(tip, key)) : '';
+            const str = _fmtValue(key, _tipValue(tip, key));
             if (input.value !== str) input.value = str;
           }
         }
       } else {
-        // Create a new row element
-        const row = document.createElement('div');
-        row.className  = 'dt-row';
-        row.style.top  = `${topY}px`;
-        row.style.height = `${rowH}px`;
+        // ── Create new row elements ─────────────────────────────────────────
 
-        // ── Tip name (only when __names__ is in the column list) ──────────
+        // Number cell (frozen strip)
+        const numEl = document.createElement('div');
+        numEl.className    = 'dt-num-cell';
+        numEl.style.top    = `${topY}px`;
+        numEl.style.height = `${rowH}px`;
+        numEl.textContent  = tipNum;
+        if (_selectedIds.has(tip.id)) numEl.classList.add('dt-row-selected');
+
+        // Data row (scrollable body)
+        const rowEl = document.createElement('div');
+        rowEl.className    = 'dt-row';
+        rowEl.style.top    = `${topY}px`;
+        rowEl.style.height = `${rowH}px`;
+
+        // Optional tip-name cell
         if (_showNames) {
           const nameCell = document.createElement('div');
-          nameCell.className   = 'dt-name-cell';
+          nameCell.className = 'dt-name-cell';
           const w = _colWidths[0] ?? 100;
           nameCell.style.cssText = `flex:0 0 ${w}px;width:${w}px`;
           const label = tip.name ?? tip.id ?? '';
           nameCell.textContent = label;
           nameCell.title       = label;
-          row.appendChild(nameCell);
+          rowEl.appendChild(nameCell);
         }
 
-        // ── Data cells ───────────────────────────────────────────────────
+        // Annotation data cells
         const cells = new Map();
         let wi = _showNames ? 1 : 0;
         for (const col of _columns) {
@@ -342,90 +415,107 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
           cell.className = 'dt-cell';
           const w = _colWidths[wi++] ?? 80;
           cell.style.cssText = `flex:0 0 ${w}px;width:${w}px`;
-          const input = document.createElement('input');
-          input.type  = 'text';
+
+          const input     = document.createElement('input');
+          input.type      = 'text';
           const isBuiltin = col.startsWith('__');
-          const rawVal = labelsVisible ? _tipValue(tip, col) : null;
-          input.value = labelsVisible ? _fmtValue(col, rawVal) : '';
+          input.value       = _fmtValue(col, _tipValue(tip, col));
           input.placeholder = _colLabel(col);
-          input.title = (tip.name ?? tip.id ?? '') + ' / ' + _colLabel(col);
+          input.title       = (tip.name ?? tip.id ?? '') + ' / ' + _colLabel(col);
           if (isBuiltin) {
-            input.readOnly = true;
+            input.readOnly      = true;
             input.style.opacity = '0.6';
             input.style.cursor  = 'default';
           }
 
-          // Commit on Enter
+          // Commit on Enter; cancel on Escape
           input.addEventListener('keydown', e => {
-            if (e.key === 'Enter')  { input.blur(); }
+            if (e.key === 'Enter') { input.blur(); }
             if (e.key === 'Escape') {
-              // Restore original value and blur without committing
-              const orig = isBuiltin ? _fmtValue(col, _tipValue(tip, col)) : (tip.annotations?.[col] ?? null);
-              input.value = orig == null ? '' : String(orig);
+              const orig = isBuiltin
+                ? _fmtValue(col, _tipValue(tip, col))
+                : (tip.annotations?.[col] ?? null);
+              input.value       = orig == null ? '' : String(orig);
               input._cancelBlur = true;
               input.blur();
             }
           });
 
-          // Commit on blur (unless Escape was pressed)
           input.addEventListener('blur', () => {
             if (input._cancelBlur) { input._cancelBlur = false; return; }
-            if (isBuiltin) return;  // read-only — never commit
-            const orig   = tip.annotations?.[col];
+            if (isBuiltin) return;
+            const orig    = tip.annotations?.[col];
             const origStr = orig == null ? '' : String(orig);
             if (input.value !== origStr) {
               onEditCommit(tip.id, col, input.value);
-              // Update the local annotation immediately so re-renders show the new value
               if (!tip.annotations) tip.annotations = {};
               tip.annotations[col] = input.value;
             }
           });
 
           cell.appendChild(input);
-          row.appendChild(cell);
+          rowEl.appendChild(cell);
           cells.set(col, input);
         }
-        // Selection highlight on create
-        if (_selectedIds.has(tip.id)) row.classList.add('dt-row-selected');
 
-        // Row click → selection (skip when target is an input field)
-        row.addEventListener('click', e => {
+        if (_selectedIds.has(tip.id)) rowEl.classList.add('dt-row-selected');
+
+        // Shared click handler for both numEl and rowEl
+        const handleClick = (e) => {
           if (e.target.tagName === 'INPUT') return;
-          const tipIdx = _tips.indexOf(tip);
+          const tipIdx = i;   // closure over loop `let i`
           const meta   = e.metaKey || e.ctrlKey;
           const shift  = e.shiftKey;
           let next = new Set(_selectedIds);
-          if (shift && _lastClickedIdx >= 0 && tipIdx >= 0) {
-            // Extend range from last click to this row
+          if (shift && _lastClickedIdx >= 0) {
             const lo = Math.min(_lastClickedIdx, tipIdx);
             const hi = Math.max(_lastClickedIdx, tipIdx);
-            for (let i = lo; i <= hi; i++) next.add(_tips[i].id);
+            for (let j = lo; j <= hi; j++) next.add(_tips[j].id);
           } else if (meta) {
             if (next.has(tip.id)) next.delete(tip.id); else next.add(tip.id);
           } else {
             next = new Set([tip.id]);
           }
-          if (tipIdx >= 0 && !shift) _lastClickedIdx = tipIdx;
+          if (!shift) _lastClickedIdx = tipIdx;
           if (onRowSelect) onRowSelect(next);
-        });
+        };
+        rowEl.addEventListener('click', handleClick);
+        numEl.addEventListener('click', handleClick);
 
-        bodyEl.appendChild(row);
-        _rowEls.set(tip.id, { el: row, cells });
+        bodyEl.appendChild(rowEl);
+        numBodyEl.appendChild(numEl);
+        _rowEls.set(tip.id, { rowEl, numEl, cells });
       }
     }
 
-    // Clean up rows that no longer belong to visible tips
+    // Remove rows whose tips have left the visible tip list
     const tipIdSet = new Set(_tips.map(t => t.id));
-    for (const [id, { el }] of [..._rowEls]) {
-      if (!visible.has(id) && el.style.display !== 'none') {
-        if (!tipIdSet.has(id)) { el.remove(); _rowEls.delete(id); }
-        // else: out-of-view but tip still exists — already hidden above
+    for (const [id, { rowEl, numEl }] of [..._rowEls]) {
+      if (!visible.has(id) && rowEl.style.display !== 'none') {
+        if (!tipIdSet.has(id)) {
+          rowEl.remove();
+          numEl.remove();
+          _rowEls.delete(id);
+        }
       }
     }
   }
 
-  // Initialise header on creation (no columns yet but builds the "Tip" stub)
+  // ── Wire pin / close buttons ────────────────────────────────────────────────
+
+  if (numHeaderEl) {
+    const btnPin   = numHeaderEl.querySelector('#dt-btn-pin');
+    const btnClose = numHeaderEl.querySelector('#dt-btn-close');
+    if (btnPin)   btnPin.addEventListener('click',   () => _setPin(!_pinned));
+    if (btnClose) btnClose.addEventListener('click', () => close());
+  }
+
+  // Render an empty-state header on construction
   _renderHeader();
 
-  return { setColumns, setTips, syncView, syncSelection, open, close, isOpen, getState, invalidate };
+  return {
+    setColumns, setTips, syncView, syncSelection,
+    open, close, isOpen, isPinned, pin, unpin,
+    getState, invalidate,
+  };
 }

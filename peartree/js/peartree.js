@@ -1638,8 +1638,8 @@ async function fetchExampleTree() {
       axisRenderer.setHeightFormatter(schema.get('height')?.fmt ?? null);
       applyLegend();
       dataTableRenderer.invalidate();
-      // Panel may have resized (e.g. column widths changed) — keep canvas in sync.
-      _resizeDuringTransition();
+      // In pinned mode the panel may have resized — keep canvas in sync.
+      if (dataTableRenderer.isPinned()) _resizeDuringTransition();
       renderer._dirty = true;
     },
     getTableColumns: () => {
@@ -1648,8 +1648,8 @@ async function fetchExampleTree() {
     },
     onTableColumnsChange: (cols) => {
       dataTableRenderer.setColumns(cols);
-      // Panel width changes when columns are added/removed — resize the canvas to match.
-      _resizeDuringTransition();
+      // Canvas only needs resizing when the panel is pinned.
+      if (dataTableRenderer.isPinned()) _resizeDuringTransition();
     },
     getAnnotationPalette: (key) => annotationPalettes.get(key) ?? null,
     onPaletteChange: (key, paletteName) => {
@@ -1663,10 +1663,21 @@ async function fetchExampleTree() {
 
   // ── Data Table Panel ─────────────────────────────────────────────────────
   const dataTableRenderer = createDataTableRenderer({
-    getRenderer: () => renderer,
-    panel:    document.getElementById('data-table-panel'),
-    headerEl: document.getElementById('dt-header'),
-    bodyEl:   document.getElementById('dt-body'),
+    getRenderer:  () => renderer,
+    panel:        document.getElementById('data-table-panel'),
+    headerEl:     document.getElementById('dt-header'),
+    bodyEl:       document.getElementById('dt-body'),
+    numHeaderEl:  document.getElementById('dt-num-header'),
+    numBodyEl:    document.getElementById('dt-num-body'),
+    onClose: () => {
+      btnDataTable.classList.remove('active');
+    },
+    onPinChange: (pinned) => {
+      document.body.classList.toggle('dt-pinned', pinned);
+      // Drive renderer._resize() through the full transition so the canvas
+      // smoothly gains or releases the space the panel occupies.
+      _resizeDuringTransition();
+    },
     onRowSelect: (selectedIds) => {
       renderer._selectedTipIds = new Set(selectedIds);
       renderer._updateMRCA();
@@ -1730,15 +1741,13 @@ async function fetchExampleTree() {
   // Wire the data-table toggle button
   btnDataTable.addEventListener('click', () => {
     if (dataTableRenderer.isOpen()) {
-      dataTableRenderer.close();
-      btnDataTable.classList.remove('active');
+      dataTableRenderer.close();          // onClose callback updates button state
     } else {
       dataTableRenderer.open();
       btnDataTable.classList.add('active');
+      // In overlay mode the canvas doesn't resize on open; in pinned mode the
+      // onPinChange callback already drives _resizeDuringTransition.
     }
-    // Drive _resize() on every rAF for the full transition duration so the canvas
-    // tracks the flex-basis animation frame-by-frame.
-    _resizeDuringTransition();
   });
 
   // Wire the resize handle
@@ -1760,9 +1769,9 @@ async function fetchExampleTree() {
       if (!_dtDragging) return;
       const delta = _dtStartX - e.clientX;  // dragging left increases width
       const newW  = Math.max(100, Math.min(700, _dtStartW + delta));
-      // Update flexBasis immediately (cheap — just a CSS invalidation).
-      _dtPanel.style.flexBasis = `${newW}px`;
-      _dtPanel._dtWidth = `${newW}px`;  // persist for open/close cycle
+      // Update width + CSS variable immediately (cheap — just a CSS invalidation).
+      _dtPanel.style.width = `${newW}px`;
+      document.documentElement.style.setProperty('--dt-panel-w', `${newW}px`);
       // Throttle canvas resize to one call per animation frame.  mousemove
       // can fire far faster than the browser paints; batching avoids redundant
       // forced-layout recalculations on every pointer event.

@@ -277,31 +277,118 @@
     }
 
     /* ── Data table panel ─────────────────────────────────────────────── */
+    /* Overlay mode (default): slides in from the right over the canvas  */
     #data-table-panel {
-      flex: 0 0 0;            /* always in flex flow; JS sets flex-basis to open */
-      min-width: 0;
-      position: relative;
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 300px;              /* JS sets computed content width        */
+      background: #02292e;       /* overridden by _syncCanvasWrapperBg    */
+      border-left: 1px solid rgba(255,255,255,0.08);
+      z-index: 10;
+      display: flex;
+      flex-direction: row;
       overflow: hidden;
-      border-left: 0px solid rgba(255,255,255,0.08);
-      background: #02292e;   /* matches canvas-wrapper default; overridden by _syncCanvasWrapperBg */
       cursor: default;
-      transition: flex-basis 0.22s cubic-bezier(.4,0,.2,1);
+      transform: translateX(100%);
+      transition: transform 0.22s cubic-bezier(.4,0,.2,1),
+                  box-shadow  0.22s cubic-bezier(.4,0,.2,1);
     }
     #data-table-panel.open {
-      border-left-width: 1px;
+      transform: translateX(0);
+      box-shadow: -4px 0 20px rgba(0,0,0,0.45);
+    }
+    /* Pinned: join the flex flow so the canvas-container shrinks to make room */
+    #data-table-panel.pinned {
+      position: relative;
+      flex: 0 0 var(--dt-panel-w, 300px);
+      transform: none !important;
+      transition: flex-basis 0.22s cubic-bezier(.4,0,.2,1);
+      box-shadow: none;
+      z-index: auto;
+    }
+    body.dt-pinned #canvas-container {
+      padding-right: var(--dt-panel-w, 0px);
     }
 
-    /* Thin column-name header overlays the top of the panel */
-    .dt-header {
+    /* ── Frozen number column (left strip) ── */
+    #dt-num-col {
+      flex: none;
+      width: var(--dt-num-w, 36px);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      background: inherit;
+      z-index: 2;
+      flex-shrink: 0;
+    }
+    /* Number-column header: holds pin + close buttons */
+    #dt-num-header {
+      height: 24px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    #dt-btn-pin, #dt-btn-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.4);
+      padding: 2px 3px;
+      line-height: 1;
+      font-size: 0.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    #dt-btn-pin:hover  { color: rgba(255,255,255,0.85); }
+    #dt-btn-close:hover { color: rgba(220,80,70,0.9); }
+    #dt-btn-pin.active  { color: var(--pt-gold, #b5890a); }
+    /* Number cells inside the frozen strip */
+    #dt-num-body {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .dt-num-cell {
       position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 20px;
-      z-index: 3;
+      left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 6px;
+      font-size: var(--dt-font-size, 0.72rem);
+      font-family: var(--dt-cell-font-family, monospace);
+      color: rgba(255,255,255,0.28);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      cursor: pointer;
+      user-select: none;
+    }
+    .dt-num-cell.dt-row-selected { background: rgba(42,161,152,0.18); color: rgba(255,255,255,0.8); }
+    .dt-num-cell:not(.dt-row-selected):hover { background: rgba(255,255,255,0.04); }
+
+    /* ── Scrollable data area (header + rows scroll together horizontally) ── */
+    #dt-scroll-area {
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    #dt-scroll-area::-webkit-scrollbar       { height: 5px; }
+    #dt-scroll-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+    #dt-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+
+    /* Column-name header row */
+    .dt-header {
+      flex-shrink: 0;
+      height: 24px;
       display: flex;
       align-items: center;
       background: inherit;
       border-bottom: 1px solid rgba(255,255,255,0.1);
-      overflow: hidden;
       pointer-events: none;
     }
     .dt-header-name {
@@ -330,36 +417,28 @@
       text-overflow: ellipsis;
     }
 
-    /* Scrollless body — rows are absolutely placed inside */
+    /* Body: absolutely-placed rows; min-width drives the h-scroll bar */
     .dt-body {
-      position: absolute;
-      inset: 0;
+      flex: 1;
+      position: relative;
       overflow: hidden;
     }
 
     /* Each tip row */
     .dt-row {
       position: absolute;
-      left: 0; right: 0;
+      left: 0;
       display: flex;
       align-items: center;
       border-bottom: 1px solid rgba(255,255,255,0.04);
       cursor: pointer;
     }
-    .dt-row:not(.dt-row-selected):hover {
-      background: rgba(255,255,255,0.04);
-    }
+    .dt-row:not(.dt-row-selected):hover { background: rgba(255,255,255,0.04); }
 
     /* Selected row highlight */
-    .dt-row-selected {
-      background: rgba(42,161,152,0.18) !important;
-    }
-    .dt-row-selected .dt-name-cell {
-      color: rgba(255,255,255,0.9) !important;
-    }
-    .dt-row-selected .dt-cell input[type="text"] {
-      color: rgba(255,255,255,0.9);
-    }
+    .dt-row-selected { background: rgba(42,161,152,0.18) !important; }
+    .dt-row-selected .dt-name-cell { color: rgba(255,255,255,0.9) !important; }
+    .dt-row-selected .dt-cell input[type="text"] { color: rgba(255,255,255,0.9); }
 
     /* Tip-name column */
     .dt-name-cell {
@@ -405,18 +484,18 @@
       border-right-color: var(--pt-teal, #2aa198);
     }
 
-    /* Resize handle — left edge of the panel */
+    /* Resize handle — left edge; only interactive when pinned */
     #data-table-resize-handle {
       position: absolute;
       left: 0; top: 0; bottom: 0;
       width: 8px;
       cursor: col-resize;
       z-index: 4;
+      pointer-events: none;
     }
+    #data-table-panel.pinned #data-table-resize-handle { pointer-events: auto; }
     #data-table-resize-handle:hover,
-    #data-table-resize-handle:active {
-      background: rgba(42,161,152,0.3);
-    }
+    #data-table-resize-handle:active { background: rgba(42,161,152,0.3); }
 
     /* ── Empty state (no tree loaded) ── */
     #empty-state {
@@ -1526,11 +1605,22 @@
   <canvas id="legend-right-canvas"  class="pt-legend-canvas right"></canvas>
   <canvas id="legend2-right-canvas" class="pt-legend-canvas right"></canvas>
 
-  <!-- Data table panel — annotation values aligned to each visible tip -->
+  <!-- Data table panel — annotation values aligned with each visible tip -->
   <div id="data-table-panel">
     <div id="data-table-resize-handle"></div>
-    <div class="dt-header" id="dt-header"></div>
-    <div class="dt-body"   id="dt-body"></div>
+    <!-- Frozen left strip: row numbers and pin / close controls -->
+    <div id="dt-num-col">
+      <div id="dt-num-header">
+        <button id="dt-btn-pin"   title="Pin table"><i class="bi bi-pin-angle"></i></button>
+        <button id="dt-btn-close" title="Close table"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div id="dt-num-body"></div>
+    </div>
+    <!-- Horizontally scrollable: column headers + data cells -->
+    <div id="dt-scroll-area">
+      <div class="dt-header" id="dt-header"></div>
+      <div class="dt-body"   id="dt-body"></div>
+    </div>
   </div>
 </div>
 
