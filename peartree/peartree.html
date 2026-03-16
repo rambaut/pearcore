@@ -1389,8 +1389,8 @@
     .expg-hint { font-size: 0.76rem; color: var(--bs-secondary-color); margin-top: 0.3rem; }
 
     /* ── Curate Annotations dialog ── */
-    .ca-table-wrap { overflow-y:auto; max-height:260px; border-bottom:1px solid #235b62; }
-    .ca-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+    .ca-table-wrap { overflow:auto; max-height:260px; border-bottom:1px solid #235b62; }
+    .ca-table { width:100%; min-width:640px; border-collapse:collapse; font-size:0.78rem; }
     .ca-table th { position:sticky; top:0; background:#02292e; color:var(--pt-gold);
       font-weight:600; padding:5px 10px; text-align:left; border-bottom:1px solid #235b62;
       white-space:nowrap; }
@@ -1705,7 +1705,7 @@
 
 <!-- Curate Annotations Dialog -->
 <div id="curate-annot-overlay" class="pt-modal-overlay">
-  <div class="pt-modal" style="width:740px;max-width:calc(100vw - 40px)">
+  <div class="pt-modal" style="width:800px;max-width:calc(100vw - 24px);min-width:min(760px,calc(100vw - 24px))">
     <div class="pt-modal-header">
       <h5 class="modal-title"><i class="bi bi-tags me-2"></i>Annotations</h5>
       <button class="pt-modal-close-btn" id="curate-annot-close" title="Close">&times;</button>

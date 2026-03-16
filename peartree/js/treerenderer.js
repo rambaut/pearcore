@@ -3418,8 +3418,13 @@ export class TreeRenderer {
         if (!this._calCalibration?.isActive) return null;
         return this._calCalibration.heightToDecYear(
           this._globalHeightMap?.get(node.id) ?? (this.maxX - node.x));
-      default:
-        return node.annotations?.[key];
+      default: {
+        // Synthetic base keys (e.g. 'height' promoted from 'height_mean') are
+        // not stored directly on node.annotations — use def.dataKey if set.
+        const def = this._annotationSchema?.get(key);
+        const lookupKey = def?.dataKey ?? key;
+        return node.annotations?.[lookupKey];
+      }
     }
   }
 
