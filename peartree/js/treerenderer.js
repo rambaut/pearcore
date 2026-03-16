@@ -3495,4 +3495,21 @@ export class TreeRenderer {
   _notifyStats() {
     if (this._onStatsChange) this._onStatsChange(this._computeStats());
   }
+
+  /**
+   * Pan the tree view vertically by `deltaY` CSS pixels (positive = scroll
+   * down / tree moves up, same convention as WheelEvent.deltaY).
+   * Called by external panels (e.g. the data-table) to forward their own
+   * wheel events so the tree and table stay synchronised.
+   */
+  scrollByDelta(deltaY) {
+    const scrolledDown = deltaY > 0;
+    this._setTarget(
+      this._targetOffsetY - deltaY,
+      this._targetScaleY,
+      false
+    );
+    clearTimeout(this._snapTimer);
+    this._snapTimer = setTimeout(() => this._snapToTip(scrolledDown), 150);
+  }
 }

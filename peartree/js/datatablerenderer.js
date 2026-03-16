@@ -510,6 +510,23 @@ export function createDataTableRenderer({
     }
   }
 
+  // ── Forward wheel events on the panel to the tree renderer ─────────────────
+  // Vertical wheel scrolls the tree (keeping rows aligned with tips).
+  // Horizontal wheel / shift+wheel is left to the browser so #dt-scroll-area
+  // can still be panned horizontally.
+  panel.addEventListener('wheel', e => {
+    // Let the browser handle purely horizontal gestures (trackpad swipe, shift+wheel).
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const renderer = getRenderer();
+    if (!renderer?.scrollByDelta) return;
+    // Normalise delta to CSS pixels (same as the canvas wheel handler).
+    let delta = e.deltaY;
+    if (e.deltaMode === 1) delta *= renderer.scaleY;              // lines
+    if (e.deltaMode === 2) delta *= (renderer.canvas?.clientHeight ?? 600); // pages
+    renderer.scrollByDelta(delta);
+    e.preventDefault();
+  }, { passive: false });
+
   // ── Wire pin / close buttons ────────────────────────────────────────────────
 
   if (numHeaderEl) {
