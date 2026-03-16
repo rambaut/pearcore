@@ -1236,7 +1236,7 @@ async function fetchExampleTree() {
       `<span class="st-sep"> | </span>` +
       `<span class="st-lbl">Dist\u2009</span><span class="st-val">${stats.distance.toFixed(5)}</span>` +
       `<span class="st-sep"> | </span>` +
-      `<span class="st-lbl">Height\u2009</span><span class="st-val">${stats.height.toFixed(5)}</span>` +
+      `<span class="st-lbl">Age\u2009</span><span class="st-val">${stats.height.toFixed(5)}</span>` +
       `<span class="st-sep"> | </span>` +
       `<span class="st-lbl">Length\u2009</span><span class="st-val">${stats.totalLength.toFixed(5)}</span>`;
   };
@@ -3426,7 +3426,7 @@ async function fetchExampleTree() {
       if (!node.isTip && node.name) rows.push(['Name',         node.name]);
       if (node.label)               rows.push(['Label',        String(node.label)]);
       rows.push(['Divergence',   node.x.toFixed(6)]);
-      rows.push(['Height',       height.toFixed(6)]);
+      rows.push(['Age',          height.toFixed(6)]);
       rows.push(['Branch length', branchLen.toFixed(6)]);
       // ── Calendar date (computed from calibration) ──────────────────────
       if (calibration?.isActive) {
