@@ -46,7 +46,8 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
 
   // Columns currently shown in the data table panel.
   // Initialised from getTableColumns() if provided, otherwise empty.
-  let _tableColumns = new Set(getTableColumns ? getTableColumns() : []);
+  // '__names__' is no longer an option in the curator — filter it out if present.
+  let _tableColumns = new Set([...(getTableColumns ? getTableColumns() : [])].filter(c => c !== '__names__'));
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -110,25 +111,6 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
 
   function _renderTable(schema) {
     const rows = [];
-
-    // ── Synthetic 'Names' row (always first, never deletable) ────────────────
-    const namesInTable = _tableColumns.has('__names__');
-    rows.push(`
-      <tr data-name="__names__" class="ca-row-fixed">
-        <td><span class="ca-name">Names</span>
-          <span style="margin-left:5px;font-size:0.68rem;color:rgba(255,255,255,0.3);font-style:italic">tip labels</span></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td class="ca-center">
-          <input type="checkbox" class="ca-table-chk" data-name="__names__"
-            ${namesInTable ? 'checked' : ''}
-            title="Show tip names in data table panel"
-            style="cursor:pointer;accent-color:var(--pt-teal,#2aa198)">
-        </td>
-        <td class="ca-center"><span style="color:rgba(255,255,255,0.15)" title="Cannot be deleted">—</span></td>
-      </tr>`);
 
     for (const [name, def] of schema) {
       if (name === 'user_colour') continue;

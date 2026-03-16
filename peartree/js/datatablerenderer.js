@@ -137,7 +137,12 @@ export function createDataTableRenderer({ getRenderer, onEditCommit, onRowSelect
       const r = getRenderer();
       return r?._statValue ? r._statValue(tip, key) : null;
     }
-    return tip.annotations?.[key] ?? null;
+    // For synthesised base keys (e.g. 'height' promoted from 'height_mean'),
+    // the actual data lives under a different annotation key.
+    const schema = getRenderer()?._annotationSchema;
+    const def = schema?.get(key);
+    const actualKey = def?.dataKey ?? key;
+    return tip.annotations?.[actualKey] ?? null;
   }
 
   /**

@@ -778,7 +778,9 @@ export function buildAnnotationSchema(nodes) {
       if (!meanDef) continue;
 
       // Clone _mean as the synthetic base; give it its own group map.
-      const synth = { ...meanDef, name: base, group: {} };
+      // dataKey records the real annotation key so the data table can look up
+      // values in tip.annotations (the synthetic base has no direct entry there).
+      const synth = { ...meanDef, name: base, group: {}, dataKey: meanKey };
 
       // Register all members (including _mean itself) under the synthetic base.
       for (const [label, key] of members) {
