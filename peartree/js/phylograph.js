@@ -732,6 +732,12 @@ export function reorderGraph(graph, ascending) {
   const { nodes, root: { nodeA, nodeB, lenA } } = graph;
   const hiddenNodeIds = graph.hiddenNodeIds || new Set();
 
+  const cmp = (a, b) => {
+    const diff = ascending ? a.ct - b.ct : b.ct - a.ct;
+    if (diff !== 0) return diff;
+    return ascending ? a.dep - b.dep : b.dep - a.dep;
+  };
+
   // Iterative post-order DFS: collect nodes top-down (pre-order), then process
   // bottom-up to compute visible tip counts and sort children in-place.
   // Avoids call-stack overflow on deep/caterpillar trees.
@@ -762,12 +768,7 @@ export function reorderGraph(graph, ascending) {
           const dep = (maxDepths.get(n.adjacents[k]) ?? 0) + (n.lengths[k] ?? 0);
           pairs.push({ adj: n.adjacents[k], len: n.lengths[k], ct, dep });
         }
-        pairs.sort((a, b) => {
-          const diff = ascending ? a.ct - b.ct : b.ct - a.ct;
-          if (diff !== 0) return diff;
-          // Tiebreak: larger divergence (deeper subtree) goes first when ascending, last when descending
-          return ascending ? a.dep - b.dep : b.dep - a.dep;
-        });
+        pairs.sort(cmp);
         pairs.forEach(({ adj, len }, k) => { n.adjacents[k + 1] = adj; n.lengths[k + 1] = len; });
         tipCounts.set(idx, pairs.reduce((s, p) => s + p.ct, 0));
         maxDepths.set(idx, Math.max(...pairs.map(p => p.dep)));
@@ -786,11 +787,7 @@ export function reorderGraph(graph, ascending) {
       const { ct, dep } = sortSubtree(adj);
       return { adj, len: n.lengths[i], ct, dep: dep + (n.lengths[i] ?? 0) };
     });
-    pairs.sort((a, b) => {
-      const diff = ascending ? a.ct - b.ct : b.ct - a.ct;
-      if (diff !== 0) return diff;
-      return ascending ? a.dep - b.dep : b.dep - a.dep;
-    });
+    pairs.sort(cmp);
     pairs.forEach(({ adj, len }, i) => { n.adjacents[i] = adj; n.lengths[i] = len; });
     // Update nodeB so the invariant (nodeB === adjacents[0] of nodeA) is kept.
     graph.root = { ...graph.root, nodeB: n.adjacents[0] };
@@ -803,11 +800,7 @@ export function reorderGraph(graph, ascending) {
       const { ct, dep } = sortSubtree(nA.adjacents[i]);
       pairsA.push({ adj: nA.adjacents[i], len: nA.lengths[i], ct, dep: dep + (nA.lengths[i] ?? 0) });
     }
-    pairsA.sort((a, b) => {
-      const diff = ascending ? a.ct - b.ct : b.ct - a.ct;
-      if (diff !== 0) return diff;
-      return ascending ? a.dep - b.dep : b.dep - a.dep;
-    });
+    pairsA.sort(cmp);
     pairsA.forEach(({ adj, len }, i) => { nA.adjacents[i + 1] = adj; nA.lengths[i + 1] = len; });
 
     const nB = nodes[nodeB];
@@ -816,11 +809,7 @@ export function reorderGraph(graph, ascending) {
       const { ct, dep } = sortSubtree(nB.adjacents[i]);
       pairsB.push({ adj: nB.adjacents[i], len: nB.lengths[i], ct, dep: dep + (nB.lengths[i] ?? 0) });
     }
-    pairsB.sort((a, b) => {
-      const diff = ascending ? a.ct - b.ct : b.ct - a.ct;
-      if (diff !== 0) return diff;
-      return ascending ? a.dep - b.dep : b.dep - a.dep;
-    });
+    pairsB.sort(cmp);
     pairsB.forEach(({ adj, len }, i) => { nB.adjacents[i + 1] = adj; nB.lengths[i + 1] = len; });
 
     // Also sort the two root branches against each other.  computeLayoutFromGraph
