@@ -4665,8 +4665,7 @@ async function fetchExampleTree() {
     if (renderer && graph) {
       renderer.setSettings(_buildRendererSettings());
       const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, _layoutOptions());
-      renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
-      renderer.fitToWindow();
+      renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY, { fitViewport: true });
     }
     saveSettings();
   });

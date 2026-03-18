@@ -108,6 +108,10 @@ export class TreeRenderer {
     this._reorderToY            = null;   // Map<id, newY>
     this._reorderFromCollapsedN = null;   // Map<id, oldCollapsedTipCount>
     this._reorderToCollapsedN   = null;   // Map<id, newCollapsedTipCount>
+    this._reorderFromScaleY     = null;   // viewport scaleY at animation start (fitViewport mode)
+    this._reorderToScaleY       = null;   // viewport scaleY target
+    this._reorderFromOffsetY    = null;   // viewport offsetY at animation start
+    this._reorderToOffsetY      = null;   // viewport offsetY target
     this._reorderAlpha          = 1;      // 0→1; 1 = not animating
 
     // Intro animation (played once per tree load)
@@ -354,8 +358,11 @@ export class TreeRenderer {
    * position from its old screen row to the new one.  Does NOT reset the
    * viewport (scaleY / offsetY), so the caller can handle zoom-restoration
    * itself with _setTarget as usual.
+   *
+   * Pass fitViewport:true to also lerp scaleY/offsetY to fit the new layout
+   * in the same animation pass, keeping everything in sync.
    */
-  setDataAnimated(nodes, nodeMap, maxX, maxY) {
+  setDataAnimated(nodes, nodeMap, maxX, maxY, { fitViewport = false } = {}) {
     // For very large trees the per-frame node iteration is too expensive.
     // Fall back to an instant update (no reorder animation) above ~30k tips.
     if (nodes.length > 60000) return this.setData(nodes, nodeMap, maxX, maxY);
@@ -388,16 +395,31 @@ export class TreeRenderer {
     this._updateScaleX(false);
     this._updateMinScaleY();
 
-    // Seed animation: set every node's y to its old position so the lerp
-    // starts from there.
+    // Seed animation: set every node's y and collapsedTipCount to their old
+    // values so the lerp starts from the current visual state.
     for (const n of this.nodes) {
       const fy = fromY.get(n.id);
       if (fy !== undefined) n.y = fy;
+      if (n.isCollapsed) {
+        const fc = fromCollapsedN.get(n.id);
+        if (fc !== undefined) n.collapsedTipCount = fc;
+      }
     }
     this._reorderFromY        = fromY;
     this._reorderToY          = toY;
     this._reorderFromCollapsedN = fromCollapsedN;
     this._reorderToCollapsedN   = toCollapsedN;
+    // Optionally lerp the viewport in the same animation so it stays in sync.
+    if (fitViewport) {
+      this._reorderFromScaleY  = this.scaleY;
+      this._reorderToScaleY    = this.minScaleY;
+      this._reorderFromOffsetY = this.offsetY;
+      this._reorderToOffsetY   = this.paddingTop + this.minScaleY * 0.5;
+      // Keep the spring target in sync so it doesn't fight us after the animation.
+      this._setTarget(this._reorderToOffsetY, this._reorderToScaleY, /*immediate*/ true);
+    } else {
+      this._reorderFromScaleY = null;
+    }
     this._reorderAlpha  = 0;
     this._dirty = true;
     if (this._onLayoutChange) this._onLayoutChange(this.maxX, this._viewSubtreeRootId);
@@ -1864,6 +1886,11 @@ export class TreeRenderer {
           }
         }
       }
+      // Lerp viewport in sync when requested.
+      if (this._reorderFromScaleY !== null) {
+        this.scaleY  = this._reorderFromScaleY  + (this._reorderToScaleY  - this._reorderFromScaleY)  * a;
+        this.offsetY = this._reorderFromOffsetY + (this._reorderToOffsetY - this._reorderFromOffsetY) * a;
+      }
       if (this._reorderAlpha >= 1) {
         // Snap to final positions
         for (const node of this.nodes) {
@@ -1873,6 +1900,11 @@ export class TreeRenderer {
             const tc = this._reorderToCollapsedN.get(node.id);
             if (tc !== undefined) node.collapsedTipCount = tc;
           }
+        }
+        if (this._reorderFromScaleY !== null) {
+          this.scaleY  = this._reorderToScaleY;
+          this.offsetY = this._reorderToOffsetY;
+          this._reorderFromScaleY = null;
         }
         this._reorderFromY          = null;
         this._reorderToY            = null;
