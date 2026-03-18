@@ -412,11 +412,20 @@ export class TreeRenderer {
     // Optionally lerp the viewport in the same animation so it stays in sync.
     if (fitViewport) {
       this._reorderFromScaleY  = this.scaleY;
-      this._reorderToScaleY    = this.minScaleY;
       this._reorderFromOffsetY = this.offsetY;
-      this._reorderToOffsetY   = this.paddingTop + this.minScaleY * 0.5;
-      // Keep the spring target in sync so it doesn't fight us after the animation.
-      this._setTarget(this._reorderToOffsetY, this._reorderToScaleY, /*immediate*/ true);
+      // Compute where fitToWindow() would land, using the same clamping logic
+      // as _setTarget, WITHOUT snapping scaleY/offsetY (an immediate snap would
+      // pre-jump to the final scale before the first animation frame, causing a
+      // visible one-frame flash and making subsequent drags start from the wrong
+      // position because the "from" snapshot would pick up the pre-jumped value).
+      const rawOffsetY           = this.paddingTop + this.minScaleY * 0.5;
+      this._reorderToScaleY      = Math.max(this.minScaleY, this.minScaleY);  // = minScaleY
+      this._reorderToOffsetY     = this._clampedOffsetY(rawOffsetY, this._reorderToScaleY);
+      // Keep the spring target in sync so it doesn't re-animate after the
+      // reorder finishes.  Don't snap immediately — the reorder owns the lerp.
+      this._targetScaleY   = this._reorderToScaleY;
+      this._targetOffsetY  = this._reorderToOffsetY;
+      this._animating      = false;   // suppress spring while reorder runs
     } else {
       this._reorderFromScaleY = null;
     }
