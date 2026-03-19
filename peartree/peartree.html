@@ -36,12 +36,13 @@
     }
 
     /* ── Layout ── */
-    html, body { height: 100%; overflow: hidden; }
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
     /* Prevents white flash before CSS/JS loads — matches the default canvas bg */
     html { background: #02292e; }
     body {
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       background: #02292e;
       color: var(--pt-off-white);
       font-family: var(--bs-body-font-family);
@@ -239,6 +240,7 @@
     /* ── Canvas area ── */
     #canvas-container {
       flex: 1;
+      min-height: 0;        /* allow flex child to shrink below content height */
       position: relative;   /* positioning context for slide-out panels */
       display: flex;
       flex-direction: row;
