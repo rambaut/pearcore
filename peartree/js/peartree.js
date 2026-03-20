@@ -3310,9 +3310,13 @@ async function fetchExampleTree() {
     function applyHide() {
       if (!canHide()) return;
 
-      // Snapshot the current visual root BEFORE mutating the graph / layout.
-      const oldRoot    = renderer.nodes?.find(n => !n.parentId) ?? null;
-      const oldNodeMap = renderer.nodeMap;
+      // Snapshot the current visual root and viewport BEFORE mutating the graph / layout.
+      const oldRoot           = renderer.nodes?.find(n => !n.parentId) ?? null;
+      const oldNodeMap        = renderer.nodeMap;
+      const wasInFitLabels    = renderer._fitLabelsMode;
+      const prevMinScaleY     = renderer.minScaleY;
+      const prevTargetScaleY  = renderer._targetScaleY;
+      const prevTargetOffsetY = renderer._targetOffsetY;
 
       if (renderer._selectedTipIds.size > 1) {
         // Multi-tip prune using ancestor remaining-count map.
@@ -3416,7 +3420,7 @@ async function fetchExampleTree() {
       const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, _layoutOptions());
       renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       _seedRootShiftAnimation(oldRoot, oldNodeMap, layout.nodes, 'in');
-      renderer.fitToWindow();
+      _restoreViewAfterLayoutChange(wasInFitLabels, prevMinScaleY, prevTargetScaleY, prevTargetOffsetY);
     }
 
     function applyShow() {
@@ -3467,14 +3471,18 @@ async function fetchExampleTree() {
       btnOrderAsc .classList.remove('active');
       btnOrderDesc.classList.remove('active');
 
-      // Snapshot the current visual root BEFORE installing the new layout.
-      const oldRoot    = renderer.nodes?.find(n => !n.parentId) ?? null;
-      const oldNodeMap = renderer.nodeMap;
+      // Snapshot the current visual root and viewport BEFORE installing the new layout.
+      const oldRoot           = renderer.nodes?.find(n => !n.parentId) ?? null;
+      const oldNodeMap        = renderer.nodeMap;
+      const wasInFitLabels    = renderer._fitLabelsMode;
+      const prevMinScaleY     = renderer.minScaleY;
+      const prevTargetScaleY  = renderer._targetScaleY;
+      const prevTargetOffsetY = renderer._targetOffsetY;
 
       const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, _layoutOptions());
       renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       _seedRootShiftAnimation(oldRoot, oldNodeMap, layout.nodes, 'out');
-      renderer.fitToWindow();
+      _restoreViewAfterLayoutChange(wasInFitLabels, prevMinScaleY, prevTargetScaleY, prevTargetOffsetY);
     }
 
     btnHide.addEventListener('click', () => applyHide());
@@ -3602,6 +3610,12 @@ async function fetchExampleTree() {
       const oldRoot    = renderer.nodes?.find(n => !n.parentId) ?? null;
       const oldNodeMap = renderer.nodeMap;
 
+      // Capture viewport state before installing the new layout.
+      const wasInFitLabels = renderer._fitLabelsMode;
+      const prevMinScaleY  = renderer.minScaleY;
+      const prevTargetScaleY  = renderer._targetScaleY;
+      const prevTargetOffsetY = renderer._targetOffsetY;
+
       renderer._selectedTipIds.clear();
       renderer._mrcaNodeId = null;
 
@@ -3611,7 +3625,8 @@ async function fetchExampleTree() {
       renderer._mrcaNodeId = nodeId;
       if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(true);
       _seedRootShiftAnimation(oldRoot, oldNodeMap, layout.nodes, 'in');
-      renderer.fitToWindow();
+      // Restore or adapt the viewport rather than always resetting to fit-to-window.
+      _restoreViewAfterLayoutChange(wasInFitLabels, prevMinScaleY, prevTargetScaleY, prevTargetOffsetY);
     }
 
     function applyExpand(nodeId) {
@@ -3641,6 +3656,12 @@ async function fetchExampleTree() {
       const oldRoot    = renderer.nodes?.find(n => !n.parentId) ?? null;
       const oldNodeMap = renderer.nodeMap;
 
+      // Capture viewport state before installing the new layout.
+      const wasInFitLabels    = renderer._fitLabelsMode;
+      const prevMinScaleY     = renderer.minScaleY;
+      const prevTargetScaleY  = renderer._targetScaleY;
+      const prevTargetOffsetY = renderer._targetOffsetY;
+
       renderer._selectedTipIds.clear();
       renderer._mrcaNodeId = null;
 
@@ -3659,7 +3680,29 @@ async function fetchExampleTree() {
         if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(false);
       }
       _seedRootShiftAnimation(oldRoot, oldNodeMap, layout.nodes, 'out');
-      renderer.fitToWindow();
+      // Restore or adapt the viewport rather than always resetting to fit-to-window.
+      _restoreViewAfterLayoutChange(wasInFitLabels, prevMinScaleY, prevTargetScaleY, prevTargetOffsetY);
+    }
+
+    /**
+     * After a collapse/expand layout change, either re-apply fit-labels (if
+     * that was the active mode) or scale the current zoom proportionally to
+     * the new layout height so the user's zoom level feels continuous.
+     */
+    function _restoreViewAfterLayoutChange(wasInFitLabels, prevMinScaleY, prevTargetScaleY, prevTargetOffsetY) {
+      if (wasInFitLabels) {
+        // Re-run fit-labels for the new tip count.
+        renderer.fitLabels();
+      } else {
+        // Keep the zoom ratio: if the user was 3× above minScaleY before,
+        // stay 3× above the new minScaleY.  Clamp to [minScaleY, …] so we
+        // never go below fully-zoomed-out.
+        const newMinScaleY = renderer.minScaleY;
+        const ratio        = prevMinScaleY > 0 ? prevTargetScaleY / prevMinScaleY : 1;
+        const newScaleY    = Math.max(newMinScaleY, newMinScaleY * ratio);
+        const newOffsetY   = renderer._clampedOffsetY(prevTargetOffsetY, newScaleY);
+        renderer._setTarget(newOffsetY, newScaleY, /*immediate*/ false);
+      }
     }
 
     // Double-click on collapsed triangle calls this callback.

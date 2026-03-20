@@ -94,8 +94,15 @@ Press **Escape** or click × to close the dialog without loading (once a tree is
 
 | Button | Description |
 |---|---|
-| **eye-slash** Hide | Collapse the selected subtree (hides its descendants) |
-| **eye** Show | Expand a previously hidden/collapsed subtree |
+| **eye-slash** Hide | Hide the selected subtree (its branches and tips become invisible) |
+| **eye** Show | Reveal previously hidden tips or subtrees |
+
+### Collapse / Expand
+
+| Button | Description |
+|---|---|
+| **⇕** Collapse | Collapse the selected clade to a filled triangle symbol |
+| **⇕** Expand | Expand a collapsed triangle back to its full subtree |
 
 ### Node Info
 
@@ -107,8 +114,13 @@ Press **Escape** or click × to close the dialog without loading (once a tree is
 
 | Button | Description |
 |---|---|
-| **colour swatch** | With tips selected, pick a colour to apply to those tips (stored as `user_colour` annotation) |
+| **colour swatch** | With tips selected, open the colour picker to apply a colour to those tips (stored as `user_colour` annotation) |
 | **eraser** Clear | Remove all user-assigned colours from the tree |
+
+Clicking the **colour swatch** button opens a popup panel with:
+- A row of **recently used colours** (persisted across sessions)
+- Rows of **categorical palette swatches** — click any swatch to apply that colour immediately
+- An **Open colour picker** button that invokes the system native colour dialog for precise hex/RGB entry
 
 The user colour is stored as a `user_colour` annotation in `#RRGGBB` format on individual nodes. It round-trips through NEXUS export/import. Once at least one node has been coloured, **user colour** appears as the second option (after "none") in all three **Colour by** selectors (tip shape, node shape, label). It is intentionally excluded from the Legend selector.
 
@@ -121,6 +133,7 @@ The **Filter tips…** search box in the toolbar searches tip labels as currentl
 | Button | Shortcut | Description |
 |---|---|---|
 | **sliders** | Tab | Open/close the Visual Options palette |
+| **data table** | — | Open/close the Data Table panel (a scrollable tip list synced to the tree) |
 | **ⓘ** About | — | Open the About panel (credits and funding) |
 | **?** Help | ⌘? | Open this help panel |
 
@@ -280,10 +293,35 @@ PearTree finds the two tips with the greatest path length and places the root at
 
 ## Hide / Show Subtrees
 
-- Select an internal node, then click **Hide** (eye-slash) to collapse that subtree
-- A collapsed node is shown as a filled triangle; hovering shows a tip count
-- Select a collapsed node and click **Show** (eye) to restore it
-- Rerooting and subtree navigation work correctly in the presence of hidden subtrees
+- Select an internal node, then click **Hide** (eye-slash) to hide that subtree's branches and tips
+- Hidden nodes are completely invisible — the tree is drawn as if they were pruned
+- Select a visible node that covers hidden descendants and click **Show** (eye) to restore them
+- With no selection, **Show** restores *all* hidden nodes in the current view
+- Rerooting and subtree navigation work correctly in the presence of hidden nodes
+- After hiding or showing, the zoom level is preserved (or fit-labels is re-applied) rather than resetting to fit-to-window
+
+---
+
+## Collapse / Expand Clades
+
+Collapsing replaces a subtree with a filled **triangle symbol**, keeping it visible as a compact summary rather than hiding it entirely.
+
+1. Select an internal node (or a set of tips — their MRCA is used)
+2. Click the **Collapse** (⇕) button to replace the subtree with a triangle
+3. The triangle's label shows the clade name and tip count
+4. Click the **Expand** (⇕) button, or **double-click the triangle**, to restore the full subtree
+
+### Triangle appearance
+
+- The triangle **fill colour** defaults to the current theme's tip shape colour. It can be changed by selecting the triangle and using the **colour swatch** brush tool.
+- The **eraser** button resets a triangle's colour back to the theme default.
+- The triangle draws a **halo** ring matching the tip shape halo settings.
+- **Fill opacity** and **Height (rows)** are controlled in the *Collapsed Clades* section of the Visual Options palette (see below).
+
+### Zoom behaviour
+
+- If **Fit labels** (⌘⇧0) was the active zoom mode, collapsing or expanding re-applies fit labels for the new tip count.
+- Otherwise the current zoom level is preserved, scaled proportionally to the change in layout height.
 
 ---
 
@@ -365,6 +403,17 @@ Click the **image** button (or press **⌘⇧E**) to download an image of the tr
 SVG export includes all visible elements — branches, tip labels, node/tip shapes, colour legend, and time axis — as true vectors.
 
 > Selection markers and hover highlights are intentionally excluded from SVG/PNG export.
+
+---
+
+## Data Table Panel
+
+Click the **data table** button in the toolbar to open a scrollable panel listing all visible tips in tree order.
+
+- The panel is **synchronised** with the canvas: selecting a tip in the tree highlights its row, and clicking a row selects that tip.
+- For **collapsed clades**, the table shows one row per enclosed tip (if the clade is full-height) or a single placeholder row otherwise, allowing you to browse and select tips within a collapsed clade.
+- The panel can be **pinned** open alongside the canvas (it shows a resize handle when pinned) or used as a floating overlay.
+- Columns reflect the loaded annotations; the table is re-rendered whenever the layout changes.
 
 ---
 
@@ -477,6 +526,17 @@ Node bars display 95% HPD (highest probability density) intervals from **BEAST**
 | **Height** | Bar height in screen pixels (2–30) |
 | **Line** | Optional vertical line inside the bar: *(none)*, *Mean*, or *Median* |
 | **Range whiskers** | Whether to draw thin lines extending to the full range beyond the HPD rectangle |
+
+---
+
+### Collapsed Clades
+
+This section appears in the palette once at least one clade has been collapsed to a triangle.
+
+| Control | Description |
+|---|---|
+| **Fill opacity** | Translucency of the triangle fill (0 = fully transparent, 1 = opaque) |
+| **Height (rows)** | Height of the triangle base expressed in tip-row units (1–20). Clades with more tips than this value are drawn at their natural tip-count height; the slider maximum is automatically raised to match the largest collapsed clade. |
 
 ---
 
