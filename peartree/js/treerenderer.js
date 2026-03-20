@@ -3562,46 +3562,9 @@ export class TreeRenderer {
       const zoomStep = 1.5;
       const centerY  = H / 2;
 
-      // Cmd/Ctrl + '=' or '+' → zoom in; Cmd/Ctrl + '-' → zoom out.
-      // Guard against Shift so Cmd+Shift+= / Cmd+Shift+- reach the lens handlers below.
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        this._fitLabelsMode = false;
-        this._setTarget(this._targetOffsetY, this._targetScaleY * zoomStep, false, centerY);
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === '-') {
-        e.preventDefault();
-        this._fitLabelsMode = false;
-        this._setTarget(this._targetOffsetY, this._targetScaleY / zoomStep, false, centerY);
-        return;
-      }
-
-      // Cmd/Ctrl + Shift + 0 → fit labels zoom.
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Digit0') {
-        e.preventDefault();
-        this.fitLabels();
-        return;
-      }
-
-      // Cmd/Ctrl + Shift + = → widen lens; Cmd/Ctrl + Shift + - → narrow lens.
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Equal') {
-        e.preventDefault();
-        this.hypMagUp();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Minus') {
-        e.preventDefault();
-        this.hypMagDown();
-        return;
-      }
-
-      // Cmd/Ctrl + 0 → fit current subtree vertically.
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === 'Digit0') {
-        e.preventDefault();
-        this.fitToWindow();
-        return;
-      }
+      // Zoom in/out (⌘=/⌘-), fit (⌘0), fit-labels (⌘⇧0), hyperbolic lens
+      // magnification (⌘⇧=/⌘⇧-) are all handled via the command registry in
+      // peartree.js so they share a single source of truth with the toolbar buttons.
 
       // Arrow key vertical scroll (↑/↓, ⌘↑/↓, ⌘⇧↑/↓) is handled by a
       // capture-phase listener in peartree.js so all three levels live together.

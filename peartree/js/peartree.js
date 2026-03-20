@@ -2886,6 +2886,10 @@ async function fetchExampleTree() {
         commands.setEnabled('view-fit-labels',  true);
         commands.setEnabled('view-scroll-top',    true);
         commands.setEnabled('view-scroll-bottom', true);
+        commands.setEnabled('view-zoom-in',   true);
+        commands.setEnabled('view-zoom-out',  true);
+        commands.setEnabled('view-hyp-up',    true);
+        commands.setEnabled('view-hyp-down',  true);
         commands.setEnabled('tree-order-up',   true);
         commands.setEnabled('tree-order-down', true);
       }
@@ -3155,10 +3159,11 @@ async function fetchExampleTree() {
     // subsequent tree loads automatically pick up the new value.
     // (tree-midpoint is also set per-load in loadTree; this run of bindControls
     //  is a no-op on that path but is kept for safety.)
-    document.getElementById('btn-zoom-in') .addEventListener('click', () => renderer.zoomIn());
-    document.getElementById('btn-zoom-out').addEventListener('click', () => renderer.zoomOut());
-    document.getElementById('btn-hyp-up')  ?.addEventListener('click', () => renderer.hypMagUp());
-    document.getElementById('btn-hyp-down')?.addEventListener('click', () => renderer.hypMagDown());
+    // Zoom / fit / lens buttons — driven by commands; direct listener no longer needed.
+    document.getElementById('btn-zoom-in') .addEventListener('click', () => commands.execute('view-zoom-in'));
+    document.getElementById('btn-zoom-out').addEventListener('click', () => commands.execute('view-zoom-out'));
+    document.getElementById('btn-hyp-up')  ?.addEventListener('click', () => commands.execute('view-hyp-up'));
+    document.getElementById('btn-hyp-down')?.addEventListener('click', () => commands.execute('view-hyp-down'));
 
     renderer._onNavChange = (canBack, canFwd) => {
       commands.setEnabled('view-back',    canBack);
@@ -4991,6 +4996,12 @@ async function fetchExampleTree() {
   };
   commands.get('view-scroll-top').exec    = () => renderer._setTarget(Infinity,  renderer._targetScaleY, false);
   commands.get('view-scroll-bottom').exec = () => renderer._setTarget(-Infinity, renderer._targetScaleY, false);
+  commands.get('view-zoom-in').exec       = () => renderer.zoomIn();
+  commands.get('view-zoom-out').exec      = () => renderer.zoomOut();
+  commands.get('view-fit').exec           = () => renderer.fitToWindow();
+  commands.get('view-fit-labels').exec    = () => renderer.fitLabels();
+  commands.get('view-hyp-up').exec        = () => renderer.hypMagUp();
+  commands.get('view-hyp-down').exec      = () => renderer.hypMagDown();
 
   // ── Keyboard vertical scroll — all three levels in one capture-phase handler ──
   //
