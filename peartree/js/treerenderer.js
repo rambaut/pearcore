@@ -2273,8 +2273,9 @@ export class TreeRenderer {
   /** Draw collapsed-clade triangles over the branches. */
   _drawCollapsedClades(yWorldMin, yWorldMax) {
     if (!this.nodes) return;
-    const ctx     = this.ctx;
-    const opacity = this._collapsedCladeOpacity;
+    const ctx      = this.ctx;
+    const opacity  = this._collapsedCladeOpacity;
+    const tipHalo  = this.tipHaloSize;
 
     for (const node of this.nodes) {
       if (!node.isCollapsed) continue;
@@ -2294,18 +2295,45 @@ export class TreeRenderer {
       const topSY   = this._wy(node.y - halfN);
       const botSY   = this._wy(node.y + halfN);
 
-      const colour = node.collapsedColour ?? this.branchColor;
+      const colour = node.collapsedColour ?? this.tipShapeColor;
 
+      // Build the triangle path once and reuse it for halo + fill + outline.
       ctx.beginPath();
       ctx.moveTo(apexSX, apexSY);
       ctx.lineTo(baseSX, topSY);
       ctx.lineTo(baseSX, botSY);
       ctx.closePath();
 
+      // Halo: bg-coloured stroke clipped to the exterior of the triangle so
+      // it only appears outside the edge and never bleeds through a translucent fill.
+      if (tipHalo > 0) {
+        ctx.save();
+        // Clip region = full canvas rect XOR triangle interior (even-odd rule).
+        // This restricts all subsequent drawing to the area outside the triangle.
+        ctx.beginPath();
+        ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.moveTo(apexSX, apexSY);
+        ctx.lineTo(baseSX, topSY);
+        ctx.lineTo(baseSX, botSY);
+        ctx.closePath();
+        ctx.clip('evenodd');
+
+        ctx.strokeStyle = this.tipShapeBgColor;
+        ctx.lineWidth   = tipHalo * 2;
+        ctx.beginPath();
+        ctx.moveTo(apexSX, apexSY);
+        ctx.lineTo(baseSX, topSY);
+        ctx.lineTo(baseSX, botSY);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+
       ctx.globalAlpha = opacity;
       ctx.fillStyle   = colour;
       ctx.fill();
       ctx.globalAlpha = 1;
+      // Thin outline in the clade colour (matches branch width).
       ctx.strokeStyle = colour;
       ctx.lineWidth   = this.branchWidth;
       ctx.stroke();
@@ -2467,10 +2495,12 @@ export class TreeRenderer {
         ctx.beginPath();
         for (const node of this.nodes) {
           if (!node.isTip) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          // Collapsed clade at full height: draw one connector per virtual tip.
+          // Full-height collapsed clades: use range-based culling so connectors
+          // draw even when node.y (the triangle apex) is off-screen.
           if (node.isCollapsed && node.collapsedTipNames &&
               Math.round(node.collapsedTipCount) >= node.collapsedRealTips) {
+            const _halfN = node.collapsedTipCount / 2;
+            if (node.y + _halfN < yWorldMin || node.y - _halfN > yWorldMax) continue;
             const N    = node.collapsedRealTips;
             const topY = node.y - (N - 1) / 2;
             const tipEdgeX = this._wx(node.collapsedMaxX);
@@ -2486,6 +2516,8 @@ export class TreeRenderer {
             }
             continue;
           }
+          // Non-full-height collapsed nodes and regular tips: cull by node.y.
+          if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           // For collapsed clades the connector starts at the right-hand base
           // of the triangle, not the apex.
@@ -2561,7 +2593,10 @@ export class TreeRenderer {
         const isSelected   = (node) => this._mrcaNodeId === node.id;
         for (const node of this.nodes) {
           if (!node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+          // Cull by triangle extent so labels render when the clade is larger
+          // than the viewport and node.y (the centre) is off-screen.
+          { const _halfN = node.collapsedTipCount / 2;
+            if (node.y + _halfN < yWorldMin || node.y - _halfN > yWorldMax) continue; }
           const _bX = alignLabelX ?? (this._wx(node.collapsedMaxX) + 4);
           const sel = isSelected(node);
           const dim = hasSelection && !sel;
@@ -2593,7 +2628,12 @@ export class TreeRenderer {
               ctx.fillText(tip.name, _tx(_bX), this._wy(wy));
             }
           } else {
-            // Show count label at the node's y centre.
+            // Show count label at the node's y centre, clamped to the visible
+            // portion of the triangle when the centre is off-screen.
+            const _halfN  = node.collapsedTipCount / 2;
+            const _labelY = Math.max(node.y - _halfN,
+                              Math.min(node.y + _halfN,
+                                Math.max(yWorldMin, Math.min(yWorldMax, node.y))));
             const label = `${node.collapsedRealTips} tips`;
             if (dim) {
               ctx.fillStyle = this.dimLabelColor;
@@ -2605,7 +2645,7 @@ export class TreeRenderer {
               ctx.fillStyle = this.labelColor;
               ctx.font      = `${this.fontSize}px ${this.fontFamily}`;
             }
-            ctx.fillText(label, _tx(_bX), this._wy(node.y));
+            ctx.fillText(label, _tx(_bX), this._wy(_labelY));
           }
         }
         ctx.font = `${this.fontSize}px ${this.fontFamily}`;

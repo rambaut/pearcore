@@ -70,6 +70,8 @@ export function createDataTableRenderer({
   let _dragSelectActive   = false;  // true while user is drag-selecting rows
   let _dragSelectStartIdx = -1;
   let _dragMoved          = false;  // true once drag crossed a row boundary
+  let _expandedRows   = [];       // expanded tip list: includes virtual rows for collapsed clades
+  let _expandedSig    = '';       // serialised clade structure; change → force rebuild
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -87,6 +89,8 @@ export function createDataTableRenderer({
   function setTips(tips) {
     _tips = [...(tips || [])].sort((a, b) => a.y - b.y);
     _tipsVersion++;
+    _expandedSig = '';       // force _buildExpandedRows on next _redraw
+    _buildExpandedRows();
     _clearRows();
     if (_open) _redraw();
   }
@@ -100,7 +104,7 @@ export function createDataTableRenderer({
   /** Update selection highlight without a full redraw. */
   function syncSelection(ids) {
     _selectedIds = ids instanceof Set ? ids : new Set(ids);
-    for (const [tipId, { rowEl, numEl }] of _rowEls) {
+    for (const [, { rowEl, numEl, tipId }] of _rowEls) {
       const sel = _selectedIds.has(tipId);
       rowEl.classList.toggle('dt-row-selected', sel);
       numEl.classList.toggle('dt-row-selected', sel);
@@ -113,6 +117,8 @@ export function createDataTableRenderer({
     const r = getRenderer();
     if (r?.nodes) _tips = r.nodes.filter(n => n.isTip).sort((a, b) => a.y - b.y);
     if (r?._selectedTipIds) _selectedIds = new Set(r._selectedTipIds);
+    _expandedSig = '';       // force rebuild of expanded rows
+    _buildExpandedRows();
     _clearRows();
     _redraw();
   }
@@ -179,6 +185,50 @@ export function createDataTableRenderer({
     if (numBodyEl) numBodyEl.innerHTML = '';
   }
 
+  /**
+   * Build _expandedRows from _tips, expanding collapsed clades:
+   *  – Full-height collapsed clade  → N rows, one per virtual tip (cumNum increments).
+   *  – Non-full-height collapsed clade → one tall blank row spanning the triangle height;
+   *    cumNum skips past all collapsedRealTips so the next real tip is numbered correctly.
+   */
+  function _buildExpandedRows() {
+    let cumNum = 0;
+    _expandedRows = [];
+    for (const tip of _tips) {
+      if (tip.isCollapsed) {
+        const realTips = tip.collapsedRealTips ?? 1;
+        const layoutH  = tip.collapsedTipCount  ?? 1;
+        const isFullH  = tip.collapsedTipNames?.length > 0 &&
+                         Math.round(layoutH) >= realTips;
+        if (isFullH) {
+          const N    = tip.collapsedTipNames.length;
+          const topY = tip.y - (N - 1) / 2;
+          for (let i = 0; i < N; i++) {
+            cumNum++;
+            _expandedRows.push({
+              key: tip.id + '\0' + i, tip,
+              vt: tip.collapsedTipNames[i], y: topY + i,
+              isBlank: false, cumNum,
+            });
+          }
+        } else {
+          // One tall blank placeholder covering the triangle's visual extent.
+          _expandedRows.push({
+            key: tip.id + '\0blank', tip,
+            vt: null, y: tip.y, isBlank: true, layoutH, cumNum: null,
+          });
+          cumNum += realTips;   // advance past all hidden tips
+        }
+      } else {
+        cumNum++;
+        _expandedRows.push({
+          key: tip.id, tip,
+          vt: null, y: tip.y, isBlank: false, cumNum,
+        });
+      }
+    }
+  }
+
   function _colLabel(key) {
     const schema = getRenderer()?._annotationSchema;
     return schema?.get(key)?.label ?? key;
@@ -209,6 +259,16 @@ export function createDataTableRenderer({
     return String(rawVal);
   }
 
+  /** Resolve the raw annotation value for a virtual tip `vt` from a full-height
+   *  collapsed clade.  Builtin (__) stats are unavailable for virtual tips. */
+  function _vtValue(vt, key) {
+    if (key.startsWith('__')) return null;
+    const schema    = getRenderer()?._annotationSchema;
+    const def       = schema?.get(key);
+    const actualKey = def?.dataKey ?? key;
+    return vt.annotations?.[actualKey] ?? null;
+  }
+
   /**
    * Measure the widest content for the frozen number column and each data
    * column and store results in _numColW / _colWidths.
@@ -222,8 +282,11 @@ export function createDataTableRenderer({
     const MIN = 48;
     _colWidths = [];
 
-    // Frozen number column: wide enough for the largest row number.
-    const numDigits = String(_tips.length || 1).length;
+    // Frozen number column: wide enough for the largest cumulative row number
+    // (may exceed _tips.length when collapsed clades contain many real tips).
+    const maxNum    = _expandedRows.reduceRight(
+      (m, r) => r.cumNum != null ? Math.max(m, r.cumNum) : m, _tips.length || 1);
+    const numDigits = String(maxNum).length;
     _numColW = Math.max(36, Math.ceil(ctx.measureText('0'.repeat(numDigits)).width) + 16);
 
     const MAX_SAMPLE = 500;
@@ -238,6 +301,15 @@ export function createDataTableRenderer({
     if (_showNames) {
       let w = ctx.measureText('Names').width;
       for (const tip of sample) w = Math.max(w, ctx.measureText(tip.name ?? tip.id ?? '').width);
+      // Also measure virtual tip names from full-height collapsed clades.
+      for (const tip of tips) {
+        if (!tip.isCollapsed || !tip.collapsedTipNames) continue;
+        const N = Math.min(20, tip.collapsedTipNames.length);
+        for (let i = 0; i < N; i++) {
+          const nm = tip.collapsedTipNames[i]?.name ?? '';
+          if (nm) w = Math.max(w, ctx.measureText(nm).width);
+        }
+      }
       _colWidths.push(Math.max(MIN, Math.ceil(w) + PAD));
     }
 
@@ -346,146 +418,185 @@ export function createDataTableRenderer({
     // are too close together to show labels.
     const labelsVisible = scaleY >= labelFontPx * 0.5;
 
+    // Rebuild expanded rows when clade structure changes (e.g. height slider moved).
+    const expandedSig = _tips.map(t =>
+      t.isCollapsed
+        ? `${t.id}:${Math.round(t.collapsedTipCount ?? 1)}:${t.collapsedRealTips ?? 0}`
+        : t.id
+    ).join('|');
+    if (expandedSig !== _expandedSig) {
+      _expandedSig = expandedSig;
+      _buildExpandedRows();
+      _columnSig = '';  // force column-width recompute (maxNum may have changed)
+    }
+
     const visible = new Set();
 
-    for (let i = 0; i < _tips.length; i++) {
-      const tip     = _tips[i];
-      const screenY = tip.y * scaleY + offsetY;
-      // topY is in bodyEl / numBodyEl coordinates (both start at panel.top + HEADER_H)
-      const topY    = screenY - rowH * 0.5 - HEADER_H;
+    for (let ri = 0; ri < _expandedRows.length; ri++) {
+      const row = _expandedRows[ri];
+      const { key, tip, vt, y, isBlank, cumNum } = row;
+      const isSelected = _selectedIds.has(tip.id);
 
-      const inView = (topY + rowH + BUFFER) >= 0 && (topY - BUFFER) <= bodyH;
-      if (!inView || !labelsVisible) {
-        const existing = _rowEls.get(tip.id);
-        if (existing) {
-          existing.rowEl.style.display = 'none';
-          existing.numEl.style.display = 'none';
+      if (isBlank) {
+        // ── Blank placeholder: a single tall div covering the triangle extent ──
+        const halfN     = (row.layoutH ?? 1) / 2;
+        const screenTop = (tip.y - halfN) * scaleY + offsetY - HEADER_H;
+        const screenH   = (row.layoutH ?? 1) * scaleY;
+        const inView    = (screenTop + screenH + BUFFER) >= 0 && (screenTop - BUFFER) <= bodyH;
+        if (!inView || !labelsVisible) {
+          const existing = _rowEls.get(key);
+          if (existing) { existing.rowEl.style.display = 'none'; existing.numEl.style.display = 'none'; }
+          continue;
+        }
+        visible.add(key);
+        if (_rowEls.has(key)) {
+          const { rowEl, numEl } = _rowEls.get(key);
+          rowEl.style.top     = `${screenTop}px`;
+          rowEl.style.height  = `${screenH}px`;
+          rowEl.style.display = 'flex';
+          numEl.style.top     = `${screenTop}px`;
+          numEl.style.height  = `${screenH}px`;
+          numEl.style.display = 'flex';
+        } else {
+          const numEl = document.createElement('div');
+          numEl.className = 'dt-num-cell';
+          numEl.style.top    = `${screenTop}px`;
+          numEl.style.height = `${screenH}px`;
+          const rowEl = document.createElement('div');
+          rowEl.className = 'dt-row';
+          rowEl.style.top    = `${screenTop}px`;
+          rowEl.style.height = `${screenH}px`;
+          bodyEl.appendChild(rowEl);
+          numBodyEl.appendChild(numEl);
+          _rowEls.set(key, { rowEl, numEl, cells: new Map(), tipId: tip.id });
         }
         continue;
       }
 
-      visible.add(tip.id);
-      const tipNum = i + 1;   // 1-based position in displayed order
+      // ── Regular tip or virtual tip from a full-height collapsed clade ──────
+      const screenY = y * scaleY + offsetY;
+      const topY    = screenY - rowH * 0.5 - HEADER_H;
+      const inView  = (topY + rowH + BUFFER) >= 0 && (topY - BUFFER) <= bodyH;
+      if (!inView || !labelsVisible) {
+        const existing = _rowEls.get(key);
+        if (existing) { existing.rowEl.style.display = 'none'; existing.numEl.style.display = 'none'; }
+        continue;
+      }
 
-      if (_rowEls.has(tip.id)) {
-        // ── Update existing row ─────────────────────────────────────────────
-        const { rowEl, numEl, cells } = _rowEls.get(tip.id);
+      visible.add(key);
+
+      if (_rowEls.has(key)) {
+        // ── Update existing row ───────────────────────────────────────────────
+        const { rowEl, numEl, cells } = _rowEls.get(key);
 
         rowEl.style.top     = `${topY}px`;
         rowEl.style.height  = `${rowH}px`;
         rowEl.style.display = 'flex';
-
         numEl.style.top     = `${topY}px`;
         numEl.style.height  = `${rowH}px`;
         numEl.style.display = 'flex';
-        numEl.textContent   = tipNum;
+        numEl.textContent   = cumNum;
 
-        const sel = _selectedIds.has(tip.id);
-        rowEl.classList.toggle('dt-row-selected', sel);
-        numEl.classList.toggle('dt-row-selected', sel);
+        rowEl.classList.toggle('dt-row-selected', isSelected);
+        numEl.classList.toggle('dt-row-selected', isSelected);
 
-        for (const [key, input] of cells) {
+        for (const [colKey, input] of cells) {
           if (document.activeElement !== input) {
-            const str = _fmtValue(key, _tipValue(tip, key));
+            const rawVal = vt != null ? _vtValue(vt, colKey) : _tipValue(tip, colKey);
+            const str    = _fmtValue(colKey, rawVal);
             if (input.value !== str) input.value = str;
           }
         }
       } else {
-        // ── Create new row elements ─────────────────────────────────────────
+        // ── Create new row elements ───────────────────────────────────────────
+        const tipLabel = vt != null ? (vt.name ?? '') : (tip.name ?? tip.id ?? '');
 
-        // Number cell (frozen strip)
         const numEl = document.createElement('div');
         numEl.className     = 'dt-num-cell';
-        numEl.dataset.dtIdx = i;
+        numEl.dataset.dtIdx = ri;
         numEl.style.top     = `${topY}px`;
-        numEl.style.height = `${rowH}px`;
-        numEl.textContent  = tipNum;
-        if (_selectedIds.has(tip.id)) numEl.classList.add('dt-row-selected');
+        numEl.style.height  = `${rowH}px`;
+        numEl.textContent   = cumNum;
+        if (isSelected) numEl.classList.add('dt-row-selected');
 
-        // Data row (scrollable body)
         const rowEl = document.createElement('div');
         rowEl.className     = 'dt-row';
-        rowEl.dataset.dtIdx = i;
+        rowEl.dataset.dtIdx = ri;
         rowEl.style.top     = `${topY}px`;
-        rowEl.style.height = `${rowH}px`;
+        rowEl.style.height  = `${rowH}px`;
 
-        // Optional tip-name cell
         if (_showNames) {
           const nameCell = document.createElement('div');
           nameCell.className = 'dt-name-cell';
           const w = _colWidths[0] ?? 100;
           nameCell.style.cssText = `flex:0 0 ${w}px;width:${w}px`;
-          const label = tip.name ?? tip.id ?? '';
-          nameCell.textContent = label;
-          nameCell.title       = label;
+          nameCell.textContent = tipLabel;
+          nameCell.title       = tipLabel;
           rowEl.appendChild(nameCell);
         }
 
-        // Annotation data cells
         const cells = new Map();
         let wi = _showNames ? 1 : 0;
         for (const col of _columns) {
-          const cell  = document.createElement('div');
-          cell.className = 'dt-cell';
+          const cell = document.createElement('div');
+          cell.className     = 'dt-cell';
           const w = _colWidths[wi++] ?? 80;
           cell.style.cssText = `flex:0 0 ${w}px;width:${w}px`;
 
-          const input     = document.createElement('input');
-          input.type      = 'text';
-          const isBuiltin = col.startsWith('__');
-          input.value       = _fmtValue(col, _tipValue(tip, col));
-          input.placeholder = _colLabel(col);
-          input.title       = (tip.name ?? tip.id ?? '') + ' / ' + _colLabel(col);
-          if (isBuiltin) {
+          const input         = document.createElement('input');
+          input.type          = 'text';
+          const isBuiltin     = col.startsWith('__');
+          const forceReadOnly = vt != null || isBuiltin;  // virtual tips are always read-only
+          const rawVal        = vt != null ? _vtValue(vt, col) : _tipValue(tip, col);
+          input.value         = _fmtValue(col, rawVal);
+          input.placeholder   = _colLabel(col);
+          input.title         = tipLabel + ' / ' + _colLabel(col);
+          if (forceReadOnly) {
             input.readOnly      = true;
             input.style.opacity = '0.6';
             input.style.cursor  = 'default';
           }
 
-          // Commit on Enter; cancel on Escape
-          input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { input.blur(); }
-            if (e.key === 'Escape') {
-              const orig = isBuiltin
-                ? _fmtValue(col, _tipValue(tip, col))
-                : (tip.annotations?.[col] ?? null);
-              input.value       = orig == null ? '' : String(orig);
-              input._cancelBlur = true;
-              input.blur();
-            }
-          });
-
-          input.addEventListener('blur', () => {
-            if (input._cancelBlur) { input._cancelBlur = false; return; }
-            if (isBuiltin) return;
-            const orig    = tip.annotations?.[col];
-            const origStr = orig == null ? '' : String(orig);
-            if (input.value !== origStr) {
-              onEditCommit(tip.id, col, input.value);
-              if (!tip.annotations) tip.annotations = {};
-              tip.annotations[col] = input.value;
-            }
-          });
+          if (!forceReadOnly) {
+            input.addEventListener('keydown', e => {
+              if (e.key === 'Enter') { input.blur(); }
+              if (e.key === 'Escape') {
+                const orig    = tip.annotations?.[col] ?? null;
+                input.value   = orig == null ? '' : String(orig);
+                input._cancelBlur = true;
+                input.blur();
+              }
+            });
+            input.addEventListener('blur', () => {
+              if (input._cancelBlur) { input._cancelBlur = false; return; }
+              const orig    = tip.annotations?.[col];
+              const origStr = orig == null ? '' : String(orig);
+              if (input.value !== origStr) {
+                onEditCommit(tip.id, col, input.value);
+                if (!tip.annotations) tip.annotations = {};
+                tip.annotations[col] = input.value;
+              }
+            });
+          }
 
           cell.appendChild(input);
           rowEl.appendChild(cell);
           cells.set(col, input);
         }
 
-        if (_selectedIds.has(tip.id)) rowEl.classList.add('dt-row-selected');
+        if (isSelected) rowEl.classList.add('dt-row-selected');
 
-        // Shared click handler for both numEl and rowEl
         const handleClick = (e) => {
           if (e.target.tagName === 'INPUT') return;
-          if (_dragMoved) return;  // selection already handled by drag-select
-          const tipIdx = i;   // closure over loop `let i`
+          if (_dragMoved) return;
+          const tipIdx = ri;
           const meta   = e.metaKey || e.ctrlKey;
           const shift  = e.shiftKey;
           let next = new Set(_selectedIds);
           if (shift && _lastClickedIdx >= 0) {
             const lo = Math.min(_lastClickedIdx, tipIdx);
             const hi = Math.max(_lastClickedIdx, tipIdx);
-            for (let j = lo; j <= hi; j++) next.add(_tips[j].id);
+            for (let j = lo; j <= hi; j++) { const r = _expandedRows[j]; if (r) next.add(r.tip.id); }
           } else if (meta) {
             if (next.has(tip.id)) next.delete(tip.id); else next.add(tip.id);
           } else {
@@ -496,9 +607,9 @@ export function createDataTableRenderer({
         };
         const handleMouseDown = (e) => {
           if (e.target.tagName === 'INPUT') return;
-          e.preventDefault();       // prevent browser text-selection highlight
+          e.preventDefault();
           _dragSelectActive   = true;
-          _dragSelectStartIdx = i;
+          _dragSelectStartIdx = ri;
           _dragMoved          = false;
         };
         rowEl.addEventListener('click',     handleClick);
@@ -508,18 +619,19 @@ export function createDataTableRenderer({
 
         bodyEl.appendChild(rowEl);
         numBodyEl.appendChild(numEl);
-        _rowEls.set(tip.id, { rowEl, numEl, cells });
+        _rowEls.set(key, { rowEl, numEl, cells, tipId: tip.id });
       }
     }
 
-    // Remove rows whose tips have left the visible tip list
+    // Remove rows whose tips or clade structure have left the visible set.
     const tipIdSet = new Set(_tips.map(t => t.id));
-    for (const [id, { rowEl, numEl }] of [..._rowEls]) {
-      if (!visible.has(id) && rowEl.style.display !== 'none') {
-        if (!tipIdSet.has(id)) {
+    for (const [rowKey, { rowEl, numEl }] of [..._rowEls]) {
+      if (!visible.has(rowKey) && rowEl.style.display !== 'none') {
+        const baseId = rowKey.includes('\0') ? rowKey.split('\0')[0] : rowKey;
+        if (!tipIdSet.has(baseId)) {
           rowEl.remove();
           numEl.remove();
-          _rowEls.delete(id);
+          _rowEls.delete(rowKey);
         }
       }
     }
@@ -541,7 +653,7 @@ export function createDataTableRenderer({
     const lo = Math.min(_dragSelectStartIdx, idx);
     const hi = Math.max(_dragSelectStartIdx, idx);
     const next = new Set();
-    for (let j = lo; j <= hi; j++) if (_tips[j]) next.add(_tips[j].id);
+    for (let j = lo; j <= hi; j++) { const r = _expandedRows[j]; if (r) next.add(r.tip.id); }
     if (onRowSelect) onRowSelect(next);
   });
 

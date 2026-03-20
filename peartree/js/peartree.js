@@ -1089,7 +1089,7 @@ async function fetchExampleTree() {
     document.getElementById('canvas-container').style.background        = color;
     document.getElementById('canvas-wrapper').style.background          = color;
     document.getElementById('canvas-and-axis-wrapper').style.background = color;
-    document.getElementById('data-table-panel').style.background        = color;
+    // Data table panel keeps the UI theme background, independent of the tree theme.
   }
 
   /** Apply a named theme: hydrate all visual DOM controls and push to renderer. */
@@ -3588,7 +3588,9 @@ async function fetchExampleTree() {
     function applyCollapse() {
       if (!canCollapse()) return;
       const nodeId   = renderer._mrcaNodeId ?? _selectedNodeId();
-      const colour   = tipColourPickerEl?.value ?? null;
+      // Initial colour is null so the renderer uses the current theme's tip shape colour.
+      // The brush command can override it; the eraser resets it back to null.
+      const colour   = null;
       const tipCount = _countRealDescendantTips(nodeId);
       graph.collapsedCladeIds.set(nodeId, { colour, tipCount });
 
@@ -4063,6 +4065,14 @@ async function fetchExampleTree() {
     btnClearUserColour.addEventListener('click', () => {
       if (!graph) return;
       for (const node of graph.nodes) delete node.annotations['user_colour'];
+      // Reset any user-painted collapsed clade colours back to the theme default.
+      if (graph.collapsedCladeIds) {
+        for (const [id, info] of graph.collapsedCladeIds) {
+          graph.collapsedCladeIds.set(id, { ...info, colour: null });
+          const layoutNode = renderer.nodeMap?.get(id);
+          if (layoutNode) layoutNode.collapsedColour = null;
+        }
+      }
       graph.annotationSchema = buildAnnotationSchema(graph.nodes);
       _refreshAnnotationUIs(graph.annotationSchema);
       renderer.setAnnotationSchema(graph.annotationSchema);
