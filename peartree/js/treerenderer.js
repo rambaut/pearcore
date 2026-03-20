@@ -2666,6 +2666,8 @@ export class TreeRenderer {
         if (node.isCollapsed) continue;
         if (node.y < yWorldMin || node.y > yWorldMax) continue;
         const sy     = this._wy(node.y);
+        const baseX  = alignLabelX ?? (this._wx(node.x) + outlineR + 3);
+        const shapeX = baseX + _shML;
         ctx.fillStyle = _hasSc
           ? (this._tipLabelShapeColourForValue(this._statValue(node, _shKey)) ?? this._tipLabelShapeColor)
           : this._tipLabelShapeColor;
