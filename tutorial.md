@@ -6,7 +6,7 @@ permalink: /tutorial/
 
 # PearTree Tutorial
 
-This tutorial walks through the main features of PearTree using the built-in Ebola virus (EBOV) example dataset. To make this simple this uses the on-line web application at [http://artic-network.github.io/peartree](http://artic-network.github.io/peartree) but it will also work with the desktop apps available for Mac, Windows & Linux here: [https://github.com/artic-network/peartree/releases](https://github.com/artic-network/peartree/releases). 
+This tutorial walks through the main features of PearTree using the built-in Ebola virus (EBOV) example dataset. To make this simple this uses the on-line web application at [http://peartree.live](http://peartree.live) but it will also work with the desktop apps available for Mac, Windows & Linux here: [https://github.com/artic-network/peartree/releases](https://github.com/artic-network/peartree/releases). 
 
 No files need to be downloaded — everything runs locally in your browser using provided example files.
 
@@ -16,15 +16,15 @@ No files need to be downloaded — everything runs locally in your browser using
 
 When you first launch PearTree you will see the startup screen.
 
-> <img src="images/fig1a.png" style="width:200px;"/> 
+> <img src="/images/fig1a.png" style="width:200px;"/> 
 > 
 > Startup screen showing the "No tree loaded" and the **Open…** and **Example…** buttons.
 
 Click **Example…** to load the built-in EBOV dataset immediately. 
 
-Alternatively, click the open button <img src="images/open_button.png" style="width:32px;"/> (or press **⌘O**) to open the *Open Tree File* dialog, switch to the **Example** tab, and click **Load Example Data**.
+Alternatively, click the open button <img src="/images/open_button.png" style="width:32px;"/> (or press **⌘O**) to open the *Open Tree File* dialog, switch to the **Example** tab, and click **Load Example Data**.
 
-> <img src="images/fig1b.png" style="width:300px;"/>
+> <img src="/images/fig1b.png" style="width:300px;"/>
 >
 > *Open Tree File* dialog with the `Example` tab selected.
 
@@ -35,7 +35,7 @@ After a moment the tree will appear on the canvas.
 
 There are two other ways of loading trees from this dialog box. From a file on your hard drive:
 
-> <img src="images/fig1c.png" style="width:300px;"/>
+> <img src="/images/fig1c.png" style="width:300px;"/>
 >
 > *Open Tree File* dialog with the `File` tab selected.
 
@@ -43,7 +43,7 @@ Note that the tree just gets imported into the web browser, not uploaded to a se
 
 Finally, you can point it towards a tree file on the internet by entering the URL:
 
-> <img src="images/fig1d.png" style="width:300px;"/>
+> <img src="/images/fig1d.png" style="width:300px;"/>
 >
 > *Open Tree File* dialog with the `URL` tab selected.
 
@@ -58,9 +58,9 @@ The interface has four main areas:
 - **Toolbar** (top) — buttons for files, navigation, zoom, ordering, selection, rerooting, and panels
 - **Canvas** (centre) — the tree drawing; fills the central space on the page
 - **Visual Options palette** (left, hidden by default) — all display controls
-- **Status bar** (bottom) — live readout of values under the cursor
+- **Status bar** (bottom) — live readout of values under the cursor, and mode messages (such as when the hyperbolic lens is active)
 
-> <img src="images/fig2a.png" style="width:500px;"/>
+> <img src="/images/fig2a.png" style="width:500px;"/>
 > 
 > EBOV tree loaded and filling the canvas. Tip labels will not currently be visible because of the size of the tree. The colours used will be determined by the **theme** currently being used - the current default is the `ARTIC` theme but this can be changed. From this point on we will use `Minimal` --- a simple monochrome theme –-- for clarity.
 
@@ -74,13 +74,13 @@ The **Order** buttons sort the clades by size:
 
 | Button | Shortcut | Effect |
 |---|---|---|
-| <img src="images/order_up_button.png" style="width:32px;"/> | ⌘U | Larger clades toward the top |
-| <img src="images/order_down_button.png" style="width:32px;"/> | ⌘D | Larger clades toward the bottom |
+| <img src="/images/order_up_button.png" style="width:32px;"/> | ⌘U | Larger clades toward the top |
+| <img src="/images/order_down_button.png" style="width:32px;"/> | ⌘D | Larger clades toward the bottom |
 
 > [!NOTE]
-> Once the tree has been ordered, the original order has been lost and you only have the choice of up or down orders or you can [rotate the nodes manually](#9-rotating-nodes-rotating-nodes).
+> Once the tree has been ordered, the original order has been lost and you only have the choice of up or down orders or you can [rotate the nodes manually](#8-rotating-nodes).
 
->  <img src="images/fig3.png" style="width:500px;"/> 
+>  <img src="/images/fig3.png" style="width:500px;"/> 
 >
 > EBOV tree with ascending order applied
 
@@ -104,19 +104,20 @@ Arrow keys allow a fine control over the scrolling amount:
 
 - **↑ / ↓** — scroll one row at a time
 - **⌘↑ / ⌘↓** — scroll one page at a time
+- **⌘⇧↑ / ⌘⇧↓** — jump to the top or bottom of the tree
 
 You can also use the toolbar zoom buttons or keyboard shortcuts:
 
 | Button | Shortcut | Action |
 |---|---|---|
-|<img src="images/zoom_in_button.png" style="width:32px;"/>| **⌘=** | Zoom in (×1.5) |
-|<img src="images/zoom_out_button.png" style="width:32px;"/>| **⌘−** | Zoom out (×1.5) |
-|<img src="images/show_labels_button.png" style="width:32px;"/>| **⌘⇧0** | Fit Labels — zoom so no tip labels overlap |
-|<img src="images/show_all_button.png" style="width:32px;"/>| **⌘0** | Fit the whole tree to the window |
+|<img src="/images/zoom_in_button.png" style="width:32px;"/>| **⌘=** | Zoom in (×1.5) |
+|<img src="/images/zoom_out_button.png" style="width:32px;"/>| **⌘−** | Zoom out (×1.5) |
+|<img src="/images/show_labels_button.png" style="width:32px;"/>| **⌘⇧0** | Fit Labels — zoom so no tip labels overlap |
+|<img src="/images/show_all_button.png" style="width:32px;"/>| **⌘0** | Fit the whole tree to the window |
 
 Zoom in until individual tip names are readable or press the Fit Labels button or `⌘⇧0` to do this automatically. 
 
-> <img src="images/fig4.png" style="width:400px;"/>
+> <img src="/images/fig4.png" style="width:400px;"/>
 >
 > Tree zoomed in to show a small cluster of tips with readable labels.
 
@@ -132,17 +133,17 @@ The hyperbolic lens lets you expand a region of the tree without zooming — the
 
 Hold **~** (the backtick/tilde key) and move the cursor over the canvas. The tree distorts around the cursor's vertical position.
 
-> <img src="images/fig5.png" style="width:400px;"/>
+> <img src="/images/fig5.png" style="width:400px;"/>
 >
 > Lens active: tips near the cursor are spread apart and readable; tips further away are compressed.
 
 The lens **persists** after you release ~ — the focus stays fixed so you can interact with the expanded region normally. Move with ~ held to reposition it.
 
-Press **Escape** to dismiss the lens effect.
+Press **Escape** to dismiss the lens effect. When the lens is active, a reminder — *Lens mode active – press Esc to cancel* — appears in the status bar at the bottom of the window.
 
 ### Adjusting the Lens Width
 
-The **Lens:** button pair in the toolbar (or **⌘⇧+** / **⌘⇧−**) controls the size of the uniformly-expanded centre zone:
+The **Lens:** button pair in the toolbar (or **⌘⇧=** / **⌘⇧−**) controls the size of the uniformly-expanded centre zone:
 
 - Each press of **⊕** adds one extra row of tip-spacing to the flat centre zone.
 - Each press of **⊖** removes one row.
@@ -162,13 +163,14 @@ PearTree has two selection modes; **Nodes** mode is active by default.
 - **Click an internal node** — selects all descendant tips; a teal ring marks the MRCA node.
 - **⌘-click** — add to or remove from the current selection.
 - **⌘A** — select all visible tips.
+- **⌘⇧I** — invert the selection (all unselected tips become selected and vice versa).
 - **Click empty space** — clears the selection.
 
 You can also click and drag to select all the tips within an area.
 
 In the current view try clicking an internal node near the root of the visible tree.
 
-> <img src="images/fig6.png" style="width:400px;"/>
+> <img src="/images/fig6.png" style="width:400px;"/>
 >
 > Several tips selected (highlighted) and MRCA ring visible on an internal node.
 
@@ -187,24 +189,24 @@ Press **⌘B** again to return to **Nodes** mode.
 
 PearTree has some useful functions for 'drilling-down' into parts of the tree to view subtrees and clades and then easily return back to the previous view. 
 
-**Double-click** any internal node to zoom into its subtree. Or select a node and press the `drill-down` button <img src="images/drill_down_button.png" style="width:32px;"/>. The canvas re-renders showing only the descendants of that node.
+**Double-click** any internal node to zoom into its subtree. Or select a node and press the `drill-down` button <img src="/images/drill_down_button.png" style="width:32px;"/>. The canvas re-renders showing only the descendants of that node.
 
-> <img src="images/fig7a.png" style="width:400px;"/>
+> <img src="/images/fig7a.png" style="width:400px;"/>
 >
-> <img src="images/fig7b.png" style="width:400px;"/>
+> <img src="/images/fig7b.png" style="width:400px;"/>
 >
 > A sub-clade of the EBOV tree filling the full canvas after double-clicking.
 
-PearTree stores a history of the parts of the tree you visit. **Double-click** on the root node of the subtree (or use the `back` button <img src="images/back_button.png" style="width:32px;"/>) to go back to your previous view.
+PearTree stores a history of the parts of the tree you visit. **Double-click** on the root node of the subtree (or use the `back` button <img src="/images/back_button.png" style="width:32px;"/>) to go back to your previous view.
 
 Use the **History** buttons in the toolbar (or **⌘[** / **⌘]**) to navigate back and forward through your drill-down history.
 
 | Button | Shortcut | Effect |
 |---|---|---|
-|<img src="images/drill_down_button.png" style="width:32px;"/>| `⌘⇧>` | Drill-down into the selected subtree |
-|<img src="images/back_button.png" style="width:32px;"/>| `⌘[` | Go back through the drill-down history |
-|<img src="images/forward_button.png" style="width:32px;"/>| `⌘]` | Go forward through the drill-down history |
-|<img src="images/climb_up_button.png" style="width:32px;"/>| `⌘⇧<` | Climb up one node towords the root |
+|<img src="/images/drill_down_button.png" style="width:32px;"/>| `⌘⇧>` | Drill-down into the selected subtree |
+|<img src="/images/back_button.png" style="width:32px;"/>| `⌘[` | Go back through the drill-down history |
+|<img src="/images/forward_button.png" style="width:32px;"/>| `⌘]` | Go forward through the drill-down history |
+|<img src="/images/climb_up_button.png" style="width:32px;"/>| `⌘⇧<` | Climb up one node towords the root |
 
 ---
 
@@ -216,14 +218,14 @@ To rotate an internal node, select a node and then use the **Rotate** buttons:
 
 | Button | Effect |
 |---|---|
-| <img src="images/rotate_branch_button.png" style="width:32px;"/> | Reverses the direct children of the selected node |
-| <img src="images/rotate_clade_button.png" style="width:32px;"/> | Recursively reverses children at every level in the selected subtree |
+| <img src="/images/rotate_branch_button.png" style="width:32px;"/> | Reverses the direct children of the selected node |
+| <img src="/images/rotate_clade_button.png" style="width:32px;"/> | Recursively reverses children at every level in the selected subtree |
 
-> <img src="images/fig8a.png" style="width:400px;"/>
+> <img src="/images/fig8a.png" style="width:400px;"/>
 >
-> <img src="images/fig8b.png" style="width:400px;"/>
+> <img src="/images/fig8b.png" style="width:400px;"/>
 >
-> <img src="images/fig8c.png" style="width:400px;"/>
+> <img src="/images/fig8c.png" style="width:400px;"/>
 >
 > Before and after rotating a branch: one branch (`EBOV|EM_COY_2015_017865||GIN|Dubreka|2015-06-18`) swaps position. In the bottom image, the entire clade has been 'rotated'.
 
@@ -240,9 +242,9 @@ Hiding removes a node and all of its descendants from the tree layout entirely �
 
 The selected tip is removed from the view and the visible tree rescales. The tip count shown elsewhere (e.g. in Node Info) reflects only the still-visible tips.
 
-> <img src="images/fig9a.png" style="width:400px;"/>
+> <img src="/images/fig9a.png" style="width:400px;"/>
 >
-> <img src="images/fig9b.png" style="width:400px;"/>
+> <img src="/images/fig9b.png" style="width:400px;"/>
 >
 > A section of the tree before and after hiding a selected tip (`EBOV|CON12930||GIN|Conakry|2015-10-13`).
 
@@ -253,9 +255,9 @@ The selected tip is removed from the view and the visible tree rescales. The tip
 
 The selected node and all its descendants are hidden in the tree and removed from the view. 
 
-> <img src="images/fig9c.png" style="width:400px;"/>
+> <img src="/images/fig9c.png" style="width:400px;"/>
 >
-> <img src="images/fig9d.png" style="width:400px;"/>
+> <img src="/images/fig9d.png" style="width:400px;"/>
 >
 > A section of the tree with a node and its descendents selected and after this node has been hidden.
 
@@ -263,35 +265,68 @@ The selected node and all its descendants are hidden in the tree and removed fro
 
 To restore hidden nodes:
 
-If there are any hidden nodes within the currently viewed part of the tree (or if a clade has been selected, amongst those nodes) then the **Unhide** (<img src="images/unhide_button.png" style="width:32px;"/>) button will be available.
+If there are any hidden nodes within the currently viewed part of the tree (or if a clade has been selected, amongst those nodes) then the **Unhide** (<img src="/images/unhide_button.png" style="width:32px;"/>) button will be available.
 
-- **With a node selected** — select the parent node (the branch stub where the hidden subtree was attached) and click <img src="images/unhide_button.png" style="width:32px;"/> (**Unhide** ). The hidden descendants of that node are restored.
-- **With nothing selected** — click <img src="images/unhide_button.png" style="width:32px;"/> (**Show** ) with no selection to reveal *all* hidden nodes in the current view at once.
+- **With a node selected** — select the parent node (the branch stub where the hidden subtree was attached) and click <img src="/images/unhide_button.png" style="width:32px;"/> (**Unhide** ). The hidden descendants of that node are restored.
+- **With nothing selected** — click <img src="/images/unhide_button.png" style="width:32px;"/> (**Show** ) with no selection to reveal *all* hidden nodes in the current view at once.
 
 > **Note:** Hiding changes the visible tip count, so any active branch ordering (ascending/descending) is automatically cleared when you hide or show nodes.
 
 ---
 
-## 10. Node Info (⌘I)
+## 10. Collapsing Clades
 
-Select any node or tip, then press **⌘I** or click the <img src="images/get_info_button.png" style="width:32px;"/> button. A dialog lists every annotation on that node — name, divergence, branch length, any posterior support values, or any custom annotations you have imported.
+Collapsing replaces a subtree with a filled triangle symbol, keeping it visible as a compact summary rather than hiding it entirely. This is different from hiding — a collapsed clade is still drawn on the canvas, just compressed into a triangle, and the tip count is preserved.
 
-> <img src="images/fig10.png" style="width:400px;"/>
+### Collapsing a Clade
+
+1. Select an internal node (its descendant tips will be highlighted).
+2. Click the **Collapse** button in the toolbar.
+
+The subtree is replaced with a filled triangle labelled with the clade name and the number of enclosed tips.
+
+### Expanding a Collapsed Clade
+
+Click the **Expand** button in the toolbar, or **double-click the triangle**, to restore the full subtree.
+
+### Changing a Triangle's Colour
+
+Select the triangle (click it), then use the brush colour picker in the toolbar to assign a custom colour. Click the eraser button to reset it to the theme default.
+
+### Controlling Triangle Appearance
+
+In the **Visual Options palette**, a **Collapsed Clades** section appears once at least one clade has been collapsed:
+
+| Control | Effect |
+|---|---|
+| **Fill opacity** | Translucency of the triangle fill (0 = transparent, 1 = fully opaque) |
+| **Height (rows)** | Height of the triangle base in tip-row units (1–20). Larger clades use their natural height. |
+
+> [!TIP]
+> Collapsing is ideal for focussing on a specific region of a large tree: collapse the uninteresting clades into triangles so the tree fits on screen, then expand the clades you want to inspect.
+
+---
+
+## 11. Node Info (⌘I)
+
+Select any node or tip, then press **⌘I** or click the <img src="/images/get_info_button.png" style="width:32px;"/> button. A dialog lists every annotation on that node — name, divergence, branch length, any posterior support values, or any custom annotations you have imported.
+
+> <img src="/images/fig10.png" style="width:400px;"/>
 >
 > Node Info dialog showing the selected tip's name, divergence, and annotation fields.
 
 ---
 
-## 11. Importing Annotations
+## 12. Importing Annotations
 
 The EBOV example has some annotations embedded in the tree file. These were put there by BEAST during the construction of the tree. To add extra per-tip metadata from your own CSV or TSV:
 
-- Click the <img src="images/load_annotations_button.png" style="width:32px;"/> button (or press **⌘⇧A**).
+- Click the <img src="/images/load_annotations_button.png" style="width:32px;"/> button (or press **⌘⇧A**).
 
 - Drag a CSV/TSV onto the drop zone or click *Choose File*. Or for this tutorial,you can select *URL* and then paste the following URL into the box:
 ```https://artic-network.github.io/peartree/docs/data/ebov.csv```
 
-  > <img src="images/fig11a.png" style="width:300px;"/>
+  > <img src="/images/fig11a.png" style="width:300px;"/>
   >
   > Import Annotations dialog.
 
@@ -299,13 +334,13 @@ The EBOV example has some annotations embedded in the tree file. These were put 
 
 - A dialog box will appear which will allow you to specify how the annotation file will be used. Select which column in the metadata file is going to be used to match the tip labels in the tree. By default PearTree will try to match the entire tip label but if the labels are made up of 'fields' separated by the `|` (pipe) character then you can choose which is the field to match. For the example data it is the `lab-id` in the second field.
 
-  > <img src="images/fig11b.png" style="width:300px;"/>
+  > <img src="/images/fig11b.png" style="width:300px;"/>
   >
   > Import configuration dialog showing column checkboxes and preview rows.
 
 - Click **Import**. A summary reports how many tips matched.
 
-  > <img src="images/fig11c.png" style="width:300px;"/>
+  > <img src="/images/fig11c.png" style="width:300px;"/>
   >
   > Import summary dialog box. This confirms that all 1610 tips of the tree were matched with a row in the metadata file annotated with the required columns.
 
@@ -313,7 +348,21 @@ After import the new annotation keys appear in all *Colour by* dropdowns and the
 
 ---
 
-## 12. Colouring the Tree by Annotation
+## 13. The Annotation Curator
+
+The **Annotation Curator** lets you review and fine-tune every annotation key in the loaded tree. Open it by clicking the tags button in the toolbar.
+
+For each annotation key you can:
+- **Rename** the key to a more readable label
+- **Change the data type** — for example, promote a numeric key from *real* to *categorical* if you want it treated as distinct colour categories rather than a continuous colour range
+- **Mark a key as a branch annotation** — this tells PearTree that the values belong to branches rather than nodes, which affects how they are shown in Node Info and how they behave during rerooting (see the [Appendix on bootstrap values](#appendix-bootstrap-values-branch-annotations-and-rerooting))
+
+> [!TIP]
+> Bootstrap support values (e.g. from IQ-TREE or RAxML) are stored as internal node labels in Newick files. PearTree automatically marks well-known keys such as `bootstrap`, `support`, and `posterior` as branch annotations, but if your tree uses a non-standard key name you can tick the **Branch annotation** checkbox in the Curator manually.
+
+---
+
+## 14. Colouring the Tree by Annotation
 
 Open the **Visual Options palette** (press **Tab** or click the sliders button).
 
@@ -321,13 +370,13 @@ Open the **Visual Options palette** (press **Tab** or click the sliders button).
 
 Under **Tip Shapes**, change **Colour by** from *user colour* to an annotation key (e.g. `country` if present in the EBOV tree).
 
-> <img src="images/fig12a.png" style="width:250px;"/>
+> <img src="/images/fig12a.png" style="width:250px;"/>
 >
 > The controls for setting the tip shape styles with **Colour by** set to `country`.
 
 The result will be that the dots on the tips of the will be given a distinct colour depending on the unique country designation.
 
-> <img src="images/fig12b.png" style="width:400px;"/>
+> <img src="/images/fig12b.png" style="width:400px;"/>
 >
 > Tip shapes coloured by the `location` annotation; each unique value has a distinct colour.
 
@@ -343,56 +392,69 @@ Under **Tip Labels**, change **Colour by** to the `country`. The tip labels now 
 
 Internal node's can also have circles which can be coloured by annotation values. By default these may not be visible so under the **Node Shapes** section of the Tool Drawer, increase the size to change **Colour by** to `posterior`. Internal nodes will only have annotations if they were encoded in the tree -- in this tree Bayesian posterior support values have been supplied using the label `posterior`.
 
-> <img src="images/fig12c.png" style="width:250px;"/>
+> <img src="/images/fig12c.png" style="width:250px;"/>
 >
 > The controls for setting the node shape styles with **Colour by** set to `posterior` and **Palette** set to `Blue-Black-Red`. The size has also been increased to `3` to make the shapes visible. 
 
 The `posterior` annotation is a real number between 0 and 1 so will be given a gradient of colours across its possible values. There is a selection of colour palettes to chose from but with these types of support values -- support values such as posterior or bootstrap values -- a three colour palette such as `Blue-Black-Red` will work best because it means that red colours are >0.5 and blue colours are <0.5. 
 
-> <img src="images/fig12d.png" style="width:400px;"/>
+> <img src="/images/fig12d.png" style="width:400px;"/>
 >
 > Node shapes coloured by the `posterior` annotation. Tip shapes have been hidden for clarity. The more red the colour, the closer the value is to 1.0 (high support) and the more blue, the closer the value is to 0.0 (low support).
 
 ---
 
-## 13. Adding a Legend
+## 15. Adding Legends
 
-For a selected annotation used to colour some feature of the tree, you can also display a legend to provide a scale or key for what the colours mean.
+For any annotation used to colour a feature of the tree, you can display a legend to provide a scale or key for what the colours mean. PearTree supports two independent legends that can be shown simultaneously.
 
-In the **Visual Options palette**, scroll to the **Legend** section:
+In the **Visual Options palette**, scroll to the **Legend** section.
 
-1. Set **Show** to *Left* or *Right* -- which side of the screen you want it.
-2. Set **Annotation** to the key whose colour scale you want to display.
+### Legend 1
 
-The legend that is display will depend on whether the annotation is a real number or categorical.
+1. Set **Show** to an annotation key (e.g. `country`) — this enables the first legend.
+2. Set **Position** to *Left* or *Right* to choose which side of the canvas it docks to.
+3. Adjust **Height %**, **Colour**, **Font size**, and **Typeface** as desired.
 
-> <img src="images/fig13.png" style="width:400px;"/>
+The legend displayed depends on whether the annotation is a continuous number (a colour ramp with a min/max scale bar) or categorical (a colour swatch for each unique value).
+
+> <img src="/images/fig13.png" style="width:400px;"/>
 >
 > EBOV tree with tips coloured by `country` and a legend on the right providing a key linking the colours to the countries.
 
+### Legend 2
+
+A second independent legend can be shown simultaneously for a different annotation:
+
+1. Under **Legend 2**, set **Show** to a second annotation key (e.g. `posterior`).
+2. Set **Position** to *Right* or *Below* — the second legend can be stacked below the first or placed alongside it on the right.
+3. Adjust **Height %** to control how much vertical space the second legend strip occupies.
+
+This is useful for trees that have both a categorical annotation (e.g. sampling location) and a continuous annotation (e.g. Bayesian posterior support) that you want to show keys for simultaneously.
+
 ---
 
-## 14. Applying a User Colour
+## 16. Applying a User Colour
 
 You can also manually colour tips with individual colours. First pick a colour using the colour picker in the main tool bar:
 
-> <img src="images/colour_picker.png" style="width:250px;"/>
+> <img src="/images/colour_picker.png" style="width:250px;"/>
 
 Then select one or more tips. You can do this by clicking on them or using the filter box to select tips with a particular string in their tip labels.
 
-3. Click the **Apply** button <img src="images/paint_button.png" style="width:32px;"/> —- the selected tips are then marked with that colour.
+3. Click the **Apply** button <img src="/images/paint_button.png" style="width:32px;"/> —- the selected tips are then marked with that colour.
 
-> <img src="images/fig14.png" style="width:400px;"/>
+> <img src="/images/fig14.png" style="width:400px;"/>
 >
 > Tips dated from July to September 2015 highlighted in bright orange.
 
 User colours are stored as a `user_colour` annotation and can be used in the *Colour by* dropdowns like any other annotation. They can also be stored in exported trees when saved in NEXUS format.
 
-To remove all user colours, click the **Clear** <img src="images/eraser_button.png" style="width:32px;"/> button next to the swatch. This will remove all user colours from the selected tips or if none are selected from the displayed tree.
+To remove all user colours, click the **Clear** <img src="/images/eraser_button.png" style="width:32px;"/> button next to the swatch. This will remove all user colours from the selected tips or if none are selected from the displayed tree.
 
 ---
 
-## 15. The Axis
+## 17. The Axis
 
 The **Axis** section of the Visual Options palette adds a scale bar along the bottom of the canvas. It has four modes selected from the **Show** dropdown:
 
@@ -455,23 +517,39 @@ With **Show** set to *Time* and a calibration active, three additional rows beco
 
 For **Weeks** ticks specifically: *Component* shows the week number as `W01`–`W53`; *Full* and *Partial* both show `2014-W37`.
 
-> <img src="images/fig15.png" style="width:250px;"/>
+> <img src="/images/fig15.png" style="width:250px;"/>
 >
 > EBOV tree with a time axis along the bottom. Axis set to *Time*, major ticks = *Years*, major labels = *Partial* (showing only the year).
 
 ---
 
-## 16. Themes and Visual Customisation
+## 18. Themes and Visual Customisation
 
 The **Theme** section at the top of the Visual Options palette provides quick preset starting points.
 
 Changing any individual control (background, branch colour, font size, etc.) switches the selector to *Custom*. Click **Store** to save a named personal theme.
 
-  > <img src="images/fig16.png" style="width:450px;"/>
+  > <img src="/images/fig16.png" style="width:450px;"/>
   >
   > Visual Options palette open on the Theme section with the *MCM* theme applied.
 
-## 17. Exporting the Tree
+---
+
+## 19. The Data Table Panel
+
+Click the table-panel button in the toolbar to open a scrollable panel listing all visible tips in tree order.
+
+- The panel is **synchronised** with the canvas: selecting a tip in the tree highlights its row in the table, and clicking a row in the table selects that tip in the tree.
+- **Collapsed clades** appear as either one row per enclosed tip (if the clade is full-height) or a single placeholder row, letting you browse and select tips within a collapsed clade without expanding it.
+- The panel can be **pinned** open alongside the canvas (drag the resize handle to adjust its width) or used as a floating overlay.
+- Columns reflect the loaded annotations and update automatically whenever the layout changes.
+
+> [!TIP]
+> The Data Table is especially useful for large trees: navigate to a region of interest on the canvas, then use the table to scan through taxon names and annotation values without needing to hover over individual tips.
+
+---
+
+## 20. Exporting the Tree
 
 Click the **↓ file** button (or press **⌘S**) to save the tree.
 
@@ -480,13 +558,13 @@ Click the **↓ file** button (or press **⌘S**) to save the tree.
 - **Annotations** — checkboxes to include or exclude each annotation key
 - **Embed settings** (NEXUS only) — ticking this embeds all current visual settings in the file so the appearance is restored automatically when the file is reopened
 
-> <img src="images/fig17.png" style="width:350px;"/>
+> <img src="/images/fig17.png" style="width:350px;"/>
 >
 > Export Tree dialog.
 
 ---
 
-## 18. Exporting a Graphic
+## 21. Exporting a Graphic
 
 Click the **image** button (or press **⌘E**) to download an image.
 
@@ -497,13 +575,13 @@ Click the **image** button (or press **⌘E**) to download an image.
 
 SVG exports include branches, labels, shapes, legend strips, and the time axis as true vectors — ideal for publication figures.
 
-> <img src="images/fig18.png" style="width:350px;"/>
+> <img src="/images/fig18.png" style="width:350px;"/>
 >
 > Export Graphic dialog.
 
 ---
 
-## 19. Settings Persistence
+## 22. Settings Persistence
 
 PearTree automatically saves all visual settings to browser **localStorage** and restores them on your next visit. This includes theme, palette values, colour-by choices, legend, axis configuration, branch order, and selection mode.
 
@@ -526,6 +604,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 | **⌘0** | Fit all |
 | **⌘⇧0** | Fit labels |
 | **⌘A** | Select all tips |
+| **⌘⇧I** | Invert selection |
 | **⌘B** | Toggle Nodes / Branches mode |
 | **⌘D** | Order ascending |
 | **⌘U** | Order descending |
@@ -533,8 +612,9 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 | **⌘I** | Node info |
 | **⌘[** | Navigate back |
 | **⌘]** | Navigate forward |
+| **⌘⇧↑ / ⌘⇧↓** | Jump to top / bottom of tree |
 | **~** (hold) | Activate hyperbolic lens at cursor |
-| **⌘⇧+** | Expand lens area |
+| **⌘⇧=** | Expand lens area |
 | **⌘⇧−** | Contract lens area |
 | **Escape** | Dismiss lens / close dialog / clear selection |
 
@@ -544,7 +624,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Theme**
 
-<img src="images/controls_themes.png" style="width:250px;"/>
+<img src="/images/controls_themes.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
@@ -556,7 +636,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Tree**
 
-<img src="images/controls_tree.png" style="width:250px;"/>
+<img src="/images/controls_tree.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
@@ -569,7 +649,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Tip Labels**
 
-<img src="images/controls_tip_labels.png" style="width:250px;"/>
+<img src="/images/controls_tip_labels.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
@@ -582,7 +662,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Tip Shapes**
 
-<img src="images/controls_tip_shapes.png" style="width:250px;"/>
+<img src="/images/controls_tip_shapes.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
@@ -595,7 +675,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Node Shapes**
 
-<img src="images/controls_node_shapes.png" style="width:250px;"/>
+<img src="/images/controls_node_shapes.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
@@ -618,7 +698,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Legend**
 
-<img src="images/controls_legend.png" style="width:250px;"/>
+<img src="/images/controls_legend.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
@@ -629,7 +709,7 @@ When you export a NEXUS file with **Embed settings** ticked, those settings trav
 
 **Axis**
 
-<img src="images/controls_axis.png" style="width:250px;"/>
+<img src="/images/controls_axis.png" style="width:250px;"/>
 
 | Control | What it does |
 |---|---|
