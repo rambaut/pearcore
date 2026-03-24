@@ -321,6 +321,7 @@ async function fetchExampleTree() {
   let _cachedMidpoint    = null;  // cached midpointRootGraph() result; cleared on every tree change
   let isExplicitlyRooted = false; // true when root node carries annotations — rerooting disabled
   let _loadedFilename    = null;  // filename of the most recently loaded tree
+  let _onTitleChange     = null;  // optional callback(filename|null) for platform title updates
   let _axisIsTimedTree   = false;
   let treeLoaded         = false; // declared early — referenced by _syncCanvasWrapperBg before modal init
 
@@ -2512,6 +2513,8 @@ async function fetchExampleTree() {
     setModalLoading(true);
     setModalError(null);
     _loadedFilename = filename || null;
+    document.title = _loadedFilename ? `${_loadedFilename} — PearTree` : 'PearTree — Phylogenetic Tree Viewer';
+    if (_onTitleChange) _onTitleChange(_loadedFilename);
     // Yield to the browser so the spinner renders before heavy parsing
     await new Promise(r => setTimeout(r, 0));
 
@@ -5155,6 +5158,10 @@ async function fetchExampleTree() {
     /** Fetch a file by relative path, falling back to the absolute GitHub Pages
      *  URL if the relative fetch fails (e.g. file:// context). */
     fetchWithFallback,
+
+    /** Register a callback invoked whenever the loaded filename changes.
+     *  fn(filename: string|null) — used by platform adapters to update native window titles. */
+    onTitleChange: (fn) => { _onTitleChange = fn; },
   };
 
   // ── URL parameter: auto-load treeUrl on startup ───────────────────────────

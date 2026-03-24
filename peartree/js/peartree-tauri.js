@@ -31,6 +31,13 @@
   const setWindowTitle = (name) =>
     getCurrentWindow().setTitle(`PearTree — ${name}`).catch(() => {});
 
+  // Keep the native window title in sync with the loaded filename.
+  // loadTree() in peartree.js calls this via the onTitleChange hook for every load path.
+  app.onTitleChange(name => name
+    ? setWindowTitle(name)
+    : getCurrentWindow().setTitle('PearTree — Phylogenetic Tree Viewer').catch(() => {})
+  );
+
   // ── File picker: native Tauri dialog ───────────────────────────────────
   // WKWebView blocks <input type="file"> clicks from async contexts, so we
   // override the default pickFile with a Rust command.
@@ -46,7 +53,6 @@
           .catch(err => console.error('new_window failed:', err));
       } else {
         await app.loadTree(result.content, result.name);
-        setWindowTitle(result.name);
       }
     } catch (err) {
       app.showErrorDialog(err.message ?? String(err));
@@ -127,7 +133,6 @@
         const emptyState = document.getElementById('empty-state');
         if (emptyState) emptyState.classList.add('hidden');
         await app.loadTree(content, name);
-        setWindowTitle(name);
       } catch (fileErr) {
         console.error('Failed to read pending file:', fileErr);
         // Ensure UI is in a recoverable state
@@ -168,7 +173,6 @@
       const content = await invoke('read_file_content', { path: filePath });
       const name = filePath.split(/[\\/]/).pop() || 'tree';
       await app.loadTree(content, name);
-      setWindowTitle(name);
     } catch (err) {
       // Restore empty state on error
       const emptyState = document.getElementById('empty-state');
