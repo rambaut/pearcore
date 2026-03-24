@@ -1809,10 +1809,15 @@ async function fetchExampleTree() {
   // ── Import Annotations ──────────────────────────────────────────────────
   const annotImporter = createAnnotImporter({
     getGraph: () => graph,
-    onApply: (g) => {
+    onApply: (g, importedCols = []) => {
       _refreshAnnotationUIs(g.annotationSchema);
       renderer.setAnnotationSchema(g.annotationSchema);
       axisRenderer.setHeightFormatter(g.annotationSchema.get('height')?.fmt ?? null);
+      // If the imported columns include user_colour, auto-switch tip colour-by
+      // to user_colour (same behaviour as the paintbrush apply button).
+      if (importedCols.includes('user_colour')) {
+        tipColourBy.value = 'user_colour';
+      }
       renderer.setTipColourBy(tipColourBy.value      || null);
       renderer.setNodeColourBy(nodeColourBy.value    || null);
       renderer.setLabelColourBy(labelColourBy.value  || null);

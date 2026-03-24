@@ -300,6 +300,18 @@ export function createAnnotImporter({ getGraph, onApply }) {
       for (const colName of importCols) {
         const raw = (row[colName] ?? '').trim();
         if (raw === '') continue;
+        // user_colour: accept #RGB and #RRGGBB, normalise to 6-digit lowercase #rrggbb.
+        if (colName === 'user_colour') {
+          const hex = raw.replace(/^#/, '');
+          const expanded = hex.length === 3
+            ? hex.split('').map(c => c + c).join('')
+            : hex;
+          if (/^[0-9a-f]{6}$/i.test(expanded)) {
+            node.annotations[colName] = '#' + expanded.toLowerCase();
+          }
+          // Silently skip invalid colour values.
+          continue;
+        }
         const num = Number(raw);
         node.annotations[colName] = Number.isNaN(num) ? raw : num;
       }
@@ -310,7 +322,7 @@ export function createAnnotImporter({ getGraph, onApply }) {
 
     // Rebuild schema then hand off to the caller for UI/renderer refresh.
     graph.annotationSchema = buildAnnotationSchema(graph.nodes);
-    onApply(graph);
+    onApply(graph, importCols);
 
     _showImportResults({ matched, unmatchedTips, unmatchedRows, unmatchedTipExamples,
                          importCols, filename, totalTips: tips.length });
