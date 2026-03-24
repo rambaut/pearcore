@@ -2510,6 +2510,9 @@ async function fetchExampleTree() {
   // ── Tree loading ──────────────────────────────────────────────────────────
 
   async function loadTree(text, filename) {
+    // Normalise Windows CRLF and old Mac CR line endings to LF so that all
+    // downstream parsers (parseNexus, parseNewick) receive clean input.
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     setModalLoading(true);
     setModalError(null);
     _loadedFilename = filename || null;
