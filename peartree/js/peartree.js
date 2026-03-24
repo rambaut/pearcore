@@ -4242,13 +4242,44 @@ async function fetchExampleTree() {
 
     btnClearUserColour.addEventListener('click', () => {
       if (!graph) return;
-      for (const node of graph.nodes) delete node.annotations['user_colour'];
-      // Reset any user-painted collapsed clade colours back to the theme default.
-      if (graph.collapsedCladeIds) {
-        for (const [id, info] of graph.collapsedCladeIds) {
+      const hasSelection  = renderer._selectedTipIds.size > 0;
+      const subtreeRootId = renderer._viewSubtreeRootId ?? null;
+
+      // Nothing selected: confirm then clear the visible tree (subtree or whole tree).
+      if (!hasSelection && !confirm('Clear all colours from the visible tree?')) return;
+
+      const clearNodeId = id => {
+        const idx = graph.origIdToIdx.get(id);
+        if (idx !== undefined) delete graph.nodes[idx].annotations['user_colour'];
+        if (graph.collapsedCladeIds?.has(id)) {
+          const info = graph.collapsedCladeIds.get(id);
           graph.collapsedCladeIds.set(id, { ...info, colour: null });
           const layoutNode = renderer.nodeMap?.get(id);
           if (layoutNode) layoutNode.collapsedColour = null;
+        }
+      };
+
+      if (hasSelection) {
+        // Clear only selected tips.
+        for (const id of renderer._selectedTipIds) clearNodeId(id);
+      } else if (subtreeRootId) {
+        // Subtree view — walk layout tree from the subtree root.
+        const stack = [subtreeRootId];
+        while (stack.length) {
+          const id = stack.pop();
+          clearNodeId(id);
+          const layoutNode = renderer.nodeMap?.get(id);
+          if (layoutNode?.children) layoutNode.children.forEach(c => stack.push(c));
+        }
+      } else {
+        // Whole tree — clear every graph node and all collapsed clade colours.
+        for (const node of graph.nodes) delete node.annotations['user_colour'];
+        if (graph.collapsedCladeIds) {
+          for (const [id, info] of graph.collapsedCladeIds) {
+            graph.collapsedCladeIds.set(id, { ...info, colour: null });
+            const layoutNode = renderer.nodeMap?.get(id);
+            if (layoutNode) layoutNode.collapsedColour = null;
+          }
         }
       }
       graph.annotationSchema = buildAnnotationSchema(graph.nodes);
