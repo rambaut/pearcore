@@ -308,10 +308,11 @@ async function fetchExampleTree() {
     if (e.key === 'Escape') _closeColourPanel();
   });
   const tipFilterEl            = document.getElementById('tip-filter');
-  const tipFilterCnt           = document.getElementById('tip-filter-count');
   const btnFilterColEl         = document.getElementById('btn-filter-col');
+  const btnFilterRegexEl       = document.getElementById('btn-filter-regex');
   const filterColPopupEl       = document.getElementById('filter-col-popup');
   let   _filterCol             = '__name__';  // currently active filter column
+  let   _filterRegex           = false;       // regex mode toggle
 
   // Close filter-column popup on outside click or Escape
   document.addEventListener('click', (e) => {
@@ -1410,6 +1411,19 @@ async function fetchExampleTree() {
 
   renderer.onHypActivate   = () => statusMessage('Lens mode active \u2013 press Esc to cancel');
   renderer.onHypDeactivate = () => statusMessage('');
+
+  const _statusSelectEl = document.getElementById('status-select');
+  function _updateStatusSelect(count) {
+    if (!_statusSelectEl) return;
+    if (count > 0) {
+      _statusSelectEl.innerHTML =
+        `<span class="st-sep">| </span><span class="st-lbl">Selected\u2009</span><span class="st-val">${count}</span>`;
+      _statusSelectEl.classList.add('visible');
+    } else {
+      _statusSelectEl.innerHTML = '';
+      _statusSelectEl.classList.remove('visible');
+    }
+  }
 
   renderer._onStatsChange = (stats) => {
     const el = document.getElementById('status-stats');
@@ -2917,8 +2931,12 @@ async function fetchExampleTree() {
 
       // Reset tip filter for each tree load
       tipFilterEl.value   = '';
-      tipFilterCnt.hidden = true;
-      _filterCol          = '__name__';
+      tipFilterEl.placeholder = 'Filter tips…';
+      _updateStatusSelect(0);
+      _filterCol   = '__name__';
+      _filterRegex = false;
+      btnFilterRegexEl.classList.remove('active');
+      tipFilterEl.closest('.pt-filter-group')?.classList.remove('regex-error');
       // Seed the popup with Name immediately so it is never blank before _refreshAnnotationUIs runs.
       if (!filterColPopupEl.hasChildNodes()) {
         const _seed = document.createElement('button');
@@ -2932,8 +2950,9 @@ async function fetchExampleTree() {
         treeLoaded = true;
         // Now that a tree is loaded, stamp the theme background onto the canvas wrappers.
         _syncCanvasWrapperBg(canvasBgColorEl.value);
-        tipFilterEl.disabled    = false;
-        btnFilterColEl.disabled = false;
+        tipFilterEl.disabled       = false;
+        btnFilterColEl.disabled    = false;
+        btnFilterRegexEl.disabled  = false;
         btnColourTrigger.disabled = false;
         // Buttons with no command equivalent
         const _btnHypUp   = document.getElementById('btn-hyp-up');
@@ -3061,16 +3080,35 @@ async function fetchExampleTree() {
     function _applyTipFilter() {
       clearTimeout(_filterTimer);
       _filterTimer = null;
-      const q   = tipFilterEl.value.trim().toLowerCase();
+      const raw = tipFilterEl.value.trim();
       const col = _filterCol; // '__name__' or an annotation key
+      const filterGroup = tipFilterEl.closest('.pt-filter-group');
 
-      if (!q) {
+      if (!raw) {
+        filterGroup?.classList.remove('regex-error');
         renderer._selectedTipIds.clear();
         renderer._mrcaNodeId = null;
         if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(false);
-        tipFilterCnt.hidden = true;
+        _updateStatusSelect(0);
         renderer._dirty = true;
         return;
+      }
+
+      // Build matcher — regex or plain substring
+      let matcher;
+      if (_filterRegex) {
+        try {
+          const re = new RegExp(raw, 'i');
+          matcher = s => re.test(s);
+          filterGroup?.classList.remove('regex-error');
+        } catch {
+          filterGroup?.classList.add('regex-error');
+          return; // invalid pattern — don't update selection
+        }
+      } else {
+        const q = raw.toLowerCase();
+        matcher = s => s.toLowerCase().includes(q);
+        filterGroup?.classList.remove('regex-error');
       }
 
       const matches = [];
@@ -3084,17 +3122,14 @@ async function fetchExampleTree() {
             const v = n.annotations?.[col];
             label = v == null ? '' : String(v);
           }
-          if (label.toLowerCase().includes(q)) {
-            matches.push(n);
-          }
+          if (matcher(label)) matches.push(n);
         }
       }
 
       renderer._selectedTipIds = new Set(matches.map(n => n.id));
       renderer._mrcaNodeId = null;
       if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(matches.length > 0);
-      tipFilterCnt.textContent = `${matches.length}`;
-      tipFilterCnt.hidden = false;
+      _updateStatusSelect(matches.length);
       renderer._dirty = true;
 
       // Scroll topmost matching tip into view when tree is zoomed
@@ -3115,6 +3150,15 @@ async function fetchExampleTree() {
     });
     // Native clear button in <input type="search"> fires 'search' event
     tipFilterEl.addEventListener('search', _applyTipFilter);
+
+    // Regex toggle
+    btnFilterRegexEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _filterRegex = !_filterRegex;
+      btnFilterRegexEl.classList.toggle('active', _filterRegex);
+      tipFilterEl.placeholder = _filterRegex ? 'Regex filter…' : 'Filter tips…';
+      _applyTipFilter();
+    });
 
     // ── Filter column popup ──────────────────────────────────────────────────────
     btnFilterColEl.addEventListener('click', (e) => {
@@ -3291,6 +3335,11 @@ async function fetchExampleTree() {
       commands.setEnabled('tree-collapse-clade', canCollapse());
       commands.setEnabled('tree-expand-clade',   canExpand());
       commands.setEnabled('tree-paint',       hasSelection);
+      // Update status-bar selection count for canvas-click selections.
+      // Filter-driven selections update it directly in _applyTipFilter.
+      if (!tipFilterEl.value.trim()) {
+        _updateStatusSelect(hasSelection ? renderer._selectedTipIds.size : 0);
+      }
       // Keep the data table in sync with the canvas selection
       dataTableRenderer.syncSelection(renderer._selectedTipIds);
     };

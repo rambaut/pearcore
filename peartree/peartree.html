@@ -169,6 +169,9 @@
     .pt-filter-input::placeholder { color: rgba(255,255,255,0.35); }
     .pt-filter-input:disabled { pointer-events: none; }
     .pt-filter-input::-webkit-search-cancel-button { cursor: pointer; filter: invert(0.7); }
+    .pt-filter-group.regex-error {
+      border-color: rgba(220,60,60,0.7) !important;
+    }
     .pt-filter-col-btn {
       display: flex;
       align-items: center;
@@ -178,7 +181,7 @@
       padding: 0;
       border: none;
       border-left: 1px solid rgba(255,255,255,0.18);
-      border-radius: 0 3px 3px 0;
+      border-radius: 0;
       background: transparent;
       color: rgba(255,255,255,0.5);
       font-size: 0.8rem;
@@ -188,14 +191,9 @@
       background: rgba(255,255,255,0.1);
       color: rgba(255,255,255,0.9);
     }
+    .pt-filter-col-btn.active { color: var(--pt-gold); }
+    .pt-filter-col-btn:last-child { border-radius: 0 3px 3px 0; }
     .pt-filter-col-btn:disabled { cursor: default; }
-    .pt-filter-count {
-      font-size: 0.75rem;
-      color: var(--pt-gold);
-      white-space: nowrap;
-      min-width: 28px;
-      text-align: right;
-    }
     /* User-colour picker */
     .pt-colour-pick-wrap {  
       display: flex;
@@ -412,6 +410,20 @@
       opacity: 0;
       transition: opacity 0.2s;
     }
+    #status-select {
+      position: absolute;
+      right: 72px;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      font: 11px/1 monospace;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    #status-select.visible { opacity: 1; }
     #status-message.visible { opacity: 1; }
 
     /* ── Canvas area ── */
@@ -1776,6 +1788,7 @@
     <div class="pt-filter-wrap">
       <div class="pt-filter-group">
         <input type="search" id="tip-filter" class="pt-filter-input" placeholder="Filter tips…" disabled autocomplete="off" spellcheck="false">
+        <button id="btn-filter-regex" class="pt-filter-col-btn" disabled title="Use regular expression"><i class="bi bi-regex"></i></button>
         <div class="pt-filter-col-wrap">
           <button id="btn-filter-col" class="pt-filter-col-btn" disabled title="Search in: Name"><i class="bi bi-funnel"></i></button>
           <div id="filter-col-popup"></div>
@@ -1835,6 +1848,7 @@
 <div id="status-bar">
   <a id="status-brand" href="https://github.com/artic-network/peartree" target="_blank" rel="noopener" title="PearTree on GitHub"><i class="bi bi-tree"></i>PearTree</a>
   <span id="status-stats"></span>
+  <span id="status-select"></span>
   <span id="status-message"></span>
   <button id="btn-about" title="About PearTree"><i class="bi bi-info-circle"></i></button>
   <button id="btn-help" title="Help (⌘?)"><i class="bi bi-question-circle"></i></button>
