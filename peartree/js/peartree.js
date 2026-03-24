@@ -2451,8 +2451,6 @@ async function fetchExampleTree() {
         filterColPopupEl.appendChild(btn);
       }
       btnFilterColEl.title = `Search in: ${items.find(i => i.value === _filterCol)?.label ?? 'Name'}`;
-      // Only show the funnel button when there are annotation columns to choose from
-      btnFilterColEl.style.display = items.length > 1 ? '' : 'none';
     }
     repopulate(tipLabelShapeColourBy, { filter: 'tips' });
     for (let i = 0; i < EXTRA_SHAPE_COUNT; i++) {
@@ -2921,6 +2919,14 @@ async function fetchExampleTree() {
       tipFilterEl.value   = '';
       tipFilterCnt.hidden = true;
       _filterCol          = '__name__';
+      // Seed the popup with Name immediately so it is never blank before _refreshAnnotationUIs runs.
+      if (!filterColPopupEl.hasChildNodes()) {
+        const _seed = document.createElement('button');
+        _seed.className = 'pt-fcp-item active';
+        _seed.textContent = 'Name';
+        _seed.dataset.value = '__name__';
+        filterColPopupEl.appendChild(_seed);
+      }
 
       if (!treeLoaded) {
         treeLoaded = true;
