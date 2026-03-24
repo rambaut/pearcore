@@ -105,6 +105,38 @@
       align-items: center;
       gap: 4px;
     }
+    .pt-filter-col-wrap {
+      position: relative;
+    }
+    #filter-col-popup {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 700;
+      background: var(--pt-bg-dark);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.55);
+      padding: 4px;
+      min-width: 130px;
+    }
+    #filter-col-popup.open { display: block; }
+    .pt-fcp-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      color: var(--bs-body-color);
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .pt-fcp-item:hover { background: rgba(255,255,255,0.1); }
+    .pt-fcp-item.active { color: var(--pt-gold); }
     .pt-filter-input {
       width: 150px;
       height: 24px;
@@ -1711,6 +1743,10 @@
     <div class="pt-filter-wrap">
       <input type="search" id="tip-filter" class="pt-filter-input" placeholder="Filter tips…" disabled autocomplete="off" spellcheck="false">
       <span id="tip-filter-count" class="pt-filter-count" hidden></span>
+      <div class="pt-filter-col-wrap">
+        <button id="btn-filter-col" class="btn btn-sm btn-outline-secondary" disabled title="Search in: Name"><i class="bi bi-funnel"></i></button>
+        <div id="filter-col-popup"></div>
+      </div>
     </div>
     <div class="pt-toolbar-sep"></div>
     <button id="btn-data-table" class="btn btn-sm btn-outline-secondary" disabled title="Data table panel"><i class="bi bi-caret-left"></i><i class="bi bi-layout-sidebar-reverse"></i></button>

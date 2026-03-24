@@ -2,7 +2,7 @@
 
 A browser-based phylogenetic tree viewer for exploring and annotating evolutionary trees.
 
-PearTree is the successor to [FigTree](https://github.com/rambaut/figtree), reimagined as a modern, zero-install web application.
+PearTree is the successor to [FigTree](https://github.com/rambaut/figtree), rebiggulated as a modern, zero-install web application.
 
 ---
 

@@ -309,6 +309,21 @@ async function fetchExampleTree() {
   });
   const tipFilterEl            = document.getElementById('tip-filter');
   const tipFilterCnt           = document.getElementById('tip-filter-count');
+  const btnFilterColEl         = document.getElementById('btn-filter-col');
+  const filterColPopupEl       = document.getElementById('filter-col-popup');
+  let   _filterCol             = '__name__';  // currently active filter column
+
+  // Close filter-column popup on outside click or Escape
+  document.addEventListener('click', (e) => {
+    if (filterColPopupEl.classList.contains('open') &&
+        !filterColPopupEl.contains(e.target) &&
+        e.target !== btnFilterColEl) {
+      filterColPopupEl.classList.remove('open');
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') filterColPopupEl.classList.remove('open');
+  });
 
   // ── Settings persistence ──────────────────────────────────────────────────
   // SETTINGS_KEY, USER_THEMES_KEY, THEMES, DEFAULT_SETTINGS imported from ./themes.js
@@ -2416,6 +2431,29 @@ async function fetchExampleTree() {
     repopulate(tipColourBy,          { filter: 'tips'  });
     repopulate(nodeColourBy,         { filter: 'nodes' });
     repopulate(labelColourBy,        { filter: 'tips'  });
+    // Rebuild filter-column popup: 'Name' first, then categorical/ordinal/date tip annotations only.
+    {
+      const items = [{ value: '__name__', label: 'Name' }];
+      for (const [name, def] of schema) {
+        if (!def.onTips) continue;
+        if (def.groupMember) continue;
+        const dt = def.dataType;
+        if (dt !== 'categorical' && dt !== 'ordinal' && dt !== 'date') continue;
+        items.push({ value: name, label: def.label ?? name });
+      }
+      if (!items.some(i => i.value === _filterCol)) _filterCol = '__name__';
+      filterColPopupEl.innerHTML = '';
+      for (const { value, label } of items) {
+        const btn = document.createElement('button');
+        btn.className = 'pt-fcp-item' + (value === _filterCol ? ' active' : '');
+        btn.textContent = label;
+        btn.dataset.value = value;
+        filterColPopupEl.appendChild(btn);
+      }
+      btnFilterColEl.title = `Search in: ${items.find(i => i.value === _filterCol)?.label ?? 'Name'}`;
+      // Only show the funnel button when there are annotation columns to choose from
+      btnFilterColEl.style.display = items.length > 1 ? '' : 'none';
+    }
     repopulate(tipLabelShapeColourBy, { filter: 'tips' });
     for (let i = 0; i < EXTRA_SHAPE_COUNT; i++) {
       repopulate(tipLabelShapeExtraColourBys[i], { filter: 'tips' });
@@ -2882,12 +2920,14 @@ async function fetchExampleTree() {
       // Reset tip filter for each tree load
       tipFilterEl.value   = '';
       tipFilterCnt.hidden = true;
+      _filterCol          = '__name__';
 
       if (!treeLoaded) {
         treeLoaded = true;
         // Now that a tree is loaded, stamp the theme background onto the canvas wrappers.
         _syncCanvasWrapperBg(canvasBgColorEl.value);
-        tipFilterEl.disabled       = false;
+        tipFilterEl.disabled    = false;
+        btnFilterColEl.disabled = false;
         btnColourTrigger.disabled = false;
         // Buttons with no command equivalent
         const _btnHypUp   = document.getElementById('btn-hyp-up');
@@ -3015,7 +3055,8 @@ async function fetchExampleTree() {
     function _applyTipFilter() {
       clearTimeout(_filterTimer);
       _filterTimer = null;
-      const q = tipFilterEl.value.trim().toLowerCase();
+      const q   = tipFilterEl.value.trim().toLowerCase();
+      const col = _filterCol; // '__name__' or an annotation key
 
       if (!q) {
         renderer._selectedTipIds.clear();
@@ -3030,9 +3071,13 @@ async function fetchExampleTree() {
       if (renderer.nodeMap) {
         for (const [id, n] of renderer.nodeMap) {
           if (!n.isTip) continue;
-          // Match against the currently displayed tip label (annotation value,
-          // date string, etc.) and fall back to the raw node name.
-          const label = renderer._tipLabelText(n) ?? n.name ?? '';
+          let label;
+          if (col === '__name__') {
+            label = n.name ?? '';
+          } else {
+            const v = n.annotations?.[col];
+            label = v == null ? '' : String(v);
+          }
           if (label.toLowerCase().includes(q)) {
             matches.push(n);
           }
@@ -3064,6 +3109,24 @@ async function fetchExampleTree() {
     });
     // Native clear button in <input type="search"> fires 'search' event
     tipFilterEl.addEventListener('search', _applyTipFilter);
+
+    // ── Filter column popup ──────────────────────────────────────────────────────
+    btnFilterColEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      filterColPopupEl.classList.toggle('open');
+    });
+    filterColPopupEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = e.target.closest('.pt-fcp-item');
+      if (!item) return;
+      _filterCol = item.dataset.value;
+      for (const el of filterColPopupEl.querySelectorAll('.pt-fcp-item')) {
+        el.classList.toggle('active', el === item);
+      }
+      btnFilterColEl.title = `Search in: ${item.textContent}`;
+      filterColPopupEl.classList.remove('open');
+      if (tipFilterEl.value.trim()) _applyTipFilter();
+    });
 
     // ── Hide/Show helpers ─────────────────────────────────────────────────────
     function _selectedNodeId() {
