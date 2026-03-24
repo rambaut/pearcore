@@ -83,6 +83,7 @@ export const DEFAULT_SETTINGS = {
   axisPaddingTop: '3',
   elbowRadius:    '2',
   rootStubLength: '10',
+  rootStemPct:    '1',    // whole-tree root-stem length as % of tree age (0–20)
   // Node bars (only shown when tree has 'height' group from BEAST)
   nodeBarsEnabled:    'off',
   nodeBarsColor:      '#444444',

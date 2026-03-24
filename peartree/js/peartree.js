@@ -98,6 +98,7 @@ async function fetchExampleTree() {
   const axisDetailEl        = document.getElementById('axis-detail');
   const clampNegBranchesEl  = document.getElementById('clamp-neg-branches');
   const clampNegBranchesRowEl = document.getElementById('clamp-neg-branches-row');
+  const rootStemPctSlider    = document.getElementById('root-stem-pct-slider');
   const fontFamilyEl        = document.getElementById('font-family-select');
   const tipColourBy       = document.getElementById('tip-colour-by');
   const nodeColourBy      = document.getElementById('node-colour-by');
@@ -610,6 +611,7 @@ async function fetchExampleTree() {
       collapsedCladeOpacity: collapsedOpacitySlider.value,
       collapsedCladeHeightN: collapsedHeightNSlider.value,
       clampNegBranches:   clampNegBranchesEl.value,
+      rootStemPct:        rootStemPctSlider.value,
       tipLabelShow:       tipLabelShow.value,
       tipLabelAlign:      tipLabelAlignEl.value,
       tipLabelDecimalPlaces:  tipLabelDpEl.value !== '' ? parseInt(tipLabelDpEl.value) : null,
@@ -833,6 +835,10 @@ async function fetchExampleTree() {
       document.getElementById('collapsed-height-n-value').textContent = s.collapsedCladeHeightN;
     }
     if (s.clampNegBranches)   clampNegBranchesEl.value = s.clampNegBranches;
+    if (s.rootStemPct != null) {
+      rootStemPctSlider.value = s.rootStemPct;
+      document.getElementById('root-stem-pct-value').textContent = s.rootStemPct + '%';
+    }
     // Node label settings (annotation-dependent: nodeLabelAnnotation is applied later in loadTree)
     if (s.nodeLabelPosition)  nodeLabelPositionEl.value   = s.nodeLabelPosition;
     if (s.nodeLabelFontSize != null) {
@@ -902,6 +908,8 @@ async function fetchExampleTree() {
     nodeBarsMedianEl.value = DEFAULT_SETTINGS.nodeBarsShowMedian;
     nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsShowRange;
     clampNegBranchesEl.value = DEFAULT_SETTINGS.clampNegBranches ?? 'off';
+    rootStemPctSlider.value = DEFAULT_SETTINGS.rootStemPct ?? '0';
+    document.getElementById('root-stem-pct-value').textContent = (DEFAULT_SETTINGS.rootStemPct ?? '0') + '%';
     nodeLabelShowEl.value       = DEFAULT_SETTINGS.nodeLabelAnnotation;
     nodeLabelPositionEl.value   = DEFAULT_SETTINGS.nodeLabelPosition;
     nodeLabelFontSizeSlider.value = DEFAULT_SETTINGS.nodeLabelFontSize;
@@ -993,6 +1001,7 @@ async function fetchExampleTree() {
       paddingBottom:    parseInt(DEFAULT_SETTINGS.paddingBottom),
       elbowRadius:      parseFloat(DEFAULT_SETTINGS.elbowRadius),
       rootStubLength:   parseFloat(DEFAULT_SETTINGS.rootStubLength),
+      rootStemPct:      parseFloat(rootStemPctSlider.value),
       tipHoverFillColor:      tipHoverFillEl.value,
       tipHoverStrokeColor:    tipHoverStrokeEl.value,
       tipHoverGrowthFactor:   parseFloat(tipHoverGrowthSlider.value),
@@ -4851,6 +4860,15 @@ async function fetchExampleTree() {
     renderer.setSettings(_buildRendererSettings());
     const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, _layoutOptions());
     renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
+    saveSettings();
+  });
+
+  rootStemPctSlider.addEventListener('input', () => {
+    document.getElementById('root-stem-pct-value').textContent = rootStemPctSlider.value + '%';
+    if (!renderer) { saveSettings(); return; }
+    renderer.rootStemPct = parseFloat(rootStemPctSlider.value);
+    renderer._updateScaleX();
+    renderer._dirty = true;
     saveSettings();
   });
 

@@ -241,6 +241,7 @@ export class TreeRenderer {
     this.paddingBottom          = s.paddingBottom;
     this.elbowRadius            = s.elbowRadius;
     this.rootStubLength         = s.rootStubLength;
+    this.rootStemPct            = +(s.rootStemPct ?? 0);  // whole-tree stem as % of tree age
     this.clampNegativeBranches  = !!s.clampNegativeBranches;
 
     // ── Hover ───────────────────────────────────────────────────────────────
@@ -1447,9 +1448,13 @@ export class TreeRenderer {
     const plotW = W - this.paddingLeft - this.labelRightPad;
     // Extra world-units needed to the left of the root for node bars / whiskers.
     const barPad = this.nodeBarsEnabled ? this._nodeBarsLeftPad() : 0;
-    this._targetScaleX  = plotW / (this.maxX + barPad);
-    // Shift the origin right so bars that extend past the root remain visible.
-    this._targetOffsetX = this.paddingLeft + barPad * this._targetScaleX;
+    // Root stem: only applied to the whole-tree view (not subtree navigation).
+    const stemWorld = (this._viewSubtreeRootId === null)
+      ? (this.rootStemPct ?? 0) / 100 * this.maxX
+      : 0;
+    this._targetScaleX  = plotW / (this.maxX + barPad + stemWorld);
+    // Shift the origin right so bars/stem that extend past the root remain visible.
+    this._targetOffsetX = this.paddingLeft + (barPad + stemWorld) * this._targetScaleX;
     if (immediate) {
       this.scaleX  = this._targetScaleX;
       this.offsetX = this._targetOffsetX;
@@ -1566,9 +1571,10 @@ export class TreeRenderer {
     if (!this.nodes) return;
     const plotW = targetW - this.paddingLeft - this.labelRightPad;
     const plotH = targetH - this.paddingTop  - this.paddingBottom;
-    const sx = plotW / (this.maxX || 1);
+    const stemWorld = (this.rootStemPct ?? 0) / 100 * (this.maxX || 1);
+    const sx = plotW / ((this.maxX || 1) + stemWorld);
     const sy = plotH / ((this.maxY || 1) + 1);
-    const ox = this.paddingLeft;
+    const ox = this.paddingLeft + stemWorld * sx;
     const oy = this.paddingTop + sy * 0.5;
 
     // Stash current rendering state.
@@ -2223,15 +2229,21 @@ export class TreeRenderer {
 
     // Draw root stub: a short horizontal line to the left of the root node.
     // nodes[0] is always the layout root (DFS in computeLayoutFromGraph pushes root first).
+    // • Full tree:    use rootStemPct (user-controlled proportion of tree age), may be 0.
+    // • Subtree view: always use the fixed rootStubLength (pixel stub) to signal ancestry.
     const rootNode = this.nodes[0];
     if (rootNode) {
       const rx      = this._wx(rootNode.x);
       const ry      = this._wy(rootNode.y);
-      const stubLen = this.rootStubLength;
-      ctx.beginPath();
-      ctx.moveTo(rx - stubLen, ry);
-      ctx.lineTo(rx, ry);
-      ctx.stroke();
+      const stubLen = (this._viewSubtreeRootId === null)
+        ? (this.rootStemPct ?? 0) / 100 * this.maxX * this.scaleX
+        : this.rootStubLength;
+      if (stubLen > 0) {
+        ctx.beginPath();
+        ctx.moveTo(rx - stubLen, ry);
+        ctx.lineTo(rx, ry);
+        ctx.stroke();
+      }
     }
 
     // Draw vertical elbow lines per internal node.
