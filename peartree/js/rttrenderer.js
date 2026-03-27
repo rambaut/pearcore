@@ -1,0 +1,719 @@
+// rttrenderer.js — Root-to-Tip divergence scatter-plot canvas renderer.
+//
+// Draws tips as (date, root-to-tip divergence) scatter points using the same
+// visual style as the main tree canvas, plus a least-squares regression line
+// and a stats overlay.  Handles its own mouse events for hover, single-click /
+// cmd-click selection and drag-rectangle selection, mirroring tree behaviour.
+//
+// The controller (rttchart.js) owns panel open/close/pin logic and wires this
+// renderer to the tree renderer's state.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { TreeCalibration } from './phylograph.js';
+
+// ─── Tick helpers ─────────────────────────────────────────────────────────────
+
+/** Pick a nice step size (decimal years) giving ~5-7 ticks over the range. */
+function _niceYearStep(range) {
+  const steps = [1/365, 7/365, 1/12, 2/12, 3/12, 6/12, 1, 2, 5, 10, 25, 50, 100];
+  const raw   = range / 6;
+  return steps.find(s => s >= raw) ?? 100;
+}
+
+/** Nice linear step for a value range (Y axis). */
+function _niceStep(range) {
+  if (range <= 0) return 1e-6;
+  const mag  = Math.pow(10, Math.floor(Math.log10(range / 5)));
+  const norm = (range / mag) / 5;
+  if (norm < 1.5) return mag;
+  if (norm < 3.5) return 2 * mag;
+  if (norm < 7.5) return 5 * mag;
+  return 10 * mag;
+}
+
+/** Decimal places needed to show `step` without trailing zeros. */
+function _stepDp(step) {
+  if (step >= 1)     return 0;
+  if (step >= 0.1)   return 1;
+  if (step >= 0.01)  return 2;
+  if (step >= 0.001) return 3;
+  return 4;
+}
+
+/**
+ * Format a decimal year as label lines for the X axis, given the tick step.
+ * Returns an array of 1 or 2 strings (multi-line when step < 1 year).
+ */
+function _fmtDecYear(dy, step, cal, fmt) {
+  if (cal) {
+    if (step >= 1) return [String(Math.round(dy))];
+    if (step >= 1 / 12) {
+      const { year, month } = TreeCalibration.decYearToDate(dy);
+      return [TreeCalibration.MONTHS[month - 1], String(year)];
+    }
+    return [cal.decYearToString(dy, 'full', fmt)];
+  }
+  return [dy.toFixed(_stepDp(step))];
+}
+
+// ─── RTTRenderer ──────────────────────────────────────────────────────────────
+
+export class RTTRenderer {
+  constructor(canvas) {
+    this._canvas = canvas;
+    this._ctx    = canvas.getContext('2d');
+    this._dpr    = window.devicePixelRatio || 1;
+
+    // ── Plot data ──────────────────────────────────────────────────────────
+    /** @type {Array<{id:string, x:number|null, y:number, name:string, colour:string|null}>} */
+    this._points    = [];
+    this._xMin      = 0;  this._xMax = 1;
+    this._yMin      = 0;  this._yMax = 1;
+    /** @type {{a:number,b:number,xInt:number|null,r:number,r2:number,cv:number,n:number}|null} */
+    this._regression = null;
+
+    // ── Tip style — mirrors TreeRenderer public properties ─────────────────
+    this.tipRadius             = 4;
+    this.tipShapeColor         = 'rgba(180,200,220,0.9)';
+    this.tipHaloSize           = 0;
+    this.tipShapeBgColor       = 'rgba(2,41,46,0.9)';
+    this.bgColor               = '#02292e';
+    this.fontSize              = 11;
+    this.fontFamily            = 'Inter, system-ui, sans-serif';
+
+    // Selected-tip indicator style
+    this.selectedTipStrokeColor   = 'rgba(220,200,80,0.9)';
+    this.selectedTipFillColor     = 'rgba(220,200,80,0.3)';
+    this.selectedTipGrowthFactor  = 1.5;
+    this.selectedTipMinSize       = 8;
+    this.selectedTipStrokeWidth   = 2;
+    this.selectedTipStrokeOpacity = 0.9;
+    this.selectedTipFillOpacity   = 0.35;
+
+    // Hover indicator style
+    this.tipHoverStrokeColor      = 'rgba(255,255,255,0.9)';
+    this.tipHoverFillColor        = 'rgba(255,255,255,0.2)';
+    this.tipHoverGrowthFactor     = 1.4;
+    this.tipHoverMinSize          = 6;
+    this.tipHoverStrokeWidth      = 1.5;
+    this.tipHoverStrokeOpacity    = 0.8;
+    this.tipHoverFillOpacity      = 0.2;
+
+    // ── Calibration (for X-axis label formatting) ──────────────────────────
+    this._calibration = null;
+    this._dateFormat  = 'yyyy-MM-dd';
+
+    // ── Selection / hover — kept in sync with TreeRenderer ────────────────
+    this._selectedTipIds = new Set();
+    this._hoveredTipId   = null;
+
+    // ── Drag-select state ──────────────────────────────────────────────────
+    this._dragActive  = false;
+    this._dragStartPx = null;  // CSS pixels
+    this._dragEndPx   = null;
+    this._cmdHeld     = false;
+
+    // ── Per-render point positions (hit-testing) ───────────────────────────
+    /** @type {Array<{id:string, px:number, py:number}>} physical pixels */
+    this._renderedPts = [];
+
+    // ── Callbacks ──────────────────────────────────────────────────────────
+    this.onSelectionChange = null;  // (Set<id>) => void
+    this.onHoverChange     = null;  // (id|null) => void
+
+    this._dirty = true;
+    this._setupEvents();
+    this._startLoop();
+  }
+
+  // ─── Public API ───────────────────────────────────────────────────────────
+
+  /** Replace the full point dataset and recompute regression. */
+  setPoints(pts) {
+    this._points     = pts;
+    this._computeBounds();
+    this._regression = this._computeRegression();
+    this._dirty      = true;
+  }
+
+  /** Update the calibration used for X-axis date formatting. */
+  setCalibration(cal, fmt) {
+    this._calibration = cal ?? null;
+    this._dateFormat  = fmt ?? 'yyyy-MM-dd';
+    this._dirty = true;
+  }
+
+  /** Sync the selected-id set from outside (tree renderer). */
+  setSelectedIds(ids) {
+    this._selectedTipIds = ids instanceof Set ? ids : new Set(ids);
+    this._dirty = true;
+  }
+
+  /** Sync the hovered id from outside (tree renderer). */
+  setHoveredId(id) {
+    const next = id ?? null;
+    if (this._hoveredTipId === next) return;
+    this._hoveredTipId = next;
+    this._dirty = true;
+  }
+
+  /** Resize the canvas to its current CSS size, honouring devicePixelRatio. */
+  _resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const w   = this._canvas.clientWidth;
+    const h   = this._canvas.clientHeight;
+    if (w < 1 || h < 1) return;
+    this._canvas.width  = Math.round(w * dpr);
+    this._canvas.height = Math.round(h * dpr);
+    this._dpr   = dpr;
+    this._dirty = true;
+  }
+
+  // ─── Coordinate helpers ────────────────────────────────────────────────────
+
+  /** Plot area rectangle in physical (DPR-scaled) pixels. */
+  _plotRect() {
+    const d  = this._dpr;
+    const W  = this._canvas.width;
+    const H  = this._canvas.height;
+    return {
+      x: Math.round(62 * d),
+      y: Math.round(14 * d),
+      w: W - Math.round(62 * d) - Math.round(14 * d),
+      h: H - Math.round(14 * d) - Math.round(52 * d),
+    };
+  }
+
+  _xToScreen(v, rect) {
+    const span = this._xMax - this._xMin;
+    return span === 0 ? rect.x + rect.w / 2 : rect.x + (v - this._xMin) / span * rect.w;
+  }
+  _yToScreen(v, rect) {
+    const span = this._yMax - this._yMin;
+    return span === 0 ? rect.y + rect.h / 2 : rect.y + rect.h - (v - this._yMin) / span * rect.h;
+  }
+
+  // ─── Bounds & regression ──────────────────────────────────────────────────
+
+  _computeBounds() {
+    let xMin = Infinity, xMax = -Infinity, yMax = -Infinity;
+    for (const p of this._points) {
+      if (p.x != null) {
+        if (p.x < xMin) xMin = p.x;
+        if (p.x > xMax) xMax = p.x;
+      }
+      if (p.y > yMax) yMax = p.y;
+    }
+    if (!isFinite(xMin)) { xMin = 0; xMax = 1; }
+    if (!isFinite(yMax)) yMax = 1;
+    const xPad = Math.max((xMax - xMin) * 0.06, 1e-9);
+    const yPad = Math.max(yMax * 0.08, 1e-12);
+    this._xMin = xMin - xPad;
+    this._xMax = xMax + xPad;
+    this._yMin = 0;
+    this._yMax = yMax + yPad;
+  }
+
+  _computeRegression() {
+    const pts = this._points.filter(p => p.x != null);
+    const n   = pts.length;
+    if (n < 2) return null;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+    for (const { x, y } of pts) { sx += x; sy += y; sxx += x*x; sxy += x*y; syy += y*y; }
+    const xBar = sx / n, yBar = sy / n;
+    const ssxx = sxx - n * xBar * xBar;
+    const ssyy = syy - n * yBar * yBar;
+    const ssxy = sxy - n * xBar * yBar;
+    if (Math.abs(ssxx) < 1e-20) return null;
+    const a    = ssxy / ssxx;
+    const b    = yBar - a * xBar;
+    const xInt = Math.abs(a) > 1e-20 ? -b / a : null;
+    const r    = (ssxx > 0 && ssyy > 0) ? ssxy / Math.sqrt(ssxx * ssyy) : 0;
+    let sse = 0;
+    for (const { x, y } of pts) { const res = y - (a * x + b); sse += res * res; }
+    const rmse = Math.sqrt(sse / n);
+    return { a, b, xInt, r, r2: r * r, cv: yBar > 0 ? rmse / yBar : 0, n };
+  }
+
+  // ─── Render loop ──────────────────────────────────────────────────────────
+
+  _startLoop() {
+    const tick = () => {
+      if (this._dirty) { this._dirty = false; this._render(); }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  _render() {
+    const ctx = this._ctx;
+    const W = this._canvas.width, H = this._canvas.height;
+    if (W < 2 || H < 2) return;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = this.bgColor;
+    ctx.fillRect(0, 0, W, H);
+
+    const rect = this._plotRect();
+    if (rect.w < 30 || rect.h < 30) return;
+
+    const hasData = this._points.some(p => p.x != null);
+    if (!hasData) { this._drawEmptyState(ctx, W, H); return; }
+
+    this._drawGrid(ctx, rect);
+    this._drawAxes(ctx, rect);
+    this._drawRegression(ctx, rect);
+    this._drawPoints(ctx, rect);
+    this._drawStatsBox(ctx, rect);
+    if (this._dragActive && this._dragStartPx && this._dragEndPx) {
+      this._drawDragRect(ctx);
+    }
+  }
+
+  _drawEmptyState(ctx, W, H) {
+    const d = this._dpr;
+    ctx.fillStyle    = 'rgba(230,213,149,0.35)';
+    ctx.font         = `${Math.round(12 * d)}px ${this.fontFamily}`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Set a date annotation in Axis controls', W / 2, H / 2 - 10 * d);
+    ctx.fillText('to view the root-to-tip plot', W / 2, H / 2 + 10 * d);
+  }
+
+  // ─── Grid ─────────────────────────────────────────────────────────────────
+
+  _drawGrid(ctx, rect) {
+    const d = this._dpr;
+    const { ticks: yTks } = this._yTicksInfo();
+    const { ticks: xTks } = this._xTicksInfo();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.055)';
+    ctx.lineWidth   = d;
+    ctx.beginPath();
+    for (const v of yTks) {
+      const py = Math.round(this._yToScreen(v, rect));
+      if (py < rect.y - 1 || py > rect.y + rect.h + 1) continue;
+      ctx.moveTo(rect.x, py);  ctx.lineTo(rect.x + rect.w, py);
+    }
+    for (const v of xTks) {
+      const px = Math.round(this._xToScreen(v, rect));
+      if (px < rect.x - 1 || px > rect.x + rect.w + 1) continue;
+      ctx.moveTo(px, rect.y);  ctx.lineTo(px, rect.y + rect.h);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ─── Axes ─────────────────────────────────────────────────────────────────
+
+  _yTicksInfo() {
+    const step  = _niceStep(this._yMax - this._yMin);
+    const start = Math.ceil(this._yMin / step) * step;
+    const ticks = [];
+    for (let v = start; v <= this._yMax + step * 0.001; v += step) ticks.push(v);
+    return { ticks, step };
+  }
+
+  _xTicksInfo() {
+    const step  = _niceYearStep(this._xMax - this._xMin);
+    const start = Math.ceil(this._xMin / step) * step;
+    const ticks = [];
+    for (let v = start; v <= this._xMax + step * 0.001; v += step) ticks.push(v);
+    return { ticks, step };
+  }
+
+  _drawAxes(ctx, rect) {
+    const d     = this._dpr;
+    const axisC = 'rgba(230,213,149,0.60)';
+    const lblC  = 'rgba(230,213,149,0.50)';
+    const fsz   = Math.max(9, Math.round(this.fontSize * 0.88 * d));
+    const font  = `${fsz}px ${this.fontFamily}`;
+    const tc    = Math.round(4 * d);           // tick half-length (physical px)
+
+    const { ticks: yTks, step: yStep } = this._yTicksInfo();
+    const { ticks: xTks, step: xStep } = this._xTicksInfo();
+
+    ctx.save();
+
+    // Axis border lines
+    ctx.strokeStyle = axisC;
+    ctx.lineWidth   = d;
+    ctx.beginPath();
+    ctx.moveTo(rect.x, rect.y);               ctx.lineTo(rect.x, rect.y + rect.h);
+    ctx.moveTo(rect.x, rect.y + rect.h);      ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
+    ctx.stroke();
+
+    // ── Y axis ─────────────────────────────────────────────────────────────
+    const dp = _stepDp(yStep);
+    ctx.font = font;
+    ctx.fillStyle    = lblC;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'right';
+    for (const v of yTks) {
+      const py = Math.round(this._yToScreen(v, rect));
+      if (py < rect.y - 2 || py > rect.y + rect.h + 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = axisC;
+      ctx.moveTo(rect.x - tc, py);  ctx.lineTo(rect.x, py);
+      ctx.stroke();
+      ctx.fillText(v.toFixed(dp), rect.x - tc - Math.round(3 * d), py);
+    }
+
+    // Y axis title (rotated)
+    ctx.save();
+    ctx.font         = `${Math.max(8, Math.round(this.fontSize * 0.78 * d))}px ${this.fontFamily}`;
+    ctx.fillStyle    = 'rgba(230,213,149,0.38)';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.translate(Math.round(8 * d), rect.y + rect.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Root-to-tip divergence', 0, 0);
+    ctx.restore();
+
+    // ── X axis ─────────────────────────────────────────────────────────────
+    const cal = this._calibration;
+    const fmt = this._dateFormat;
+    const ty  = rect.y + rect.h;
+    const lhPx = Math.round(fsz * 1.3);
+
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'center';
+    for (const v of xTks) {
+      const px = Math.round(this._xToScreen(v, rect));
+      if (px < rect.x - 2 || px > rect.x + rect.w + 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = axisC;
+      ctx.moveTo(px, ty);  ctx.lineTo(px, ty + tc);
+      ctx.stroke();
+      const lines = _fmtDecYear(v, xStep, cal, fmt);
+      ctx.fillStyle = lblC;
+      ctx.font = font;
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], px, ty + tc + Math.round(2 * d) + i * lhPx);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ─── Regression line ──────────────────────────────────────────────────────
+
+  _drawRegression(ctx, rect) {
+    const reg = this._regression;
+    if (!reg) return;
+    const d  = this._dpr;
+    const y1 = reg.a * this._xMin + reg.b;
+    const y2 = reg.a * this._xMax + reg.b;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(230,213,149,0.65)';
+    ctx.lineWidth   = 1.5 * d;
+    ctx.setLineDash([Math.round(6 * d), Math.round(4 * d)]);
+    ctx.beginPath();
+    ctx.moveTo(this._xToScreen(this._xMin, rect), this._yToScreen(y1, rect));
+    ctx.lineTo(this._xToScreen(this._xMax, rect), this._yToScreen(y2, rect));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ─── Scatter points ────────────────────────────────────────────────────────
+
+  _drawPoints(ctx, rect) {
+    const d    = this._dpr;
+    const pts  = this._points.filter(p => p.x != null);
+    const tipR = Math.max(1.5, this.tipRadius * d);
+    const sel  = this._selectedTipIds;
+    const hov  = this._hoveredTipId;
+
+    this._renderedPts = [];
+
+    ctx.save();
+    // Clip to a generous region around the plot area so halos near the edge show
+    ctx.beginPath();
+    ctx.rect(rect.x - tipR * 4, rect.y - tipR * 4, rect.w + tipR * 8, rect.h + tipR * 8);
+    ctx.clip();
+
+    // Pass 1: halos (painted first, behind all circles)
+    if (this.tipHaloSize > 0) {
+      ctx.lineWidth   = this.tipHaloSize * 2 * d;
+      ctx.strokeStyle = this.tipShapeBgColor;
+      for (const p of pts) {
+        const px = this._xToScreen(p.x, rect);
+        const py = this._yToScreen(p.y, rect);
+        ctx.beginPath();
+        ctx.arc(px, py, tipR, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+    }
+
+    // Pass 2: fills
+    for (const p of pts) {
+      const px = this._xToScreen(p.x, rect);
+      const py = this._yToScreen(p.y, rect);
+      ctx.fillStyle   = p.colour ?? this.tipShapeColor;
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(px, py, tipR, 0, 2 * Math.PI);
+      ctx.fill();
+      this._renderedPts.push({ id: p.id, px, py });
+    }
+
+    // Pass 3: selection indicators
+    for (const p of pts) {
+      if (!sel.has(p.id)) continue;
+      const px = this._xToScreen(p.x, rect);
+      const py = this._yToScreen(p.y, rect);
+      const mr = Math.max(tipR * this.selectedTipGrowthFactor, this.selectedTipMinSize * d);
+      ctx.globalAlpha = this.selectedTipStrokeOpacity;
+      ctx.strokeStyle = this.selectedTipStrokeColor;
+      ctx.lineWidth   = this.selectedTipStrokeWidth * d;
+      ctx.beginPath(); ctx.arc(px, py, mr, 0, 2 * Math.PI); ctx.stroke();
+      ctx.globalAlpha = this.selectedTipFillOpacity;
+      ctx.fillStyle   = this.selectedTipFillColor;
+      ctx.beginPath(); ctx.arc(px, py, mr, 0, 2 * Math.PI); ctx.fill();
+      // Re-draw the original dot on top of the selection ring
+      ctx.globalAlpha = 1;
+      ctx.fillStyle   = p.colour ?? this.tipShapeColor;
+      ctx.beginPath(); ctx.arc(px, py, tipR, 0, 2 * Math.PI); ctx.fill();
+    }
+
+    // Pass 4: hover indicator
+    if (hov) {
+      const p = pts.find(pt => pt.id === hov);
+      if (p) {
+        const px = this._xToScreen(p.x, rect);
+        const py = this._yToScreen(p.y, rect);
+        const hr = Math.max(tipR * this.tipHoverGrowthFactor, this.tipHoverMinSize * d);
+        ctx.globalAlpha = this.tipHoverStrokeOpacity;
+        ctx.strokeStyle = this.tipHoverStrokeColor;
+        ctx.lineWidth   = this.tipHoverStrokeWidth * d;
+        ctx.beginPath(); ctx.arc(px, py, hr, 0, 2 * Math.PI); ctx.stroke();
+        ctx.globalAlpha = this.tipHoverFillOpacity;
+        ctx.fillStyle   = this.tipHoverFillColor;
+        ctx.beginPath(); ctx.arc(px, py, hr, 0, 2 * Math.PI); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle   = p.colour ?? this.tipShapeColor;
+        ctx.beginPath(); ctx.arc(px, py, tipR, 0, 2 * Math.PI); ctx.fill();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // ─── Stats box ────────────────────────────────────────────────────────────
+
+  _drawStatsBox(ctx, rect) {
+    const reg = this._regression;
+    if (!reg) return;
+    const d   = this._dpr;
+    const cal = this._calibration;
+    const fmt = this._dateFormat;
+    const fsz = Math.max(9, Math.round(this.fontSize * 0.9 * d));
+    const lh  = Math.round(fsz * 1.6);
+    const pad = Math.round(7 * d);
+
+    const lines = [
+      ['n',         String(reg.n)],
+      ['Slope',     reg.a > 0 ? `${reg.a.toExponential(3)} /yr` : `${reg.a.toExponential(3)} /yr`],
+    ];
+    if (reg.xInt != null) {
+      const rootLbl = cal ? cal.decYearToString(reg.xInt, 'full', fmt) : reg.xInt.toFixed(3);
+      lines.push(['Root date', rootLbl]);
+    }
+    lines.push(['R²', reg.r2.toFixed(4)]);
+    lines.push(['CV',  reg.cv.toFixed(4)]);
+
+    const boxW = Math.round(148 * d);
+    const boxH = lines.length * lh + pad;
+    const bx   = rect.x + rect.w - boxW - Math.round(4 * d);
+    const by   = rect.y + Math.round(4 * d);
+    const br   = Math.round(4 * d);
+
+    ctx.save();
+    // Box background
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle   = 'rgba(8,28,34,0.90)';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, boxW, boxH, br);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(230,213,149,0.22)';
+    ctx.lineWidth   = d;
+    ctx.stroke();
+
+    // Text rows
+    ctx.font = `${fsz}px ${this.fontFamily}`;
+    for (let i = 0; i < lines.length; i++) {
+      const ty = by + pad * 0.45 + i * lh + fsz * 0.55;
+      ctx.fillStyle    = 'rgba(230,213,149,0.50)';
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(lines[i][0], bx + pad * 0.7, ty);
+      ctx.fillStyle = 'rgba(242,241,230,0.90)';
+      ctx.textAlign = 'right';
+      ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
+    }
+    ctx.restore();
+  }
+
+  // ─── Drag-select rectangle ────────────────────────────────────────────────
+
+  _drawDragRect(ctx) {
+    const s = this._dragStartPx, e = this._dragEndPx;
+    if (!s || !e) return;
+    const d = this._dpr;
+    const x = Math.min(s.x, e.x) * d;
+    const y = Math.min(s.y, e.y) * d;
+    const w = Math.abs(e.x - s.x) * d;
+    const h = Math.abs(e.y - s.y) * d;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(220,200,80,0.85)';
+    ctx.fillStyle   = 'rgba(220,200,80,0.10)';
+    ctx.lineWidth   = d;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
+  // ─── Hit testing ──────────────────────────────────────────────────────────
+
+  _findPointAt(cssX, cssY) {
+    const d      = this._dpr;
+    const tipR   = Math.max(this.tipRadius * d, 5 * d);
+    const thresh = tipR + 3 * d;
+    const px     = cssX * d;
+    const py     = cssY * d;
+    let best = null, bestDist = Infinity;
+    for (const p of this._renderedPts) {
+      const dx = p.px - px, dy = p.py - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < thresh && dist < bestDist) { best = p; bestDist = dist; }
+    }
+    return best ? best.id : null;
+  }
+
+  // ─── Events ───────────────────────────────────────────────────────────────
+
+  _setupEvents() {
+    const canvas = this._canvas;
+    let _pendingClick = false;
+
+    // ── Hover (canvas mousemove) ───────────────────────────────────────────
+    canvas.addEventListener('mousemove', e => {
+      if (this._dragActive) return;
+      const bRect = canvas.getBoundingClientRect();
+      const id    = this._findPointAt(e.clientX - bRect.left, e.clientY - bRect.top);
+      if (id !== this._hoveredTipId) {
+        this._hoveredTipId      = id ?? null;
+        canvas.style.cursor     = id ? 'pointer' : 'default';
+        this._dirty = true;
+        if (this.onHoverChange) this.onHoverChange(this._hoveredTipId);
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      if (this._hoveredTipId !== null) {
+        this._hoveredTipId  = null;
+        canvas.style.cursor = 'default';
+        this._dirty = true;
+        if (this.onHoverChange) this.onHoverChange(null);
+      }
+    });
+
+    // ── Drag-select (global move/up; start on canvas mousedown) ───────────
+    canvas.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      const bRect       = canvas.getBoundingClientRect();
+      this._cmdHeld     = e.metaKey || e.ctrlKey;
+      this._dragActive  = false;
+      this._dragStartPx = { x: e.clientX - bRect.left, y: e.clientY - bRect.top };
+      this._dragEndPx   = { ...this._dragStartPx };
+      _pendingClick     = true;
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!this._dragStartPx) return;
+      const bRect = canvas.getBoundingClientRect();
+      const cx    = e.clientX - bRect.left;
+      const cy    = e.clientY - bRect.top;
+      const dx    = cx - this._dragStartPx.x;
+      const dy    = cy - this._dragStartPx.y;
+      if (!this._dragActive && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        this._dragActive = true;
+        _pendingClick    = false;
+      }
+      if (this._dragActive) {
+        this._dragEndPx = { x: cx, y: cy };
+        this._dirty = true;
+      }
+    });
+
+    window.addEventListener('mouseup', e => {
+      if (!this._dragStartPx) return;
+      const bRect = canvas.getBoundingClientRect();
+      const cx    = e.clientX - bRect.left;
+      const cy    = e.clientY - bRect.top;
+      if (this._dragActive) {
+        this._commitDragSelect(cx, cy);
+      } else if (_pendingClick) {
+        this._handleClick(cx, cy);
+      }
+      this._dragActive  = false;
+      this._dragStartPx = null;
+      this._dragEndPx   = null;
+      _pendingClick = false;
+      this._dirty = true;
+    });
+  }
+
+  // ─── Selection helpers ────────────────────────────────────────────────────
+
+  _handleClick(cssX, cssY) {
+    const id = this._findPointAt(cssX, cssY);
+    let changed = false;
+    if (id) {
+      if (this._cmdHeld) {
+        if (this._selectedTipIds.has(id)) this._selectedTipIds.delete(id);
+        else this._selectedTipIds.add(id);
+      } else {
+        this._selectedTipIds = new Set([id]);
+      }
+      changed = true;
+    } else if (!this._cmdHeld) {
+      if (this._selectedTipIds.size > 0) {
+        this._selectedTipIds = new Set();
+        changed = true;
+      }
+    }
+    this._dirty = true;
+    if (changed && this.onSelectionChange) this.onSelectionChange(new Set(this._selectedTipIds));
+  }
+
+  _commitDragSelect(endCssX, endCssY) {
+    const s  = this._dragStartPx;
+    const d  = this._dpr;
+    const xA = Math.min(s.x, endCssX) * d;
+    const xB = Math.max(s.x, endCssX) * d;
+    const yA = Math.min(s.y, endCssY) * d;
+    const yB = Math.max(s.y, endCssY) * d;
+    const inside = new Set();
+    for (const p of this._renderedPts) {
+      if (p.px >= xA && p.px <= xB && p.py >= yA && p.py <= yB) inside.add(p.id);
+    }
+    if (this._cmdHeld) {
+      for (const id of inside) {
+        if (this._selectedTipIds.has(id)) this._selectedTipIds.delete(id);
+        else this._selectedTipIds.add(id);
+      }
+    } else {
+      this._selectedTipIds = inside;
+    }
+    this._dirty = true;
+    if (this.onSelectionChange) this.onSelectionChange(new Set(this._selectedTipIds));
+  }
+}

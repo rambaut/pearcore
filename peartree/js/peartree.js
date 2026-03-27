@@ -12,6 +12,7 @@ import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js
 import { createAnnotImporter } from './annotationsio.js';
 import { createAnnotCurator  } from './annotcurator.js';
 import { createDataTableRenderer } from './datatablerenderer.js';
+import { createRTTChart          } from './rttchart.js';
 import * as commands from './commands.js';
 import { EXAMPLE_TREE_PATH, PEARTREE_BASE_URL, DEFAULT_SETTINGS } from './config.js';
 
@@ -180,6 +181,7 @@ async function fetchExampleTree() {
   const btnImportAnnot         = document.getElementById('btn-import-annot');
   const btnCurateAnnot         = document.getElementById('btn-curate-annot');
   const btnDataTable           = document.getElementById('btn-data-table');
+  const btnRtt                 = document.getElementById('btn-rtt');
   const btnExportTree          = document.getElementById('btn-export-tree');
   const btnMPR                 = document.getElementById('btn-midpoint-root');
   // Hidden native <input type="color"> — value only, never shown directly
@@ -986,6 +988,8 @@ async function fetchExampleTree() {
    */
   // Hoisted so _buildRendererSettings (called before line 1094) can reference it safely.
   let calibration;
+  // Hoisted so applyTheme (called before rttChart is created) can safely reference it.
+  let rttChart;
 
   /** Options object for computeLayoutFromGraph — centralised so every call site is consistent. */
   function _layoutOptions() {
@@ -1176,6 +1180,8 @@ async function fetchExampleTree() {
     _syncThemeButtons();
     saveSettings();
     _syncControlVisibility();
+    // Keep RTT plot style in sync when the theme changes.
+    rttChart?.notifyStyleChange?.();
   }
 
   /** Mark the theme selector as Custom when the user manually edits any visual control. */
@@ -1533,6 +1539,8 @@ async function fetchExampleTree() {
     // Sync data table with new tip layout
     const viewNodes = renderer.nodes || [];
     dataTableRenderer.setTips(viewNodes.filter(n => n.isTip));
+    // Sync RTT plot with new visible tip set
+    rttChart?.notifyLayoutChange?.();
 
     if (!_axisIsTimedTree && !(axisShowEl.value === 'time' && axisDateAnnotEl.value)) return;
     const hMap = renderer._globalHeightMap;
@@ -1828,6 +1836,7 @@ async function fetchExampleTree() {
       if (tipLabelShow.value !== 'off') renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
       applyLegend();
       renderer._dirty = true;
+      rttChart?.notifyStyleChange?.();
     },
   });
   btnImportAnnot.addEventListener('click', () => commands.execute('import-annot'));
@@ -1995,6 +2004,51 @@ async function fetchExampleTree() {
       }
     });
   }
+
+  // ── Root-to-Tip Divergence Panel ─────────────────────────────────────────
+  rttChart = createRTTChart({
+    panel:           document.getElementById('rtt-panel'),
+    canvas:          document.getElementById('rtt-canvas'),
+    getRenderer:     () => renderer,
+    getCalibration:  () => calibration,
+    getDateAnnotKey: () => {
+      // Prefer whichever annotation the user has selected in the Axis controls.
+      if (axisDateAnnotEl.value) return axisDateAnnotEl.value;
+      // Fall back to the first date-type (or decimal-year real/integer) annotation
+      // in the schema so the RTT plot is populated even before the axis is configured.
+      const schema = renderer?._annotationSchema;
+      if (!schema) return null;
+      for (const [name, def] of schema) {
+        if (name.startsWith('__')) continue;
+        const isDate        = def.dataType === 'date';
+        const isDecimalYear = (def.dataType === 'real' || def.dataType === 'integer') &&
+                               def.min >= 1000 && def.max <= 3000;
+        if (isDate || isDecimalYear) return name;
+      }
+      return null;
+    },
+    getDateFormat:   () => axisDateFmtEl.value  || 'yyyy-MM-dd',
+    onClose: () => {
+      btnRtt.classList.remove('active');
+    },
+    onPinChange: (pinned) => {
+      document.body.classList.toggle('rtt-pinned', pinned);
+      _resizeDuringTransition();
+    },
+  });
+
+  // Tree hover → RTT hover
+  renderer._onHoverChange = id => rttChart.notifyHoverChange(id);
+
+  btnRtt.addEventListener('click', () => {
+    if (rttChart.isOpen()) {
+      rttChart.close();
+      btnRtt.classList.remove('active');
+    } else {
+      rttChart.open();
+      btnRtt.classList.add('active');
+    }
+  });
 
   document.getElementById('export-tree-close').addEventListener('click', _closeExportDialog);
   btnExportTree.addEventListener('click', _openExportDialog);
@@ -2967,6 +3021,7 @@ async function fetchExampleTree() {
         document.getElementById('btn-mode-nodes').disabled    = false;
         document.getElementById('btn-mode-branches').disabled = false;
         btnDataTable.disabled = false;
+        btnRtt.disabled = false;
         // Hide the empty-state overlay
         emptyStateEl.classList.add('hidden');
         // Show the axis canvas now if axis was already configured to be visible.
@@ -3347,6 +3402,7 @@ async function fetchExampleTree() {
       }
       // Keep the data table in sync with the canvas selection
       dataTableRenderer.syncSelection(renderer._selectedTipIds);
+      rttChart?.notifySelectionChange?.();
     };
 
     btnBack.addEventListener('click',    () => renderer.navigateBack());
@@ -3886,6 +3942,9 @@ async function fetchExampleTree() {
 
       const layout = computeLayoutFromGraph(graph, null, _layoutOptions());
       renderer.setDataCrossfade(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
+      // setDataCrossfade goes through setData which does not fire _onLayoutChange,
+      // so notify the RTT chart directly.
+      rttChart?.notifyLayoutChange?.();
     }
 
     // Reroot button: branch-click position or node/MRCA midpoint
@@ -4233,6 +4292,7 @@ async function fetchExampleTree() {
       renderer.setTipColourBy('user_colour');
       renderer._dirty = true;
       saveSettings();
+      rttChart?.notifyStyleChange?.();
     }
 
     btnApplyUserColour.addEventListener('click', () => {
@@ -4288,6 +4348,7 @@ async function fetchExampleTree() {
       renderer.setAnnotationSchema(graph.annotationSchema);
       renderer._dirty = true;
       saveSettings();
+      rttChart?.notifyStyleChange?.();
     });
 
     document.getElementById('node-info-close').addEventListener('click', () => {
@@ -4587,6 +4648,7 @@ async function fetchExampleTree() {
     renderer.setTipRadius(parseInt(tipSlider.value));
     saveSettings();
     _syncControlVisibility();
+    rttChart?.notifyStyleChange?.();
   });
 
   tipHaloSlider.addEventListener('input', () => {
@@ -4594,6 +4656,7 @@ async function fetchExampleTree() {
     document.getElementById('tip-halo-value').textContent = tipHaloSlider.value;
     renderer.setTipHaloSize(parseInt(tipHaloSlider.value));
     saveSettings();
+    rttChart?.notifyStyleChange?.();
   });
 
   nodeSlider.addEventListener('input', () => {
@@ -4614,12 +4677,14 @@ async function fetchExampleTree() {
     _markCustomTheme();
     renderer.setTipShapeColor(tipShapeColorEl.value);
     saveSettings();
+    rttChart?.notifyStyleChange?.();
   });
 
   tipShapeBgEl.addEventListener('input', () => {
     _markCustomTheme();
     renderer.setTipShapeBgColor(tipShapeBgEl.value);
     saveSettings();
+    rttChart?.notifyStyleChange?.();
   });
 
   nodeShapeColorEl.addEventListener('input', () => {
@@ -4644,6 +4709,7 @@ async function fetchExampleTree() {
     renderer.setTipColourBy(tipColourBy.value || null);
     _updatePaletteSelect(tipPaletteSelect, tipPaletteRow, tipColourBy.value);
     saveSettings();
+    rttChart?.notifyStyleChange?.();
   });
 
   labelColourBy.addEventListener('change', () => {
@@ -4717,6 +4783,7 @@ async function fetchExampleTree() {
       renderer.setAnnotationPalette(key, tipPaletteSelect.value);
       legendRenderer.draw();
       saveSettings();
+      rttChart?.notifyStyleChange?.();
     }
   });
 
@@ -4945,6 +5012,7 @@ async function fetchExampleTree() {
     axisRenderer.setDateFormat(axisDateFmtEl.value);
     // Keep calendar-date node/tip labels in sync when date format changes.
     renderer?.setCalDateFormat(axisDateFmtEl.value);
+    rttChart?.notifyCalibrationChange?.();
     axisRenderer.setTickOptions({
       majorInterval:    axisMajorIntervalEl.value,
       minorInterval:    axisMinorIntervalEl.value,
@@ -5074,6 +5142,7 @@ async function fetchExampleTree() {
         window.devicePixelRatio || 1,
       );
     }
+    rttChart?.notifyCalibrationChange?.();
     saveSettings();
   });
 

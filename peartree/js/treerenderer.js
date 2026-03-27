@@ -78,6 +78,7 @@ export class TreeRenderer {
     this._hypTarget       = 0;       // animation target: 0 = off, 1 = full
     this._hypMagMult      = 10;      // flat-zone half-width in rows (0 = pure hyperbolic)
     this._onStatsChange   = null;  // callback(stats|null) fired when selection/data changes
+    this._onHoverChange   = null;  // callback(id|null) fired when hovered node changes
     this.onHypActivate    = null;  // callback() fired when hyperbolic lens first becomes active
     this.onHypDeactivate  = null;  // callback() fired when hyperbolic lens is dismissed
 
@@ -3439,6 +3440,7 @@ export class TreeRenderer {
               ? (this._spaceDown ? 'grab' : 'pointer')
               : (this._spaceDown ? 'grab' : 'default');
             this._dirty = true;
+            if (this._onHoverChange) this._onHoverChange(newId);
           }
         }
       }
@@ -3470,7 +3472,10 @@ export class TreeRenderer {
 
     this.canvas.addEventListener('mouseleave', () => {
       let dirty = false;
-      if (this._hoveredNodeId !== null)  { this._hoveredNodeId = null;  dirty = true; }
+      if (this._hoveredNodeId !== null)  {
+        this._hoveredNodeId = null;  dirty = true;
+        if (this._onHoverChange) this._onHoverChange(null);
+      }
       if (this._branchHoverNode !== null) { this._branchHoverNode = null; this._branchHoverX = null; dirty = true; }
       // Note: _hypFocusScreenY is NOT cleared here — the lens persists when the pointer leaves.
       if (dirty) this._dirty = true;
