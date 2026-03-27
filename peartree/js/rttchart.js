@@ -32,6 +32,9 @@ export function createRTTChart({
   getCalibration,
   getDateAnnotKey,
   getDateFormat,
+  getAxisColor,
+  getAxisFontSize,
+  getAxisLineWidth,
   onClose,
   onPinChange,
 }) {
@@ -184,6 +187,10 @@ export function createRTTChart({
       tipHoverStrokeWidth:      tr.tipHoverStrokeWidth,
       tipHoverStrokeOpacity:    tr.tipHoverStrokeOpacity,
       tipHoverFillOpacity:      tr.tipHoverFillOpacity,
+      // Axis style (from the Axis section in the palette panel)
+      axisColor:    getAxisColor?.()    ?? rtt.axisColor,
+      axisFontSize: getAxisFontSize?.() ?? rtt.axisFontSize,
+      axisLineWidth: getAxisLineWidth?.() ?? rtt.axisLineWidth,
     });
   }
 

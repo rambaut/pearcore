@@ -2028,6 +2028,9 @@ async function fetchExampleTree() {
       return null;
     },
     getDateFormat:   () => axisDateFmtEl.value  || 'yyyy-MM-dd',
+    getAxisColor:    () => axisColorEl.value,
+    getAxisFontSize: () => parseInt(axisFontSizeSlider.value),
+    getAxisLineWidth: () => parseFloat(axisLineWidthSlider.value),
     onClose: () => {
       btnRtt.classList.remove('active');
     },
@@ -2614,6 +2617,48 @@ async function fetchExampleTree() {
     // Show decimal-places row only when a numeric annotation is selected.
     _updateLabelDpRow(tipLabelDpRowEl,  tipLabelShow.value,    schema);
     _updateLabelDpRow(nodeLabelDpRowEl, nodeLabelShowEl.value, schema);
+
+    // ── Calibrate (date annotation) dropdown ────────────────────────────────
+    // Keep the dropdown in sync whenever the annotation schema changes (e.g.
+    // CSV import, curation, parse-tips).  Auto-select the first date annotation
+    // if nothing is currently selected so the RTT plot activates automatically.
+    {
+      const _prevDate = axisDateAnnotEl.value;
+      while (axisDateAnnotEl.options.length > 1) axisDateAnnotEl.remove(1);
+      for (const [name, def] of schema) {
+        if (name.startsWith('__')) continue;
+        const isDate        = def.dataType === 'date';
+        const isDecimalYear = (def.dataType === 'real' || def.dataType === 'integer') &&
+                               def.min >= 1000 && def.max <= 3000;
+        if (isDate || isDecimalYear) {
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = name;
+          axisDateAnnotEl.appendChild(opt);
+        }
+      }
+      const _hasDate = axisDateAnnotEl.options.length > 1;
+      axisDateRow.style.display = _hasDate ? 'flex' : 'none';
+      axisDateAnnotEl.disabled  = !_hasDate;
+      // Restore the previous selection if it still exists; otherwise auto-select the
+      // first available date annotation so the Calibrate control is never left blank
+      // when date data has just been imported or parsed.
+      const _prevStillOk = _prevDate &&
+                           [...axisDateAnnotEl.options].some(o => o.value === _prevDate);
+      if (_hasDate && !_prevStillOk) {
+        axisDateAnnotEl.value = axisDateAnnotEl.options[1].value;
+      } else {
+        axisDateAnnotEl.value = _prevStillOk ? _prevDate : '';
+      }
+      // If the effective selection changed, update calibration and RTT chart.
+      const _newDate = axisDateAnnotEl.value;
+      if (_newDate !== _prevDate) {
+        calibration.setAnchor(_newDate || null,
+                              renderer?.nodeMap ?? new Map(),
+                              renderer?.maxX ?? 0);
+        axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
+        rttChart?.notifyCalibrationChange?.();
+      }
+    }
   }
 
   // ── Tree loading ──────────────────────────────────────────────────────────
@@ -2930,12 +2975,16 @@ async function fetchExampleTree() {
       axisDateRow.style.display = _hasDateAnnotations ? 'flex' : 'none';
       axisDateAnnotEl.disabled  = !_hasDateAnnotations;
 
-      // Restore date annotation (file settings take priority over saved prefs)
+      // Restore date annotation (file settings take priority over saved prefs).
+      // When no saved value is available, auto-select the first date annotation so the
+      // Calibrate control and root-to-tip plot are active immediately.
       const _savedAxisDate = _eff.axisDateAnnotation || '';
       const _canRestoreDate = _hasDateAnnotations && _savedAxisDate &&
                               [...axisDateAnnotEl.options].some(o => o.value === _savedAxisDate);
-      axisDateAnnotEl.value = _canRestoreDate ? _savedAxisDate : '';
-      calibration.setAnchor(_canRestoreDate ? _savedAxisDate : null, layout.nodeMap, layout.maxX);
+      const _dateToUse = _canRestoreDate ? _savedAxisDate
+                       : (_hasDateAnnotations ? axisDateAnnotEl.options[1].value : '');
+      axisDateAnnotEl.value = _dateToUse;
+      calibration.setAnchor(_dateToUse || null, layout.nodeMap, layout.maxX);
       // axisRenderer.setCalibration() is called by applyAxis() below.
       axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
 
@@ -2967,8 +3016,9 @@ async function fetchExampleTree() {
       if (clampNegBranchesRowEl) clampNegBranchesRowEl.style.display = _hideClamp ? 'none' : '';
       if (_hideClamp) clampNegBranchesEl.value = 'off';
 
-      // Show tick-option rows only when axis is in Time mode with an annotation selected.
-      _showDateTickRows(axisShowEl.value === 'time' && !!axisDateAnnotEl.value);
+      // Show tick-option rows whenever a date annotation is selected (applies to the
+      // RTT plot's date axis even when the tree axis isn't in Time mode).
+      _showDateTickRows(!!axisDateAnnotEl.value);
       // Apply stored (or default) tick options to the renderer.
       applyTickOptions();
       // Apply axis mode (direction, calibration, visibility) now that calibration is established.
@@ -4968,7 +5018,7 @@ async function fetchExampleTree() {
       axisRenderer.setDirection(on ? val : 'forward');
     }
     axisRenderer.setVisible(on);
-    _showDateTickRows(val === 'time' && calibration.isActive && !!axisDateAnnotEl.value);
+    _showDateTickRows(calibration.isActive && !!axisDateAnnotEl.value);
     // Resize the tree canvas so it fills the remaining space above/below the axis.
     renderer._resize();
     if (on) {
@@ -5037,6 +5087,7 @@ async function fetchExampleTree() {
       renderer.labelRightPad, renderer.bgColor, renderer.fontSize,
       window.devicePixelRatio || 1,
     );
+    rttChart?.notifyStyleChange?.();
     saveSettings();
   }
 
@@ -5129,13 +5180,15 @@ async function fetchExampleTree() {
     // Repopulate label dropdowns to add/remove Calendar date options, then sync renderer.
     _refreshAnnotationUIs(renderer?._annotationSchema ?? new Map());
     if (renderer) renderer.setSettings(_buildRendererSettings());
+    // Always update tick-row visibility regardless of tree axis mode — the date
+    // tick options also control the RTT plot's X axis.
+    _showDateTickRows(calibration.isActive && !!key);
     if (axisShowEl.value === 'time') {
       axisRenderer.setCalibration(key && calibration.isActive ? calibration : null);
       // If currently viewing a subtree, recompute its params using the new anchor.
       if (renderer._viewSubtreeRootId && renderer._onLayoutChange) {
         renderer._onLayoutChange(renderer.maxX, renderer._viewSubtreeRootId);
       }
-      _showDateTickRows(calibration.isActive && !!key);
       axisRenderer.update(
         renderer.scaleX, renderer.offsetX, renderer.paddingLeft,
         renderer.labelRightPad, renderer.bgColor, renderer.fontSize,

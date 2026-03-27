@@ -81,6 +81,11 @@ export class RTTRenderer {
     this.fontSize              = 11;
     this.fontFamily            = 'Inter, system-ui, sans-serif';
 
+    // Axis style — synced from the Axis section settings in the palette panel
+    this.axisColor             = '#f2f1e6';
+    this.axisFontSize          = 9;
+    this.axisLineWidth         = 1;
+
     // Selected-tip indicator style
     this.selectedTipStrokeColor   = 'rgba(220,200,80,0.9)';
     this.selectedTipFillColor     = 'rgba(220,200,80,0.3)';
@@ -270,10 +275,22 @@ export class RTTRenderer {
     }
   }
 
+  // Convert a CSS hex colour (#rrggbb) to rgba(r,g,b,alpha) for use in canvas.
+  // Falls back gracefully to the original string for already-rgba values.
+  _colorWithAlpha(color, alpha) {
+    if (color && color.startsWith('#') && color.length === 7) {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    return color;
+  }
+
   _drawEmptyState(ctx, W, H) {
     const d = this._dpr;
-    ctx.fillStyle    = 'rgba(230,213,149,0.35)';
-    ctx.font         = `${Math.round(12 * d)}px ${this.fontFamily}`;
+    ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.35);
+    ctx.font         = `${Math.round(this.axisFontSize * d)}px ${this.fontFamily}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('Set a date annotation in Axis controls', W / 2, H / 2 - 10 * d);
@@ -324,9 +341,9 @@ export class RTTRenderer {
 
   _drawAxes(ctx, rect) {
     const d     = this._dpr;
-    const axisC = 'rgba(230,213,149,0.60)';
-    const lblC  = 'rgba(230,213,149,0.50)';
-    const fsz   = Math.max(9, Math.round(this.fontSize * 0.88 * d));
+    const axisC = this._colorWithAlpha(this.axisColor, 0.60);
+    const lblC  = this._colorWithAlpha(this.axisColor, 0.50);
+    const fsz   = Math.max(6, Math.round(this.axisFontSize * d));
     const font  = `${fsz}px ${this.fontFamily}`;
     const tc    = Math.round(4 * d);           // tick half-length (physical px)
 
@@ -337,7 +354,7 @@ export class RTTRenderer {
 
     // Axis border lines
     ctx.strokeStyle = axisC;
-    ctx.lineWidth   = d;
+    ctx.lineWidth   = this.axisLineWidth * d;
     ctx.beginPath();
     ctx.moveTo(rect.x, rect.y);               ctx.lineTo(rect.x, rect.y + rect.h);
     ctx.moveTo(rect.x, rect.y + rect.h);      ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
@@ -354,6 +371,7 @@ export class RTTRenderer {
       if (py < rect.y - 2 || py > rect.y + rect.h + 2) continue;
       ctx.beginPath();
       ctx.strokeStyle = axisC;
+      ctx.lineWidth   = this.axisLineWidth * d;
       ctx.moveTo(rect.x - tc, py);  ctx.lineTo(rect.x, py);
       ctx.stroke();
       ctx.fillText(v.toFixed(dp), rect.x - tc - Math.round(3 * d), py);
@@ -361,8 +379,8 @@ export class RTTRenderer {
 
     // Y axis title (rotated)
     ctx.save();
-    ctx.font         = `${Math.max(8, Math.round(this.fontSize * 0.78 * d))}px ${this.fontFamily}`;
-    ctx.fillStyle    = 'rgba(230,213,149,0.38)';
+    ctx.font         = `${Math.max(6, Math.round(this.axisFontSize * 0.9 * d))}px ${this.fontFamily}`;
+    ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.38);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.translate(Math.round(8 * d), rect.y + rect.h / 2);
@@ -383,6 +401,7 @@ export class RTTRenderer {
       if (px < rect.x - 2 || px > rect.x + rect.w + 2) continue;
       ctx.beginPath();
       ctx.strokeStyle = axisC;
+      ctx.lineWidth   = this.axisLineWidth * d;
       ctx.moveTo(px, ty);  ctx.lineTo(px, ty + tc);
       ctx.stroke();
       const lines = _fmtDecYear(v, xStep, cal, fmt);
@@ -409,7 +428,7 @@ export class RTTRenderer {
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
-    ctx.strokeStyle = 'rgba(230,213,149,0.65)';
+    ctx.strokeStyle = this._colorWithAlpha(this.axisColor, 0.65);
     ctx.lineWidth   = 1.5 * d;
     ctx.setLineDash([Math.round(6 * d), Math.round(4 * d)]);
     ctx.beginPath();
