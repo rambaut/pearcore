@@ -323,6 +323,11 @@ export class AxisRenderer {
     const minorLabelFmt  = this._dateMode ? this._minorLabelFormat : 'off';
     const showMinorLabel = minorLabelFmt !== 'off';
     let minorLabelRight  = -Infinity;
+    // When auto-selected, infer the effective minor interval from tick spacing
+    // so that 'component' labels show the right unit (e.g. month name, not year).
+    const effMinorInterval = (this._dateMode && this._minorInterval === 'auto')
+      ? TreeCalibration.inferMajorInterval(minorTicks)
+      : this._minorInterval;
 
     ctx.font         = `${fsMinor}px ${this._fontFamily}`;
     ctx.textAlign    = 'center';
@@ -338,7 +343,7 @@ export class AxisRenderer {
       ctx.lineTo(sx + 0.5, Y_BASE + 1 + MINOR_H);
       ctx.stroke();
       if (showMinorLabel) {
-        const label = this._calibration.decYearToString(val, minorLabelFmt, this._dateFormat, this._minorInterval);
+        const label = this._calibration.decYearToString(val, minorLabelFmt, this._dateFormat, effMinorInterval);
         const tw    = ctx.measureText(label).width;
         const lx    = Math.max(plotLeft + tw / 2 + 1, Math.min(plotRight - tw / 2 - 1, sx));
         if (lx - tw / 2 > minorLabelRight + 2) {
@@ -357,6 +362,13 @@ export class AxisRenderer {
     const _majorStep = majorTicks.length >= 2
       ? Math.abs(majorTicks[1] - majorTicks[0]) : 0;
 
+    // When the interval was auto-selected, infer the effective calendar interval
+    // from the actual tick spacing so that labels use the correct partial format
+    // (e.g. yearly ticks → 'yyyy', monthly ticks → 'yyyy-MM').
+    const effMajorInterval = (this._dateMode && this._majorInterval === 'auto')
+      ? TreeCalibration.inferMajorInterval(majorTicks)
+      : this._majorInterval;
+
     ctx.font         = `${fs}px ${this._fontFamily}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
@@ -374,7 +386,7 @@ export class AxisRenderer {
         let label;
         if (this._dateMode) {
           const effMajorFmt = (majorLabelFmt === 'auto') ? 'partial' : majorLabelFmt;
-          label = this._calibration.decYearToString(val, effMajorFmt, this._dateFormat, this._majorInterval);
+          label = this._calibration.decYearToString(val, effMajorFmt, this._dateFormat, effMajorInterval);
         } else {
           label = AxisRenderer._formatValue(val, _majorStep);
         }

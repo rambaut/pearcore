@@ -629,13 +629,17 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     const minorLabelFmt  = ar._dateMode ? ar._minorLabelFormat : 'off';
     const showMinorLabel = minorLabelFmt !== 'off';
     let minorLabelRight  = -Infinity;
+    // Infer effective minor interval from tick spacing when 'auto'.
+    const effMinorInterval = (ar._dateMode && ar._minorInterval === 'auto')
+      ? TreeCalibration.inferMajorInterval(minorTicks)
+      : ar._minorInterval;
 
     for (const val of minorTicks) {
       const sx = ar._valToScreenX(val) + AX;
       if (sx < plotLeft + AX - 1 || sx > plotRight + AX + 1) continue;
       axisParts.push(`<line x1="${f(sx)}" y1="${f(AY + Y_BASE + 1)}" x2="${f(sx)}" y2="${f(AY + Y_BASE + 1 + MINOR_H)}" stroke="${MINOR_C}" stroke-width="1"/>`);
       if (showMinorLabel) {
-        const label = ar._calibration.decYearToString(val, minorLabelFmt, ar._dateFormat, ar._minorInterval);
+        const label = ar._calibration.decYearToString(val, minorLabelFmt, ar._dateFormat, effMinorInterval);
         const tw    = approxW(label, afsMinor);
         const lx2   = Math.max(plotLeft + AX + tw / 2 + 1, Math.min(plotRight + AX - tw / 2 - 1, sx));
         if (lx2 - tw / 2 > minorLabelRight + 2) {
@@ -648,6 +652,9 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     const majorLabelFmt  = ar._dateMode ? ar._majorLabelFormat : 'auto';
     const showMajorLabel = majorLabelFmt !== 'off';
     let majorLabelRight  = -Infinity;
+    const effMajorInterval = (ar._dateMode && ar._majorInterval === 'auto')
+      ? TreeCalibration.inferMajorInterval(majorTicks)
+      : ar._majorInterval;
 
     for (const val of majorTicks) {
       const sx = ar._valToScreenX(val) + AX;
@@ -657,7 +664,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
         let label;
         if (ar._dateMode) {
           const effMajorFmt = majorLabelFmt === 'auto' ? 'partial' : majorLabelFmt;
-          label = ar._calibration.decYearToString(val, effMajorFmt, ar._dateFormat, ar._majorInterval);
+          label = ar._calibration.decYearToString(val, effMajorFmt, ar._dateFormat, effMajorInterval);
         } else {
           label = AxisRenderer._formatValue(val);
         }

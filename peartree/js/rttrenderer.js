@@ -396,7 +396,12 @@ export class RTTRenderer {
           minorTicks = allMinor.filter(t => !majorSet.has(t.toFixed(8)));
         }
       }
-      return { majorTicks, minorTicks, step: null, majorInterval };
+      // When the interval was auto-selected, infer the effective calendar interval
+      // from the actual tick spacing for correct partial label formatting.
+      const effectiveMajorInterval = (majorInterval === 'auto')
+        ? TreeCalibration.inferMajorInterval(majorTicks)
+        : majorInterval;
+      return { majorTicks, minorTicks, step: null, majorInterval: effectiveMajorInterval };
     }
     // Fallback: plain decimal-year / divergence steps
     const step  = _niceYearStep(this._xMax - this._xMin);
@@ -478,6 +483,10 @@ export class RTTRenderer {
     if (xMinor.length > 0) {
       ctx.font = `${Math.max(6, Math.round(this.axisFontSize * 0.85 * d))}px ${this.fontFamily}`;
       let lastMinorRight = -Infinity;
+      // Infer effective minor interval from tick spacing when 'auto'.
+      const effMinorInterval = (opts.minorInterval === 'auto' || !opts.minorInterval)
+        ? TreeCalibration.inferMajorInterval(xMinor)
+        : opts.minorInterval;
       for (const v of xMinor) {
         const px = Math.round(this._xToScreen(v, rect));
         if (px < rect.x - 2 || px > rect.x + rect.w + 2) continue;
@@ -487,7 +496,7 @@ export class RTTRenderer {
         ctx.moveTo(px, ty);  ctx.lineTo(px, ty + tcMinor);
         ctx.stroke();
         if (showMinorLabel && cal) {
-          const label = cal.decYearToString(v, minorLabelFmt, fmt, opts.minorInterval || 'off');
+          const label = cal.decYearToString(v, minorLabelFmt, fmt, effMinorInterval);
           const tw    = ctx.measureText(label).width;
           if (px - tw / 2 > lastMinorRight + 2) {
             ctx.fillStyle = lblDimC;

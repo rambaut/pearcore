@@ -1497,6 +1497,24 @@ export class TreeCalibration {
    * @returns {number[]}  decimal years
    */
   /**
+   * Infer the calendar interval name from the spacing between auto-generated ticks.
+   * Used to choose the correct partial label format when the interval was auto-selected.
+   * @param {number[]} ticks
+   * @returns {string}  'millennia'|'centuries'|'decades'|'years'|'months'|'weeks'|'days'
+   */
+  static inferMajorInterval(ticks) {
+    if (!ticks || ticks.length < 2) return 'years';
+    const step = Math.abs(ticks[1] - ticks[0]);
+    if (step >= 999)  return 'millennia';
+    if (step >= 99)   return 'centuries';
+    if (step >= 9.9)  return 'decades';
+    if (step >= 0.9)  return 'years';
+    if (step >= 0.018) return 'months';  // covers biannual, quarterly, bimonthly, monthly
+    if (step >= 5 / 365.25) return 'weeks';
+    return 'days';
+  }
+
+  /**
    * Auto-select hierarchically consistent major AND minor calendar ticks in one call.
    *
    * The minor interval is derived from the effective major spacing so the two
@@ -1568,6 +1586,11 @@ export class TreeCalibration {
     // rather than falling back to the initial 100-year step (which produces no visible ticks).
     let step = D_DY;
     for (const c of candidates) { if (c <= roughStep * 1.5) { step = c; break; } }
+
+    // For ranges that span at least one full year, never use a sub-year major step.
+    // Sub-year detail should be communicated through minor ticks, not by repeating
+    // the same year label on every major tick.
+    if (step < 1 && range >= 1.0) step = 1;
 
     const ticks = [];
     if (step >= 1) {
