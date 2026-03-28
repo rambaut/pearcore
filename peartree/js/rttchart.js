@@ -47,6 +47,18 @@ export function createRTTChart({
   // ── Header buttons ─────────────────────────────────────────────────────────
   const btnPin   = panel.querySelector('#rtt-btn-pin');
   const btnClose = panel.querySelector('#rtt-btn-close');
+  const btnStats = panel.querySelector('#rtt-btn-stats');
+
+  btnStats?.addEventListener('click', () => {
+    rtt.statsBoxVisible = !rtt.statsBoxVisible;
+    rtt._lastStatsRect      = null;
+    rtt._lastStatsCloseRect = null;
+    rtt._dirty = true;
+    btnStats.classList.toggle('active', rtt.statsBoxVisible);
+  });
+  rtt.onStatsBoxVisibleChange = (visible) => {
+    btnStats?.classList.toggle('active', visible);
+  };
 
   btnPin.addEventListener('click', () => {
     _pinned = !_pinned;

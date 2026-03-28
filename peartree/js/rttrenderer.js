@@ -112,6 +112,15 @@ export class RTTRenderer {
     // { majorInterval, minorInterval, majorLabelFormat, minorLabelFormat }
     this.tickOptions  = null;
 
+    // ── Stats box ──────────────────────────────────────────────────────────
+    this.statsBoxVisible  = true;
+    this.statsBoxCorner   = 'tr';              // 'tl' | 'tr' | 'bl' | 'br'
+    this._statsBoxDragActive = false;
+    this._statsBoxDragOffset = null;           // {x,y} CSS-px offset: box-TL to mouse
+    this._statsBoxDragCss    = null;           // {x,y} CSS-px box-TL position during drag
+    this._lastStatsRect      = null;           // last-drawn box rect (physical px)
+    this._lastStatsCloseRect = null;           // last-drawn close-button rect (physical px)
+
     // ── Selection / hover — kept in sync with TreeRenderer ────────────────
     this._selectedTipIds = new Set();
     this._hoveredTipId   = null;
@@ -127,8 +136,9 @@ export class RTTRenderer {
     this._renderedPts = [];
 
     // ── Callbacks ──────────────────────────────────────────────────────────
-    this.onSelectionChange = null;  // (Set<id>) => void
-    this.onHoverChange     = null;  // (id|null) => void
+    this.onSelectionChange       = null;  // (Set<id>) => void
+    this.onHoverChange           = null;  // (id|null) => void
+    this.onStatsBoxVisibleChange = null;  // (visible:boolean) => void
 
     this._dirty = true;
     this._setupEvents();
@@ -601,7 +611,7 @@ export class RTTRenderer {
 
   _drawStatsBox(ctx, rect) {
     const reg = this._regression;
-    if (!reg) return;
+    if (!reg || !this.statsBoxVisible) return;
     const d   = this._dpr;
     const cal = this._calibration;
     const fmt = this._dateFormat;
@@ -611,7 +621,7 @@ export class RTTRenderer {
 
     const lines = [
       ['n',         String(reg.n)],
-      ['Slope',     reg.a > 0 ? `${reg.a.toExponential(3)} /yr` : `${reg.a.toExponential(3)} /yr`],
+      ['Slope',     `${reg.a.toExponential(3)} /yr`],
     ];
     if (reg.xInt != null) {
       const rootLbl = cal ? cal.decYearToString(reg.xInt, 'full', fmt) : reg.xInt.toFixed(3);
@@ -620,11 +630,27 @@ export class RTTRenderer {
     lines.push(['R²', reg.r2.toFixed(4)]);
     lines.push(['CV',  reg.cv.toFixed(4)]);
 
-    const boxW = Math.round(148 * d);
-    const boxH = lines.length * lh + pad;
-    const bx   = rect.x + rect.w - boxW - Math.round(4 * d);
-    const by   = rect.y + Math.round(4 * d);
-    const br   = Math.round(4 * d);
+    const boxW    = Math.round(148 * d);
+    const boxH    = lines.length * lh + pad;
+    const br      = Math.round(4 * d);
+    const margin  = Math.round(6 * d);
+    // Close-button hit area: top-right corner of box, 14 CSS-px square
+    const closeSz = Math.round(14 * d);
+
+    // Box position: from corner when at rest, from drag coords when dragging
+    let bx, by;
+    if (this._statsBoxDragActive && this._statsBoxDragCss) {
+      bx = Math.round(this._statsBoxDragCss.x * d);
+      by = Math.round(this._statsBoxDragCss.y * d);
+    } else {
+      const c = this.statsBoxCorner;
+      bx = (c === 'tl' || c === 'bl') ? rect.x + margin : rect.x + rect.w - boxW - margin;
+      by = (c === 'tl' || c === 'tr') ? rect.y + margin : rect.y + rect.h - boxH - margin;
+    }
+
+    // Store for hit-testing (physical px)
+    this._lastStatsRect      = { x: bx, y: by, w: boxW, h: boxH };
+    this._lastStatsCloseRect = { x: bx + boxW - closeSz, y: by, w: closeSz, h: closeSz };
 
     ctx.save();
     // Box background
@@ -634,7 +660,7 @@ export class RTTRenderer {
     ctx.roundRect(bx, by, boxW, boxH, br);
     ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = 'rgba(230,213,149,0.22)';
+    ctx.strokeStyle = this._colorWithAlpha(this.axisColor, 0.22);
     ctx.lineWidth   = d;
     ctx.stroke();
 
@@ -642,7 +668,7 @@ export class RTTRenderer {
     ctx.font = `${fsz}px ${this.fontFamily}`;
     for (let i = 0; i < lines.length; i++) {
       const ty = by + pad * 0.45 + i * lh + fsz * 0.55;
-      ctx.fillStyle    = 'rgba(230,213,149,0.50)';
+      ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.50);
       ctx.textAlign    = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(lines[i][0], bx + pad * 0.7, ty);
@@ -650,6 +676,15 @@ export class RTTRenderer {
       ctx.textAlign = 'right';
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }
+
+    // Close button × in top-right corner of box
+    const cfsz = Math.max(8, Math.round(11 * d));
+    ctx.font         = `bold ${cfsz}px ${this.fontFamily}`;
+    ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.55);
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u00d7', bx + boxW - closeSz / 2, by + closeSz / 2);
+
     ctx.restore();
   }
 
@@ -697,9 +732,44 @@ export class RTTRenderer {
 
     // ── Hover (canvas mousemove) ───────────────────────────────────────────
     canvas.addEventListener('mousemove', e => {
-      if (this._dragActive) return;
+      if (this._dragActive || this._statsBoxDragActive) return;
       const bRect = canvas.getBoundingClientRect();
-      const id    = this._findPointAt(e.clientX - bRect.left, e.clientY - bRect.top);
+      const cssX  = e.clientX - bRect.left;
+      const cssY  = e.clientY - bRect.top;
+
+      // Stats box close button and box body take cursor priority
+      if (this.statsBoxVisible) {
+        const d = this._dpr;
+        if (this._lastStatsCloseRect) {
+          const cr = this._lastStatsCloseRect;
+          if (cssX >= cr.x/d && cssX <= (cr.x+cr.w)/d &&
+              cssY >= cr.y/d && cssY <= (cr.y+cr.h)/d) {
+            canvas.style.cursor = 'pointer';
+            if (this._hoveredTipId !== null) {
+              this._hoveredTipId = null;
+              this._dirty = true;
+              if (this.onHoverChange) this.onHoverChange(null);
+            }
+            return;
+          }
+        }
+        if (this._lastStatsRect) {
+          const sr = this._lastStatsRect;
+          const d2 = this._dpr;
+          if (cssX >= sr.x/d2 && cssX <= (sr.x+sr.w)/d2 &&
+              cssY >= sr.y/d2 && cssY <= (sr.y+sr.h)/d2) {
+            canvas.style.cursor = 'grab';
+            if (this._hoveredTipId !== null) {
+              this._hoveredTipId = null;
+              this._dirty = true;
+              if (this.onHoverChange) this.onHoverChange(null);
+            }
+            return;
+          }
+        }
+      }
+
+      const id = this._findPointAt(cssX, cssY);
       if (id !== this._hoveredTipId) {
         this._hoveredTipId      = id ?? null;
         canvas.style.cursor     = id ? 'pointer' : 'default';
@@ -717,19 +787,61 @@ export class RTTRenderer {
       }
     });
 
-    // ── Drag-select (global move/up; start on canvas mousedown) ───────────
+    // ── Stats box drag + close; drag-select (global move/up, canvas mousedown) ──
     canvas.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
-      const bRect       = canvas.getBoundingClientRect();
+      const bRect = canvas.getBoundingClientRect();
+      const cssX  = e.clientX - bRect.left;
+      const cssY  = e.clientY - bRect.top;
+
+      // Stats box interaction takes priority over scatter drag-select
+      if (this.statsBoxVisible && this._lastStatsRect) {
+        const d = this._dpr;
+        // Close button — hide the box
+        if (this._lastStatsCloseRect) {
+          const cr = this._lastStatsCloseRect;
+          if (cssX >= cr.x/d && cssX <= (cr.x+cr.w)/d &&
+              cssY >= cr.y/d && cssY <= (cr.y+cr.h)/d) {
+            this.statsBoxVisible     = false;
+            this._lastStatsRect      = null;
+            this._lastStatsCloseRect = null;
+            this._dirty = true;
+            if (this.onStatsBoxVisibleChange) this.onStatsBoxVisibleChange(false);
+            e.preventDefault();
+            return;
+          }
+        }
+        // Box body — start drag
+        const sr = this._lastStatsRect;
+        if (cssX >= sr.x/d && cssX <= (sr.x+sr.w)/d &&
+            cssY >= sr.y/d && cssY <= (sr.y+sr.h)/d) {
+          this._statsBoxDragActive = true;
+          this._statsBoxDragOffset = { x: cssX - sr.x/d, y: cssY - sr.y/d };
+          this._statsBoxDragCss    = { x: sr.x/d,        y: sr.y/d };
+          canvas.style.cursor      = 'grabbing';
+          e.preventDefault();
+          return;
+        }
+      }
+
       this._cmdHeld     = e.metaKey || e.ctrlKey;
       this._dragActive  = false;
-      this._dragStartPx = { x: e.clientX - bRect.left, y: e.clientY - bRect.top };
+      this._dragStartPx = { x: cssX, y: cssY };
       this._dragEndPx   = { ...this._dragStartPx };
       _pendingClick     = true;
       e.preventDefault();
     });
 
     window.addEventListener('mousemove', e => {
+      if (this._statsBoxDragActive) {
+        const bRect = canvas.getBoundingClientRect();
+        this._statsBoxDragCss = {
+          x: e.clientX - bRect.left - this._statsBoxDragOffset.x,
+          y: e.clientY - bRect.top  - this._statsBoxDragOffset.y,
+        };
+        this._dirty = true;
+        return;
+      }
       if (!this._dragStartPx) return;
       const bRect = canvas.getBoundingClientRect();
       const cx    = e.clientX - bRect.left;
@@ -747,6 +859,24 @@ export class RTTRenderer {
     });
 
     window.addEventListener('mouseup', e => {
+      if (this._statsBoxDragActive) {
+        // Snap to the nearest corner of the plot area
+        if (this._lastStatsRect && this._statsBoxDragCss) {
+          const plotRect = this._plotRect();
+          const d        = this._dpr;
+          const centerX  = this._statsBoxDragCss.x + this._lastStatsRect.w / (2 * d);
+          const centerY  = this._statsBoxDragCss.y + this._lastStatsRect.h / (2 * d);
+          const midX     = (plotRect.x + plotRect.w / 2) / d;
+          const midY     = (plotRect.y + plotRect.h / 2) / d;
+          this.statsBoxCorner = (centerY < midY ? 't' : 'b') + (centerX < midX ? 'l' : 'r');
+        }
+        this._statsBoxDragActive = false;
+        this._statsBoxDragCss    = null;
+        this._statsBoxDragOffset = null;
+        canvas.style.cursor      = 'default';
+        this._dirty = true;
+        return;
+      }
       if (!this._dragStartPx) return;
       const bRect = canvas.getBoundingClientRect();
       const cx    = e.clientX - bRect.left;

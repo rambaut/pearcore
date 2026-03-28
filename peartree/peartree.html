@@ -745,7 +745,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    #rtt-btn-pin, #rtt-btn-close {
+    #rtt-btn-pin, #rtt-btn-close, #rtt-btn-stats {
       background: none;
       border: none;
       color: rgba(255,255,255,0.4);
@@ -758,7 +758,9 @@
     }
     #rtt-btn-pin:hover   { color: rgba(255,255,255,0.85); }
     #rtt-btn-close:hover { color: rgba(220,80,70,0.9); }
-    #rtt-btn-pin.active  { color: var(--pt-gold, #b5890a); }
+    #rtt-btn-stats:hover { color: rgba(255,255,255,0.85); }
+    #rtt-btn-pin.active   { color: var(--pt-gold, #b5890a); }
+    #rtt-btn-stats.active { color: var(--pt-teal, #2aa198); }
     /* Canvas fills the remaining panel */
     #rtt-canvas { flex: 1; display: block; min-height: 0; min-width: 0; }
 
@@ -1923,6 +1925,7 @@
     <div id="rtt-resize-handle"></div>
     <div id="rtt-header">
       <span class="rtt-title"><i class="bi bi-graph-up-arrow"></i> Root-to-Tip Divergence</span>
+      <button id="rtt-btn-stats" class="active" title="Show/hide statistics box"><i class="bi bi-info-circle"></i></button>
       <button id="rtt-btn-pin"   title="Pin panel open"><i class="bi bi-pin-angle"></i></button>
       <button id="rtt-btn-close" title="Close"><i class="bi bi-x-lg"></i></button>
     </div>
