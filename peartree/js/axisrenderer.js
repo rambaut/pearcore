@@ -241,8 +241,12 @@ export class AxisRenderer {
 
     if (!this._scaleX || this._maxX === 0) return;
 
-    // Extend left to paddingLeft so node-bar overhang is covered by the axis line.
-    const plotLeft  = Math.min(this._offsetX, this._paddingLeft);
+    // For forward (divergence) axis the root is at offsetX — the baseline must
+    // start exactly there so it aligns with the 0.0 tick.  For reverse and time
+    // axes, extend left to paddingLeft to cover any node-bar/whisker overhang.
+    const plotLeft  = (this._direction === 'forward' && !this._dateMode)
+      ? this._offsetX
+      : Math.min(this._offsetX, this._paddingLeft);
     const plotRight = this._offsetX + this._maxX * this._scaleX;
     if (plotRight <= plotLeft) return;
 
@@ -256,38 +260,43 @@ export class AxisRenderer {
     if (this._dateMode) {
       const majorInt = this._majorInterval;
       const minorInt = this._minorInterval;
-      majorTicks = (majorInt === 'auto')
-        ? TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor)
-        : TreeCalibration.calendarTicksForInterval(minVal, maxVal, majorInt);
-      if (minorInt === 'off') {
-        minorTicks = [];
-      } else if (minorInt === 'auto') {
-        const minorAll = TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor * 5);
-        const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
-        minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
+      if (majorInt === 'auto' && minorInt === 'auto') {
+        // Use the paired helper so major and minor are on a consistent calendar
+        // hierarchy (e.g. yearly major → monthly minor, not independently-picked
+        // steps that may not subdivide each other cleanly).
+        const pair = TreeCalibration.autoCalendarTickPair(minVal, maxVal, targetMajor);
+        majorTicks = pair.majorTicks;
+        minorTicks = pair.minorTicks;
       } else {
-        const minorAll = TreeCalibration.calendarTicksForInterval(minVal, maxVal, minorInt);
-        const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
-        minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
-      }
-    } else {
-      majorTicks = AxisRenderer._niceTicks(leftVal, rightVal, targetMajor);
-      // In divergence mode the axis ends exactly at maxX (the most-distant tip).
-      // _niceTicks only generates round-number ticks, so if the last tick falls
-      // noticeably short of maxX, append maxX explicitly so the axis is labelled
-      // all the way to the tip.
-      if (this._direction === 'forward' && !this._dateMode && majorTicks.length > 0) {
-        const lastTick = majorTicks[majorTicks.length - 1];
-        const step = majorTicks.length > 1 ? Math.abs(majorTicks[1] - majorTicks[0]) : 0;
-        const gap  = rightVal - lastTick;
-        if (step > 0 && gap > step * 0.15) {
-          majorTicks.push(rightVal);
+        majorTicks = (majorInt === 'auto')
+          ? TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor)
+          : TreeCalibration.calendarTicksForInterval(minVal, maxVal, majorInt);
+        if (minorInt === 'off') {
+          minorTicks = [];
+        } else if (minorInt === 'auto') {
+          const minorAll = TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor * 5);
+          const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
+          minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
+        } else {
+          const minorAll = TreeCalibration.calendarTicksForInterval(minVal, maxVal, minorInt);
+          const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
+          minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
         }
       }
+    } else {
+      // Always compute ticks in ascending order (minVal → maxVal) so that both
+      // forward and reverse directions produce an identical set of tick values.
+      majorTicks = AxisRenderer._niceTicks(minVal, maxVal, targetMajor);
       const minorAll = majorTicks.length > 1
-        ? AxisRenderer._niceTicks(leftVal, rightVal, targetMajor * 5) : [];
+        ? AxisRenderer._niceTicks(minVal, maxVal, targetMajor * 5) : [];
       const majorSet = new Set(majorTicks.map(t => t.toPrecision(10)));
       minorTicks = minorAll.filter(t => !majorSet.has(t.toPrecision(10)));
+      // For the reverse-direction axis, flip both arrays so tick order matches
+      // the visual direction (high→low left→right).
+      if (this._direction === 'reverse') {
+        majorTicks.reverse();
+        minorTicks.reverse();
+      }
     }
 
     // ── Layout constants ──────────────────────────────────────────────────

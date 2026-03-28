@@ -1381,6 +1381,58 @@ export class TreeCalibration {
    * @param {number} [targetCount=5]
    * @returns {number[]}  decimal years
    */
+  /**
+   * Auto-select hierarchically consistent major AND minor calendar ticks in one call.
+   *
+   * The minor interval is derived from the effective major spacing so the two
+   * levels always form a sensible calendar hierarchy:
+   *
+   *  ≥ 10-year major  →  yearly minor
+   *  ≥ 1-year major   →  monthly minor   (user-facing: years→months)
+   *  ≥ 1-month major  →  monthly minor   (sub-year major still gets monthly minor;
+   *                                        ticks that coincide with major are filtered out)
+   *  ≥ 1-week major   →  weekly minor
+   *  finer            →  no minor
+   *
+   * @param {number} minDY       – axis minimum (decimal year)
+   * @param {number} maxDY       – axis maximum (decimal year)
+   * @param {number} targetMajor – desired number of major ticks
+   * @returns {{ majorTicks: number[], minorTicks: number[] }}
+   */
+  static autoCalendarTickPair(minDY, maxDY, targetMajor) {
+    const range = maxDY - minDY;
+    if (range <= 0) return { majorTicks: [minDY], minorTicks: [] };
+
+    // Generate major ticks using the existing nice-tick logic.
+    const majorTicks = TreeCalibration.niceCalendarTicks(minDY, maxDY, targetMajor);
+    const majorSet   = new Set(majorTicks.map(t => t.toFixed(8)));
+
+    // Derive the effective major step from the ticks themselves so the minor
+    // selection is based on actual tick spacing, not the internal step candidate.
+    const effectiveStep = majorTicks.length >= 2
+      ? (majorTicks[majorTicks.length - 1] - majorTicks[0]) / (majorTicks.length - 1)
+      : range;
+
+    // Choose the minor interval that forms the natural calendar sub-division.
+    // Thresholds (in decimal years):
+    //   ~9.9  → decade boundary: use yearly minor ticks
+    //   ~0.08 → roughly 1 month: use monthly minor ticks
+    //   ~0.018 → roughly 1 week: use weekly minor ticks
+    let minorInterval = null;
+    if      (effectiveStep >= 9.9)   minorInterval = 'years';
+    else if (effectiveStep >= 0.08)  minorInterval = 'months';  // years → months (key case)
+    else if (effectiveStep >= 0.018) minorInterval = 'weeks';
+    // finer than weekly major → no minor ticks
+
+    let minorTicks = [];
+    if (minorInterval) {
+      const allMinor = TreeCalibration.calendarTicksForInterval(minDY, maxDY, minorInterval);
+      minorTicks = allMinor.filter(t => !majorSet.has(t.toFixed(8)));
+    }
+
+    return { majorTicks, minorTicks };
+  }
+
   static niceCalendarTicks(minDY, maxDY, targetCount = 5) {
     const range = maxDY - minDY;
     if (range === 0) return [minDY];
