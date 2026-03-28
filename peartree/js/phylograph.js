@@ -543,6 +543,19 @@ function isDateString(v) {
 }
 
 /**
+ * Chronological comparator for ISO date strings (yyyy-mm-dd, yyyy-mm, or yyyy).
+ * Compares first by numeric year (so variable-length years like "700" and "1990"
+ * sort correctly rather than alphabetically), then by the full string for
+ * same-year month/day disambiguation.
+ */
+function compareDateStrings(a, b) {
+  const aYear = parseInt(a, 10);
+  const bYear = parseInt(b, 10);
+  if (aYear !== bYear) return aYear - bYear;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
  * Convert an ISO date string (yyyy-mm-dd, yyyy-mm, yyyy, or decimal year) to a
  * decimal year. Delegates to TreeCalibration.parseDateToDecYear for consistency
  * with annotation parsing. Returns NaN for non-string inputs or unparseable strings.
@@ -626,7 +639,7 @@ function inferAnnotationType(values) {
   const stringValues = values.map(v => String(v));
   if (stringValues.every(isDateString) &&
       stringValues.some(v => DATE_FULL_RE.test(v) || DATE_MONTH_RE.test(v))) {
-    const distinct = [...new Set(stringValues)].sort(); // ISO lex order = chronological
+    const distinct = [...new Set(stringValues)].sort(compareDateStrings);
     return { dataType: 'date', values: distinct, min: distinct[0], max: distinct[distinct.length - 1] };
   }
 
@@ -723,7 +736,7 @@ export function buildAnnotationSchema(nodes) {
       if (name === 'date' && def.dataType !== 'date') {
         const strVals = values.map(v => String(v));
         if (strVals.every(isDateString)) {
-          const distinct = [...new Set(strVals)].sort();
+          const distinct = [...new Set(strVals)].sort(compareDateStrings);
           def.dataType = 'date';
           def.values   = distinct;
           def.min      = distinct[0];
