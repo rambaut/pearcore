@@ -910,6 +910,7 @@ async function fetchExampleTree() {
     calibration.setAnchor(null, new Map(), 0);
     axisDateFmtRow.style.display = 'none';
     axisDateFmtEl.value      = DEFAULT_SETTINGS.axisDateFormat;
+    _updateTimeOption();
     axisMajorIntervalEl.value    = DEFAULT_SETTINGS.axisMajorInterval;
     axisMinorIntervalEl.value    = DEFAULT_SETTINGS.axisMinorInterval;
     axisMajorLabelEl.value       = DEFAULT_SETTINGS.axisMajorLabelFormat;
@@ -2037,6 +2038,22 @@ async function fetchExampleTree() {
       majorLabelFormat: axisMajorLabelEl.value,
       minorLabelFormat: axisMinorLabelEl.value,
     }),
+    getIsTimedTree: () => _axisIsTimedTree,
+    onCalibrationChange: () => {
+      axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
+      _updateTimeOption();
+      const _hideClamp = _axisIsTimedTree || calibration.isActive;
+      if (clampNegBranchesRowEl) clampNegBranchesRowEl.style.display = _hideClamp ? 'none' : '';
+      if (calibration.isActive && !_axisIsTimedTree) clampNegBranchesEl.value = 'off';
+      _showDateTickRows(calibration.isActive && !!axisDateAnnotEl.value);
+      if (renderer) renderer.setCalibration(calibration.isActive ? calibration : null, axisDateFmtEl.value);
+      if (axisShowEl.value === 'time') {
+        axisRenderer.setCalibration(calibration.isActive ? calibration : null);
+        axisRenderer.update(renderer.scaleX, renderer.offsetX, renderer.paddingLeft,
+                            renderer.labelRightPad, renderer.bgColor, renderer.fontSize,
+                            window.devicePixelRatio || 1);
+      }
+    },
     onClose: () => {
       btnRtt.classList.remove('active');
     },
@@ -2658,11 +2675,7 @@ async function fetchExampleTree() {
       // If the effective selection changed, update calibration and RTT chart.
       const _newDate = axisDateAnnotEl.value;
       if (_newDate !== _prevDate) {
-        calibration.setAnchor(_newDate || null,
-                              renderer?.nodeMap ?? new Map(),
-                              renderer?.maxX ?? 0);
-        axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
-        rttChart?.notifyCalibrationChange?.();
+        rttChart?.recomputeCalibration?.();
       }
     }
   }
@@ -2990,13 +3003,14 @@ async function fetchExampleTree() {
       const _dateToUse = _canRestoreDate ? _savedAxisDate
                        : (_hasDateAnnotations ? axisDateAnnotEl.options[1].value : '');
       axisDateAnnotEl.value = _dateToUse;
-      calibration.setAnchor(_dateToUse || null, layout.nodeMap, layout.maxX);
-      // axisRenderer.setCalibration() is called by applyAxis() below.
-      axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
+      // Capture timed-tree flag before calibration recompute so getIsTimedTree() is accurate.
+      _axisIsTimedTree = _isTimedTree;
+      // Recompute OLS calibration; onCalibrationChange syncs axisDateFmtRow, renderer.setCalibration,
+      // _updateTimeOption, clamp-row visibility, and the axis renderer.
+      rttChart.recomputeCalibration();
 
-      // Re-inject built-in stats with calibration active so __cal_date__ appears
-      // in the schema and all dropdowns; then re-apply any saved cal-date selections
-      // that were unavailable when the dropdowns were first populated above.
+      // Re-inject built-in stats (adds __cal_date__ to schema) then restore any saved cal-date
+      // selections that were unavailable when the dropdowns were first populated above.
       if (calibration.isActive) {
         _refreshAnnotationUIs(schema);
         // _refreshAnnotationUIs restores previous selection values; force the saved
@@ -3011,16 +3025,6 @@ async function fetchExampleTree() {
           renderer.setNodeLabelAnnotation(_eff.nodeLabelAnnotation);
         }
       }
-      // Sync calibration into the tree renderer so calendar-date labels are live.
-      renderer.setCalibration(calibration.isActive ? calibration : null, axisDateFmtEl.value);
-
-      // Capture full-tree axis params for subtree-tracking.
-      _axisIsTimedTree = _isTimedTree;
-      // Negative-branch clamping is meaningless in a time-scaled tree (nodes have
-      // fixed calendar positions); hide the control and reset to 'off'.
-      const _hideClamp = _isTimedTree || calibration.isActive;
-      if (clampNegBranchesRowEl) clampNegBranchesRowEl.style.display = _hideClamp ? 'none' : '';
-      if (_hideClamp) clampNegBranchesEl.value = 'off';
 
       // Show tick-option rows whenever a date annotation is selected (applies to the
       // RTT plot's date axis even when the tree axis isn't in Time mode).
@@ -5012,6 +5016,22 @@ async function fetchExampleTree() {
 
   // ── Axis controls ─────────────────────────────────────────────────────────
 
+  /**
+   * Enable or disable the "Time" option in the axis-show dropdown.
+   * Time mode requires either a timed tree (branch lengths in years) or an
+   * active calibration (RTT regression / single-anchor from a date annotation).
+   * If the user is already on "Time" and it becomes unavailable, switch to Forward.
+   */
+  function _updateTimeOption() {
+    const canUseTime = calibration.isActive || _axisIsTimedTree;
+    const timeOpt = [...axisShowEl.options].find(o => o.value === 'time');
+    if (timeOpt) timeOpt.disabled = !canUseTime;
+    if (!canUseTime && axisShowEl.value === 'time') {
+      axisShowEl.value = 'forward';
+      applyAxis();
+    }
+  }
+
   function applyAxis() {
     const val = axisShowEl.value;
     const on  = val !== 'off';
@@ -5177,31 +5197,16 @@ async function fetchExampleTree() {
   axisDateFmtEl      .addEventListener('change', applyTickOptions);
 
   axisDateAnnotEl.addEventListener('change', () => {
-    const key = axisDateAnnotEl.value || null;
-    calibration.setAnchor(key, renderer.nodeMap || new Map(), renderer.maxX);
-    axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
-    // Clamp-to-zero is irrelevant when calibration is active (tree is time-scaled).
-    if (clampNegBranchesRowEl) clampNegBranchesRowEl.style.display = (_axisIsTimedTree || calibration.isActive) ? 'none' : '';
-    if (calibration.isActive) clampNegBranchesEl.value = 'off';
+    // Recompute OLS calibration; onCalibrationChange syncs axisDateFmtRow, _updateTimeOption,
+    // clamp-row, _showDateTickRows, renderer.setCalibration, and the axis renderer.
+    rttChart?.recomputeCalibration?.();
     // Repopulate label dropdowns to add/remove Calendar date options, then sync renderer.
     _refreshAnnotationUIs(renderer?._annotationSchema ?? new Map());
     if (renderer) renderer.setSettings(_buildRendererSettings());
-    // Always update tick-row visibility regardless of tree axis mode — the date
-    // tick options also control the RTT plot's X axis.
-    _showDateTickRows(calibration.isActive && !!key);
-    if (axisShowEl.value === 'time') {
-      axisRenderer.setCalibration(key && calibration.isActive ? calibration : null);
-      // If currently viewing a subtree, recompute its params using the new anchor.
-      if (renderer._viewSubtreeRootId && renderer._onLayoutChange) {
-        renderer._onLayoutChange(renderer.maxX, renderer._viewSubtreeRootId);
-      }
-      axisRenderer.update(
-        renderer.scaleX, renderer.offsetX, renderer.paddingLeft,
-        renderer.labelRightPad, renderer.bgColor, renderer.fontSize,
-        window.devicePixelRatio || 1,
-      );
+    // If currently viewing a subtree, recompute its params using the new anchor.
+    if (axisShowEl.value === 'time' && renderer._viewSubtreeRootId && renderer._onLayoutChange) {
+      renderer._onLayoutChange(renderer.maxX, renderer._viewSubtreeRootId);
     }
-    rttChart?.notifyCalibrationChange?.();
     saveSettings();
   });
 

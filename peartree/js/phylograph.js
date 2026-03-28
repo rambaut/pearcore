@@ -1113,6 +1113,8 @@ export class TreeCalibration {
     this._anchorH       = null;
     this._minTipH       = 0;
     this._active        = false;
+    this._rate          = 1;
+    this._regression    = null;  // {a,b,xInt,r,r2,cv,n} or null
   }
 
   // ── Instance API ───────────────────────────────────────────────────────────
@@ -1151,9 +1153,44 @@ export class TreeCalibration {
 
     this._anchorDecYear = anchorDecYear;
     this._anchorH       = anchorH;
+    this._rate          = 1;
+    this._regression    = null;
     this._minTipH       = isFinite(minTipH) ? minTipH : 0;
     this._active        = true;
     return true;
+  }
+
+  /**
+   * Apply a pre-computed OLS regression to establish calibration.
+   * For non-timed trees: sets rate = slope, root date = x-intercept.
+   * Also stores the regression object for display by the RTT renderer.
+   *
+   * @param {{a,b,xInt,r,r2,cv,n}|null} reg  – result of TreeCalibration.computeOLS()
+   * @param {number} maxX      – full-tree branch span (height of root)
+   * @param {number} [minTipH] – minimum tip height (for axis extent)
+   * @returns {boolean}
+   */
+  applyRegression(reg, maxX, minTipH = 0) {
+    this._regression = reg ?? null;
+    if (!reg || reg.xInt == null || Math.abs(reg.a) < 1e-20) {
+      this._clear(); return false;
+    }
+    this._anchorDecYear = reg.xInt;
+    this._anchorH       = maxX;
+    this._rate          = reg.a;
+    this._minTipH       = minTipH;
+    this._active        = true;
+    return true;
+  }
+
+  /**
+   * Store a regression for display without changing the calibration parameters.
+   * Used for timed trees where the branch-length calibration (rate=1) is trusted
+   * but the RTT regression line is still informative.
+   * @param {{a,b,xInt,r,r2,cv,n}|null} reg
+   */
+  setRegression(reg) {
+    this._regression = reg ?? null;
   }
 
   _clear() {
@@ -1161,6 +1198,8 @@ export class TreeCalibration {
     this._anchorH       = null;
     this._minTipH       = 0;
     this._active        = false;
+    this._rate          = 1;
+    this._regression    = null;
   }
 
   /** True when the calibration is active (setAnchor was called successfully). */
@@ -1171,14 +1210,49 @@ export class TreeCalibration {
   get anchorH()       { return this._anchorH; }
   /** Minimum computed height across all tips at the last setAnchor call. */
   get minTipH()       { return this._minTipH; }
+  /** Evolutionary rate used for calibration (1 for timed trees, regression slope for divergence trees). */
+  get rate()          { return this._rate; }
+  /** Most recently stored OLS regression result, or null. Used by the RTT renderer for display. */
+  get regression()    { return this._regression; }
+
+  /**
+   * Compute ordinary least-squares regression over (date, divergence) point pairs.
+   * Points should have { x: decimalYear, y: divergenceFromRoot }.
+   * Returns null when fewer than 2 dated points or the fit is degenerate.
+   *
+   * @param  {Array<{x:number, y:number}>} pts
+   * @returns {{a:number,b:number,xInt:number,r:number,r2:number,cv:number,n:number}|null}
+   */
+  static computeOLS(pts) {
+    const valid = pts.filter(p => p.x != null && !Number.isNaN(p.x));
+    const n = valid.length;
+    if (n < 2) return null;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+    for (const { x, y } of valid) { sx += x; sy += y; sxx += x*x; sxy += x*y; syy += y*y; }
+    const xBar = sx / n, yBar = sy / n;
+    const ssxx = sxx - n * xBar * xBar;
+    const ssyy = syy - n * yBar * yBar;
+    const ssxy = sxy - n * xBar * yBar;
+    if (Math.abs(ssxx) < 1e-20) return null;
+    const a    = ssxy / ssxx;
+    const b    = yBar - a * xBar;
+    const xInt = Math.abs(a) > 1e-20 ? -b / a : null;
+    const r    = (ssxx > 0 && ssyy > 0) ? ssxy / Math.sqrt(ssxx * ssyy) : 0;
+    let sse = 0;
+    for (const { x, y } of valid) { const res = y - (a * x + b); sse += res * res; }
+    const rmse = Math.sqrt(sse / n);
+    return { a, b, xInt, r, r2: r * r, cv: yBar > 0 ? rmse / yBar : 0, n };
+  }
 
   /**
    * Convert a node height to a decimal year.
+   * For timed trees (rate = 1) this is a simple offset; for divergence trees
+   * calibrated via RTT regression the rate divides the height difference.
    * @param {number} height
    * @returns {number}
    */
   heightToDecYear(height) {
-    return this._anchorDecYear + this._anchorH - height;
+    return this._anchorDecYear + (this._anchorH - height) / this._rate;
   }
 
   /**

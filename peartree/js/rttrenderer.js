@@ -70,7 +70,8 @@ export class RTTRenderer {
     this._xMin      = 0;  this._xMax = 1;
     this._yMin      = 0;  this._yMax = 1;
     /** @type {{a:number,b:number,xInt:number|null,r:number,r2:number,cv:number,n:number}|null} */
-    this._regression = null;
+    // Regression is owned by TreeCalibration and read via this._calibration.regression.
+    // No local _regression field needed.
 
     // ── Tip style — mirrors TreeRenderer public properties ─────────────────
     this.tipRadius             = 4;
@@ -147,12 +148,12 @@ export class RTTRenderer {
 
   // ─── Public API ───────────────────────────────────────────────────────────
 
-  /** Replace the full point dataset and recompute regression. */
+  /** Replace the full point dataset and recompute bounds. Regression is now
+   *  owned by TreeCalibration — see rttchart.js recomputeCalibration(). */
   setPoints(pts) {
-    this._points     = pts;
+    this._points = pts;
     this._computeBounds();
-    this._regression = this._computeRegression();
-    this._dirty      = true;
+    this._dirty  = true;
   }
 
   /** Update the calibration used for X-axis date formatting. */
@@ -231,27 +232,6 @@ export class RTTRenderer {
     this._xMax = xMax + xPad;
     this._yMin = 0;
     this._yMax = yMax + yPad;
-  }
-
-  _computeRegression() {
-    const pts = this._points.filter(p => p.x != null);
-    const n   = pts.length;
-    if (n < 2) return null;
-    let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
-    for (const { x, y } of pts) { sx += x; sy += y; sxx += x*x; sxy += x*y; syy += y*y; }
-    const xBar = sx / n, yBar = sy / n;
-    const ssxx = sxx - n * xBar * xBar;
-    const ssyy = syy - n * yBar * yBar;
-    const ssxy = sxy - n * xBar * yBar;
-    if (Math.abs(ssxx) < 1e-20) return null;
-    const a    = ssxy / ssxx;
-    const b    = yBar - a * xBar;
-    const xInt = Math.abs(a) > 1e-20 ? -b / a : null;
-    const r    = (ssxx > 0 && ssyy > 0) ? ssxy / Math.sqrt(ssxx * ssyy) : 0;
-    let sse = 0;
-    for (const { x, y } of pts) { const res = y - (a * x + b); sse += res * res; }
-    const rmse = Math.sqrt(sse / n);
-    return { a, b, xInt, r, r2: r * r, cv: yBar > 0 ? rmse / yBar : 0, n };
   }
 
   // ─── Render loop ──────────────────────────────────────────────────────────
@@ -511,7 +491,7 @@ export class RTTRenderer {
   // ─── Regression line ──────────────────────────────────────────────────────
 
   _drawRegression(ctx, rect) {
-    const reg = this._regression;
+    const reg = this._calibration?.regression;
     if (!reg) return;
     const d  = this._dpr;
     const y1 = reg.a * this._xMin + reg.b;
@@ -619,7 +599,7 @@ export class RTTRenderer {
   // ─── Stats box ────────────────────────────────────────────────────────────
 
   _drawStatsBox(ctx, rect) {
-    const reg = this._regression;
+    const reg = this._calibration?.regression;
     if (!reg || !this.statsBoxVisible) return;
     const d   = this._dpr;
     const cal = this._calibration;

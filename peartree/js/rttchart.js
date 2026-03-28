@@ -22,6 +22,8 @@ import { TreeCalibration }  from './phylograph.js';
  * @param {Function} opts.getCalibration    – () => TreeCalibration instance
  * @param {Function} opts.getDateAnnotKey   – () => string (e.g. "date") or ''
  * @param {Function} opts.getDateFormat     – () => string (e.g. 'yyyy-MM-dd')
+ * @param {Function} [opts.getIsTimedTree]  – () => boolean
+ * @param {Function} [opts.onCalibrationChange] – () called after calibration is recomputed
  * @param {Function} [opts.onClose]         – () called when closed
  * @param {Function} [opts.onPinChange]     – (pinned:boolean) called on pin toggle
  */
@@ -36,6 +38,8 @@ export function createRTTChart({
   getAxisFontSize,
   getAxisLineWidth,
   getTickOptions,
+  getIsTimedTree,
+  onCalibrationChange,
   onClose,
   onPinChange,
 }) {
@@ -207,7 +211,31 @@ export function createRTTChart({
     });
   }
 
-  function _update() {
+  function _recomputeCalibration() {
+    const tr  = getRenderer();
+    const cal = getCalibration();
+    const key = getDateAnnotKey();
+    if (!tr || !tr.nodes || !cal) return;
+    const pts = _buildPoints();
+    let minTipH = Infinity;
+    for (const node of tr.nodes) {
+      if (node.isTip && !node.isCollapsed) {
+        const h = tr.maxX - node.x;
+        if (h < minTipH) minTipH = h;
+      }
+    }
+    if (!isFinite(minTipH)) minTipH = 0;
+    const reg = TreeCalibration.computeOLS(pts);
+    if (getIsTimedTree?.()) {
+      cal.setAnchor(key, tr.nodeMap, tr.maxX);
+      cal.setRegression(reg);
+    } else {
+      cal.applyRegression(reg, tr.maxX, minTipH);
+    }
+    onCalibrationChange?.();
+  }
+
+  function _pushToRenderer() {
     if (!_open) return;
     const tr  = getRenderer();
     const cal = getCalibration();
@@ -219,6 +247,11 @@ export function createRTTChart({
     rtt._selectedTipIds = new Set(tr._selectedTipIds);
     rtt._hoveredTipId   = tr._hoveredNodeId;
     rtt._dirty = true;
+  }
+
+  function _update() {
+    _recomputeCalibration();
+    _pushToRenderer();
   }
 
   // ── Open / Close ───────────────────────────────────────────────────────────
@@ -282,5 +315,8 @@ export function createRTTChart({
 
     /** Call when calibration or the date annotation key changes. */
     notifyCalibrationChange() { _update(); },
+
+    /** Recompute OLS calibration and fire onCalibrationChange; also updates renderer if open. */
+    recomputeCalibration() { _update(); },
   };
 }
