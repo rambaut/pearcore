@@ -173,6 +173,8 @@ async function fetchExampleTree() {
   const axisFontFamilyEl      = document.getElementById('axis-font-family-select');
   const axisLineWidthSlider   = document.getElementById('axis-line-width-slider');
   const rttXOriginEl           = document.getElementById('rtt-x-origin');
+  const rttGridLinesEl          = document.getElementById('rtt-grid-lines');
+  const rttAspectRatioEl        = document.getElementById('rtt-aspect-ratio');
   const themeSelect            = document.getElementById('theme-select');
   const btnStoreTheme          = document.getElementById('btn-store-theme');
   const btnDefaultTheme        = document.getElementById('btn-default-theme');
@@ -624,6 +626,8 @@ async function fetchExampleTree() {
       axisFontFamily:     axisFontFamilyEl.value,
       axisLineWidth:      axisLineWidthSlider.value,
       rttXOrigin:         rttXOriginEl.value,
+      rttGridLines:       rttGridLinesEl.value,
+      rttAspectRatio:     rttAspectRatioEl.value,
       nodeBarsEnabled:    nodeBarsShowEl.value,
       nodeBarsColor:      nodeBarsColorEl.value,
       nodeBarsWidth:      nodeBarsWidthSlider.value,
@@ -1394,7 +1398,9 @@ async function fetchExampleTree() {
   }
   // Restore saved theme name (or default to Artic if no saved settings)
   themeSelect.value = _saved.theme || 'Artic';
-  if (_saved.rttXOrigin) rttXOriginEl.value = _saved.rttXOrigin;
+  if (_saved.rttXOrigin)    rttXOriginEl.value    = _saved.rttXOrigin;
+  if (_saved.rttGridLines)  rttGridLinesEl.value  = _saved.rttGridLines;
+  if (_saved.rttAspectRatio) rttAspectRatioEl.value = _saved.rttAspectRatio;
 
   // Size canvas to container before creating renderer
   const container = canvas.parentElement;
@@ -2043,6 +2049,8 @@ async function fetchExampleTree() {
     }),
     getIsTimedTree: () => _axisIsTimedTree,
     getShowRootAge: () => rttXOriginEl.value === 'root',
+    getGridLines:   () => rttGridLinesEl.value,
+    getAspectRatio: () => rttAspectRatioEl.value,
     onCalibrationChange: () => {
       axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
       _updateTimeOption();
@@ -5132,6 +5140,16 @@ async function fetchExampleTree() {
   });
 
   rttXOriginEl.addEventListener('change', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+
+  rttGridLinesEl.addEventListener('change', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+
+  rttAspectRatioEl.addEventListener('change', () => {
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });

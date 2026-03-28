@@ -116,6 +116,12 @@ export class RTTRenderer {
     // When true the x-axis left edge extends to the regression x-intercept (root age)
     this.showRootAge  = false;
 
+    // Grid line visibility: 'both' | 'horizontal' | 'vertical' | 'off'
+    this.gridLines    = 'both';
+
+    // Plot area aspect ratio: 'fit' | '1:1' | '4:3' | '3:2' | '16:9'
+    this.aspectRatio  = 'fit';
+
     // ── Stats box ──────────────────────────────────────────────────────────
     this.statsBoxVisible  = true;
     this.statsBoxCorner   = 'tr';              // 'tl' | 'tr' | 'bl' | 'br'
@@ -199,12 +205,28 @@ export class RTTRenderer {
     const d  = this._dpr;
     const W  = this._canvas.width;
     const H  = this._canvas.height;
-    return {
-      x: Math.round(62 * d),
-      y: Math.round(14 * d),
-      w: W - Math.round(62 * d) - Math.round(14 * d),
-      h: H - Math.round(14 * d) - Math.round(52 * d),
-    };
+    const mL = Math.round(62 * d);
+    const mR = Math.round(14 * d);
+    const mT = Math.round(14 * d);
+    const mB = Math.round(52 * d);
+    const availW = W - mL - mR;
+    const availH = H - mT - mB;
+    if (!this.aspectRatio || this.aspectRatio === 'fit') {
+      return { x: mL, y: mT, w: availW, h: availH };
+    }
+    const [rw, rh] = this.aspectRatio.split(':').map(Number);
+    const ratio = rw / rh;
+    let pw, ph;
+    if (availW / availH > ratio) {
+      ph = availH;
+      pw = Math.round(ph * ratio);
+    } else {
+      pw = availW;
+      ph = Math.round(pw / ratio);
+    }
+    const ox = mL + Math.round((availW - pw) / 2);
+    const oy = mT + Math.round((availH - ph) / 2);
+    return { x: ox, y: oy, w: pw, h: ph };
   }
 
   _xToScreen(v, rect) {
@@ -308,9 +330,13 @@ export class RTTRenderer {
   // ─── Grid ─────────────────────────────────────────────────────────────────
 
   _drawGrid(ctx, rect) {
+    const gl = this.gridLines;
+    if (gl === 'off') return;
     const d = this._dpr;
-    const { ticks: yTks }         = this._yTicksInfo();
-    const { majorTicks: xMajTks } = this._xTicksInfo(rect);
+    const drawH = gl === 'both' || gl === 'horizontal';
+    const drawV = gl === 'both' || gl === 'vertical';
+    const { ticks: yTks }         = drawH ? this._yTicksInfo()       : { ticks: [] };
+    const { majorTicks: xMajTks } = drawV ? this._xTicksInfo(rect)   : { majorTicks: [] };
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.055)';
     ctx.lineWidth   = d;

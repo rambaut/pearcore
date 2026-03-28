@@ -24,6 +24,8 @@ import { TreeCalibration }  from './phylograph.js';
  * @param {Function} opts.getDateFormat     – () => string (e.g. 'yyyy-MM-dd')
  * @param {Function} [opts.getIsTimedTree]  – () => boolean
  * @param {Function} [opts.getShowRootAge]  – () => boolean
+ * @param {Function} [opts.getGridLines]    – () => 'both'|'horizontal'|'vertical'|'off'
+ * @param {Function} [opts.getAspectRatio]  – () => 'fit'|'1:1'|'4:3'|'3:2'|'16:9'
  * @param {Function} [opts.onCalibrationChange] – () called after calibration is recomputed
  * @param {Function} [opts.onClose]         – () called when closed
  * @param {Function} [opts.onPinChange]     – (pinned:boolean) called on pin toggle
@@ -41,6 +43,8 @@ export function createRTTChart({
   getTickOptions,
   getIsTimedTree,
   getShowRootAge,
+  getGridLines,
+  getAspectRatio,
   onCalibrationChange,
   onClose,
   onPinChange,
@@ -211,7 +215,9 @@ export function createRTTChart({
       axisFontSize: getAxisFontSize?.() ?? rtt.axisFontSize,
       axisLineWidth: getAxisLineWidth?.() ?? rtt.axisLineWidth,
     });
-    rtt.showRootAge = getShowRootAge?.() ?? false;
+    rtt.showRootAge   = getShowRootAge?.()  ?? false;
+    rtt.gridLines     = getGridLines?.()    ?? 'both';
+    rtt.aspectRatio   = getAspectRatio?.()  ?? 'fit';
   }
 
   function _recomputeCalibration() {
