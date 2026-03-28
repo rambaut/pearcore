@@ -113,6 +113,9 @@ export class RTTRenderer {
     // { majorInterval, minorInterval, majorLabelFormat, minorLabelFormat }
     this.tickOptions  = null;
 
+    // When true the x-axis left edge extends to the regression x-intercept (root age)
+    this.showRootAge  = false;
+
     // ── Stats box ──────────────────────────────────────────────────────────
     this.statsBoxVisible  = true;
     this.statsBoxCorner   = 'tr';              // 'tl' | 'tr' | 'bl' | 'br'
@@ -226,9 +229,20 @@ export class RTTRenderer {
     }
     if (!isFinite(xMin)) { xMin = 0; xMax = 1; }
     if (!isFinite(yMax)) yMax = 1;
-    const xPad = Math.max((xMax - xMin) * 0.06, 1e-9);
+    const dataRange = xMax - xMin;
+    const xPad = Math.max(dataRange * 0.06, 1e-9);
     const yPad = Math.max(yMax * 0.08, 1e-12);
-    this._xMin = xMin - xPad;
+    // When showRootAge is on, extend the left edge to the regression x-intercept
+    // (the estimated root age) so the full regression line is visible.
+    let xLeft = xMin - xPad;
+    if (this.showRootAge) {
+      const xInt = this._calibration?.regression?.xInt;
+      if (xInt != null && isFinite(xInt) && xInt < xMin) {
+        const fullRange = xMax - xInt;
+        xLeft = xInt - Math.max(fullRange * 0.04, xPad);
+      }
+    }
+    this._xMin = xLeft;
     this._xMax = xMax + xPad;
     this._yMin = 0;
     this._yMax = yMax + yPad;

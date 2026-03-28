@@ -172,6 +172,7 @@ async function fetchExampleTree() {
   const axisFontSizeSlider    = document.getElementById('axis-font-size-slider');
   const axisFontFamilyEl      = document.getElementById('axis-font-family-select');
   const axisLineWidthSlider   = document.getElementById('axis-line-width-slider');
+  const rttXOriginEl           = document.getElementById('rtt-x-origin');
   const themeSelect            = document.getElementById('theme-select');
   const btnStoreTheme          = document.getElementById('btn-store-theme');
   const btnDefaultTheme        = document.getElementById('btn-default-theme');
@@ -622,6 +623,7 @@ async function fetchExampleTree() {
       axisFontSize:       axisFontSizeSlider.value,
       axisFontFamily:     axisFontFamilyEl.value,
       axisLineWidth:      axisLineWidthSlider.value,
+      rttXOrigin:         rttXOriginEl.value,
       nodeBarsEnabled:    nodeBarsShowEl.value,
       nodeBarsColor:      nodeBarsColorEl.value,
       nodeBarsWidth:      nodeBarsWidthSlider.value,
@@ -1392,6 +1394,7 @@ async function fetchExampleTree() {
   }
   // Restore saved theme name (or default to Artic if no saved settings)
   themeSelect.value = _saved.theme || 'Artic';
+  if (_saved.rttXOrigin) rttXOriginEl.value = _saved.rttXOrigin;
 
   // Size canvas to container before creating renderer
   const container = canvas.parentElement;
@@ -2039,6 +2042,7 @@ async function fetchExampleTree() {
       minorLabelFormat: axisMinorLabelEl.value,
     }),
     getIsTimedTree: () => _axisIsTimedTree,
+    getShowRootAge: () => rttXOriginEl.value === 'root',
     onCalibrationChange: () => {
       axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
       _updateTimeOption();
@@ -5125,6 +5129,11 @@ async function fetchExampleTree() {
   axisLineWidthSlider.addEventListener('input', () => {
     document.getElementById('axis-line-width-value').textContent = axisLineWidthSlider.value;
     applyAxisStyle();
+  });
+
+  rttXOriginEl.addEventListener('change', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
   });
 
   // ── Node bars controls ────────────────────────────────────────────────────
