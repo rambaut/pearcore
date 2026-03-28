@@ -668,8 +668,12 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       }
     }
 
-    // Update live schema and refresh UI
+    // Update live schema and refresh UI.
+    // onApply re-injects built-in stats (divergence, age, branch length, …) into
+    // newSchema via _refreshAnnotationUIs → injectBuiltinStats, so the mutation
+    // must happen before _renderTable so those rows are not lost.
     graph.annotationSchema = newSchema;
+    onApply(newSchema);
     _closeParseTips();
     _selected = null;
     _renderTable(newSchema);
