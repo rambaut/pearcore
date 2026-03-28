@@ -609,10 +609,16 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       if (minI === 'off') {
         minorTicks = [];
       } else {
-        const all = minI === 'auto'
-          ? TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor * 5)
-          : TreeCalibration.calendarTicksForInterval(minVal, maxVal, minI);
         const ms = new Set(majorTicks.map(t => t.toFixed(8)));
+        let all;
+        if (minI === 'auto') {
+          const derivedInt = TreeCalibration.derivedMinorInterval(majorTicks);
+          all = derivedInt
+            ? TreeCalibration.calendarTicksForInterval(minVal, maxVal, derivedInt)
+            : [];
+        } else {
+          all = TreeCalibration.calendarTicksForInterval(minVal, maxVal, minI);
+        }
         minorTicks = all.filter(t => !ms.has(t.toFixed(8)));
       }
     } else {

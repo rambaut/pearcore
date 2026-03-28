@@ -274,9 +274,14 @@ export class AxisRenderer {
         if (minorInt === 'off') {
           minorTicks = [];
         } else if (minorInt === 'auto') {
-          const minorAll = TreeCalibration.niceCalendarTicks(minVal, maxVal, targetMajor * 5);
-          const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
-          minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
+          const derivedInt = TreeCalibration.derivedMinorInterval(majorTicks);
+          const majorSet   = new Set(majorTicks.map(t => t.toFixed(8)));
+          if (derivedInt) {
+            const minorAll = TreeCalibration.calendarTicksForInterval(minVal, maxVal, derivedInt);
+            minorTicks = minorAll.filter(t => !majorSet.has(t.toFixed(8)));
+          } else {
+            minorTicks = [];
+          }
         } else {
           const minorAll = TreeCalibration.calendarTicksForInterval(minVal, maxVal, minorInt);
           const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));

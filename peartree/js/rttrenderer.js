@@ -389,10 +389,16 @@ export class RTTRenderer {
           : TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, majorInterval);
         minorTicks = [];
         if (minorInterval !== 'off') {
-          const allMinor = (minorInterval === 'auto')
-            ? TreeCalibration.niceCalendarTicks(this._xMin, this._xMax, targetMajor * 5)
-            : TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, minorInterval);
           const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
+          let allMinor;
+          if (minorInterval === 'auto') {
+            const derivedInt = TreeCalibration.derivedMinorInterval(majorTicks);
+            allMinor = derivedInt
+              ? TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, derivedInt)
+              : [];
+          } else {
+            allMinor = TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, minorInterval);
+          }
           minorTicks = allMinor.filter(t => !majorSet.has(t.toFixed(8)));
         }
       }

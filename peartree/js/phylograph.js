@@ -1521,6 +1521,27 @@ export class TreeCalibration {
   }
 
   /**
+   * Derive the appropriate minor-tick calendar interval from the major tick spacing.
+   * Always returns a named interval suitable for calendarTicksForInterval, or null
+   * if no useful sub-division exists (major ticks are already daily or finer).
+   * This ensures minor ticks are always at proper calendar boundaries and never
+   * finer than a natural sub-division of the major interval.
+   * @param {number[]} majorTicks
+   * @returns {string|null}
+   */
+  static derivedMinorInterval(majorTicks) {
+    if (!majorTicks || majorTicks.length < 2) return null;
+    const effectiveStep =
+      (majorTicks[majorTicks.length - 1] - majorTicks[0]) / (majorTicks.length - 1);
+    if (effectiveStep >= 999)  return 'centuries';
+    if (effectiveStep >= 99)   return 'decades';
+    if (effectiveStep >= 9.9)  return 'years';
+    if (effectiveStep >= 0.08) return 'months';
+    if (effectiveStep >= 0.018) return 'weeks';
+    return null; // daily or finer major — no useful minor subdivision
+  }
+
+  /**
    * Auto-select hierarchically consistent major AND minor calendar ticks in one call.
    *
    * The minor interval is derived from the effective major spacing so the two
