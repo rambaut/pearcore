@@ -242,6 +242,21 @@ export class RTTRenderer {
   // ─── Bounds & regression ──────────────────────────────────────────────────
 
   _computeBounds() {
+    // ── Homochronous: no date x values → histogram of divergence ──────────
+    if (this._points.length > 0 && !this._points.some(p => p.x != null)) {
+      let dMin = Infinity, dMax = -Infinity;
+      for (const p of this._points) {
+        if (p.y < dMin) dMin = p.y;
+        if (p.y > dMax) dMax = p.y;
+      }
+      if (!isFinite(dMin)) { dMin = 0; dMax = 1; }
+      const pad = Math.max((dMax - dMin) * 0.06, 1e-9);
+      this._xMin = Math.max(0, dMin - pad);
+      this._xMax = dMax + pad;
+      this._yMin = 0;
+      this._yMax = this._points.length; // refined in _render after bin compute
+      return;
+    }
     let xMin = Infinity, xMax = -Infinity, yMax = -Infinity;
     for (const p of this._points) {
       if (p.x != null) {
@@ -293,8 +308,20 @@ export class RTTRenderer {
     const rect = this._plotRect();
     if (rect.w < 30 || rect.h < 30) return;
 
-    const hasData = this._points.some(p => p.x != null);
-    if (!hasData) { this._drawEmptyState(ctx, W, H); return; }
+    if (this._points.length === 0) { this._drawEmptyState(ctx, W, H); return; }
+
+    // ── Homochronous: no tip dates → divergence histogram ─────────────────
+    if (!this._points.some(p => p.x != null)) {
+      const bins     = this._computeHistoBins(rect);
+      const maxCount = bins.reduce((m, b) => Math.max(m, b.total), 0);
+      this._yMax = Math.max(1, maxCount) + Math.max(maxCount * 0.08, 0.5);
+      this._yMin = 0;
+      this._drawGrid(ctx, rect);
+      this._drawHistoBars(ctx, rect, bins);
+      this._drawHistoAxes(ctx, rect);
+      this._drawHistoStatsBox(ctx, rect);
+      return;
+    }
 
     this._drawGrid(ctx, rect);
     this._drawAxes(ctx, rect);
@@ -337,7 +364,20 @@ export class RTTRenderer {
     const drawH = gl === 'both' || gl === 'horizontal';
     const drawV = gl === 'both' || gl === 'vertical';
     const { ticks: yTks }         = drawH ? this._yTicksInfo()       : { ticks: [] };
-    const { majorTicks: xMajTks } = drawV ? this._xTicksInfo(rect)   : { majorTicks: [] };
+    // In histogram mode, X axis uses _niceStep (not _niceYearStep) — match that here
+    const isHisto = this._points.length > 0 && !this._points.some(p => p.x != null);
+    let xMajTks;
+    if (!drawV) {
+      xMajTks = [];
+    } else if (isHisto) {
+      const xStep  = _niceStep(this._xMax - this._xMin);
+      const xStart = Math.ceil(this._xMin / xStep - 1e-9) * xStep;
+      xMajTks = [];
+      for (let v = xStart; v <= this._xMax + xStep * 0.001; v += xStep)
+        xMajTks.push(parseFloat(v.toPrecision(10)));
+    } else {
+      xMajTks = this._xTicksInfo(rect).majorTicks;
+    }
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.055)';
     ctx.lineWidth   = d;
@@ -730,6 +770,226 @@ export class RTTRenderer {
     ctx.textBaseline = 'middle';
     ctx.fillText('\u00d7', bx + boxW - closeSz / 2, by + closeSz / 2);
 
+    ctx.restore();
+  }
+
+  // ─── Histogram (homochronous mode) ────────────────────────────────────────
+
+  _computeHistoBins(rect) {
+    const d     = this._dpr;
+    const nBins = Math.max(5, Math.min(40, Math.round(rect.w / d / 20)));
+    const range = this._xMax - this._xMin;
+    const binW  = range / nBins;
+    const bins  = Array.from({ length: nBins }, (_, i) => ({
+      x0:      this._xMin + i * binW,
+      x1:      this._xMin + (i + 1) * binW,
+      total:   0,
+      colours: new Map(),
+      ids:     [],
+    }));
+    for (const p of this._points) {
+      if (p.y == null || !isFinite(p.y)) continue;
+      let bi = Math.floor((p.y - this._xMin) / binW);
+      bi = Math.max(0, Math.min(nBins - 1, bi));
+      bins[bi].total++;
+      bins[bi].ids.push(p.id);
+      bins[bi].colours.set(p.colour, (bins[bi].colours.get(p.colour) ?? 0) + 1);
+    }
+    return bins;
+  }
+
+  _drawHistoBars(ctx, rect, bins) {
+    const d      = this._dpr;
+    const tipC   = this.tipShapeColor;
+    const selIds = this._selectedTipIds;
+    const hovId  = this._hoveredTipId;
+    ctx.save();
+    for (const bin of bins) {
+      if (bin.total === 0) continue;
+      const barL   = Math.round(this._xToScreen(bin.x0, rect)) + 1;
+      const barR   = Math.round(this._xToScreen(bin.x1, rect)) - 1;
+      const barBot = rect.y + rect.h;
+      const barTop = Math.round(this._yToScreen(bin.total, rect));
+      const barW   = Math.max(1, barR - barL);
+      const barH   = Math.max(1, barBot - barTop);
+      const hasSelected = bin.ids.some(id => selIds.has(id));
+      const hasHovered  = hovId != null && bin.ids.includes(hovId);
+      if (bin.colours.size <= 1) {
+        const c = [...bin.colours.keys()][0];
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle   = c ?? tipC;
+        ctx.fillRect(barL, barTop, barW, barH);
+      } else {
+        let stackY = barBot;
+        for (const [c, count] of bin.colours) {
+          const segH = Math.max(1, Math.round(barH * count / bin.total));
+          ctx.globalAlpha = 0.75;
+          ctx.fillStyle   = c ?? tipC;
+          ctx.fillRect(barL, stackY - segH, barW, segH);
+          stackY -= segH;
+        }
+      }
+      if (hasHovered) {
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle   = 'rgba(255,255,255,1)';
+        ctx.fillRect(barL, barTop, barW, barH);
+      }
+      if (hasSelected) {
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = this.selectedTipStrokeColor;
+        ctx.lineWidth   = 1.5 * d;
+        ctx.strokeRect(barL + 0.5, barTop + 0.5, barW - 1, barH - 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  _drawHistoAxes(ctx, rect) {
+    const d     = this._dpr;
+    const axisC = this._colorWithAlpha(this.axisColor, 0.60);
+    const lblC  = this._colorWithAlpha(this.axisColor, 0.50);
+    const fsz   = Math.max(6, Math.round(this.axisFontSize * d));
+    const font  = `${fsz}px ${this.fontFamily}`;
+    const tc    = Math.round(4 * d);
+    // Use _niceStep for divergence X axis (better resolution than _niceYearStep)
+    const xRange = this._xMax - this._xMin;
+    const xStep  = _niceStep(xRange);
+    const xStart = Math.ceil(this._xMin / xStep - 1e-9) * xStep;
+    const xTks   = [];
+    for (let v = xStart; v <= this._xMax + xStep * 0.001; v += xStep)
+      xTks.push(parseFloat(v.toPrecision(10)));
+    const xDp = _stepDp(xStep);
+    const { ticks: yTks } = this._yTicksInfo();
+    ctx.save();
+    // Axis border lines
+    ctx.strokeStyle = axisC;
+    ctx.lineWidth   = this.axisLineWidth * d;
+    ctx.beginPath();
+    ctx.moveTo(rect.x, rect.y);           ctx.lineTo(rect.x, rect.y + rect.h);
+    ctx.moveTo(rect.x, rect.y + rect.h);  ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
+    ctx.stroke();
+    // Y axis — integer counts
+    ctx.font         = font;
+    ctx.fillStyle    = lblC;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign    = 'right';
+    for (const v of yTks) {
+      const iv = Math.round(v);
+      if (Math.abs(v - iv) > 0.01) continue;
+      const py = Math.round(this._yToScreen(v, rect));
+      if (py < rect.y - 2 || py > rect.y + rect.h + 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = axisC;
+      ctx.lineWidth   = this.axisLineWidth * d;
+      ctx.moveTo(rect.x - tc, py);  ctx.lineTo(rect.x, py);
+      ctx.stroke();
+      ctx.fillText(String(iv), rect.x - tc - Math.round(3 * d), py);
+    }
+    // Y axis title
+    ctx.save();
+    ctx.font         = `${Math.max(6, Math.round(this.axisFontSize * 0.9 * d))}px ${this.fontFamily}`;
+    ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.38);
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.translate(Math.round(8 * d), rect.y + rect.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Count', 0, 0);
+    ctx.restore();
+    // X axis — divergence ticks
+    const ty = rect.y + rect.h;
+    ctx.font         = font;
+    ctx.fillStyle    = lblC;
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'center';
+    for (const v of xTks) {
+      const px = Math.round(this._xToScreen(v, rect));
+      if (px < rect.x - 2 || px > rect.x + rect.w + 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = axisC;
+      ctx.lineWidth   = this.axisLineWidth * d;
+      ctx.moveTo(px, ty);  ctx.lineTo(px, ty + tc);
+      ctx.stroke();
+      ctx.fillText(v.toFixed(xDp), px, ty + tc + Math.round(2 * d));
+    }
+    // X axis title
+    ctx.font         = `${Math.max(6, Math.round(this.axisFontSize * 0.9 * d))}px ${this.fontFamily}`;
+    ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.38);
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Root-to-tip divergence',
+      rect.x + rect.w / 2,
+      ty + tc + fsz + Math.round(6 * d));
+    ctx.restore();
+  }
+
+  _drawHistoStatsBox(ctx, rect) {
+    if (!this.statsBoxVisible) return;
+    const n = this._points.length;
+    if (n === 0) return;
+    const vals = this._points.map(p => p.y).sort((a, b) => a - b);
+    const mean   = vals.reduce((s, v) => s + v, 0) / n;
+    const median = n % 2 === 0
+      ? (vals[n / 2 - 1] + vals[n / 2]) / 2
+      : vals[(n - 1) / 2];
+    const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
+    const sd = Math.sqrt(variance);
+    const fmt = v => parseFloat(v.toPrecision(4)).toString();
+    const d   = this._dpr;
+    const fsz = Math.max(9, Math.round(this.fontSize * 0.9 * d));
+    const lh  = Math.round(fsz * 1.6);
+    const pad = Math.round(7 * d);
+    const lines = [
+      ['n',       String(n)],
+      ['Mean',    fmt(mean)],
+      ['Median',  fmt(median)],
+      ['Std dev', fmt(sd)],
+      ['Min',     fmt(vals[0])],
+      ['Max',     fmt(vals[n - 1])],
+    ];
+    const boxW    = Math.round(148 * d);
+    const boxH    = lines.length * lh + pad;
+    const br      = Math.round(4 * d);
+    const margin  = Math.round(6 * d);
+    const closeSz = Math.round(14 * d);
+    let bx, by;
+    if (this._statsBoxDragActive && this._statsBoxDragCss) {
+      bx = Math.round(this._statsBoxDragCss.x * d);
+      by = Math.round(this._statsBoxDragCss.y * d);
+    } else {
+      const c = this.statsBoxCorner;
+      bx = (c === 'tl' || c === 'bl') ? rect.x + margin : rect.x + rect.w - boxW - margin;
+      by = (c === 'tl' || c === 'tr') ? rect.y + margin : rect.y + rect.h - boxH - margin;
+    }
+    this._lastStatsRect      = { x: bx, y: by, w: boxW, h: boxH };
+    this._lastStatsCloseRect = { x: bx + boxW - closeSz, y: by, w: closeSz, h: closeSz };
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle   = 'rgba(8,28,34,0.90)';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, boxW, boxH, br);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = this._colorWithAlpha(this.axisColor, 0.22);
+    ctx.lineWidth   = d;
+    ctx.stroke();
+    ctx.font = `${fsz}px ${this.fontFamily}`;
+    for (let i = 0; i < lines.length; i++) {
+      const ty = by + pad * 0.45 + i * lh + fsz * 0.55;
+      ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.50);
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(lines[i][0], bx + pad * 0.7, ty);
+      ctx.fillStyle    = 'rgba(242,241,230,0.90)';
+      ctx.textAlign    = 'right';
+      ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
+    }
+    const cfsz = Math.max(8, Math.round(11 * d));
+    ctx.font         = `bold ${cfsz}px ${this.fontFamily}`;
+    ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.55);
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u00d7', bx + boxW - closeSz / 2, by + closeSz / 2);
     ctx.restore();
   }
 
