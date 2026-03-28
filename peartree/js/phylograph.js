@@ -714,6 +714,30 @@ export function buildAnnotationSchema(nodes) {
       if ([...KNOWN_BRANCH_ANNOTATIONS].some(k => k.toLowerCase() === lowerName)) {
         def.isBranchAnnotation = true;
       }
+
+      // The annotation key 'date' should always be promoted to dataType 'date'
+      // when all values are recognisable date strings or plausible integer years,
+      // even when inferAnnotationType fell back to 'categorical' (year-only strings)
+      // or 'integer' (numeric years from NEXUS [&date=...] blocks).
+      // The user can still override the type in the annotation curator.
+      if (name === 'date' && def.dataType !== 'date') {
+        const strVals = values.map(v => String(v));
+        if (strVals.every(isDateString)) {
+          const distinct = [...new Set(strVals)].sort();
+          def.dataType = 'date';
+          def.values   = distinct;
+          def.min      = distinct[0];
+          def.max      = distinct[distinct.length - 1];
+          // Remove numeric-only properties that don't apply to date type.
+          delete def.observedMin;
+          delete def.observedMax;
+          delete def.observedRange;
+          delete def.fmt;
+          delete def.fmtValue;
+          delete def.fixedBounds;
+        }
+      }
+
       schema.set(name, def);
     }
   }

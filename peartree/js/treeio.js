@@ -113,7 +113,8 @@ export function parseNewick(newickString, tipNameMap = null) {
   if (level > 0) throw new Error("Unbalanced brackets in Newick string");
 
   // ── Post-process: parse pipe-delimited tip names for date annotations ────
-  const DATE_RE = /^\d{4}(?:-\d{2}(?:-\d{2})?)?$/;
+  const DATE_RE   = /^\d{4}(?:-\d{2}(?:-\d{2})?)?$/;
+  const CURRENT_YEAR = new Date().getFullYear();
   function annotateDates(root) {
     // Iterative DFS to avoid stack overflow on large/deep trees.
     const stack = [root];
@@ -123,8 +124,15 @@ export function parseNewick(newickString, tipNameMap = null) {
       if (isTip && node.name && node.name.includes('|')) {
         const parts = node.name.split('|');
         const last  = parts[parts.length - 1].trim();
-        if (DATE_RE.test(last) && !('date' in node.annotations)) {
-          node.annotations['date'] = last;
+        if (!('date' in node.annotations)) {
+          if (DATE_RE.test(last)) {
+            node.annotations['date'] = last;
+          } else {
+            const asInt = Number(last);
+            if (Number.isInteger(asInt) && asInt > 0 && asInt <= CURRENT_YEAR) {
+              node.annotations['date'] = String(asInt);
+            }
+          }
         }
       }
       if (node.children) {

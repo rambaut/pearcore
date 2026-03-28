@@ -345,6 +345,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
     const selProp   = currentType === 'proportion'  ? ' selected' : '';
     const selPerc   = currentType === 'percentage'  ? ' selected' : '';
     const selCat    = currentType === 'categorical' ? ' selected' : '';
+    const selDate   = currentType === 'date'        ? ' selected' : '';
     const chkAuto   = boundsMode === 'auto'   ? ' checked' : '';
     const chkNonneg = boundsMode === 'nonneg' ? ' checked' : '';
     const chkProb   = boundsMode === 'prob'   ? ' checked' : '';
@@ -369,6 +370,10 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
             + `<option value="proportion"${selProp}>Proportion [0–1] — fixed bounds</option>`
             + `<option value="percentage"${selPerc}>Percentage [0–100] — fixed bounds</option>`
             + `<option value="categorical"${selCat}>Categorical</option>`;
+    } else if (def.dataType === 'date') {
+      html += `<option value="date"${selDate}>Date</option>`
+            + `<option value="categorical"${selCat}>Categorical</option>`
+            + `<option value="integer"${selInt}>Integer — discrete</option>`;
     } else {
       html += `<option value="${esc(def.dataType)}" selected>${esc(def.dataType)}</option>`;
     }

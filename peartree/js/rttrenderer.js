@@ -355,16 +355,25 @@ export class RTTRenderer {
       const opts          = this.tickOptions ?? {};
       const majorInterval = opts.majorInterval || 'auto';
       const minorInterval = opts.minorInterval || 'off';
-      const majorTicks    = (majorInterval === 'auto')
-        ? TreeCalibration.niceCalendarTicks(this._xMin, this._xMax, targetMajor)
-        : TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, majorInterval);
-      let minorTicks = [];
-      if (minorInterval !== 'off') {
-        const allMinor = (minorInterval === 'auto')
-          ? TreeCalibration.niceCalendarTicks(this._xMin, this._xMax, targetMajor * 5)
-          : TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, minorInterval);
-        const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
-        minorTicks = allMinor.filter(t => !majorSet.has(t.toFixed(8)));
+      let majorTicks, minorTicks;
+      if (majorInterval === 'auto' && minorInterval === 'auto') {
+        // Use the paired helper so major and minor are on a consistent calendar
+        // hierarchy (e.g. yearly major → monthly minor).
+        const pair = TreeCalibration.autoCalendarTickPair(this._xMin, this._xMax, targetMajor);
+        majorTicks = pair.majorTicks;
+        minorTicks = pair.minorTicks;
+      } else {
+        majorTicks = (majorInterval === 'auto')
+          ? TreeCalibration.niceCalendarTicks(this._xMin, this._xMax, targetMajor)
+          : TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, majorInterval);
+        minorTicks = [];
+        if (minorInterval !== 'off') {
+          const allMinor = (minorInterval === 'auto')
+            ? TreeCalibration.niceCalendarTicks(this._xMin, this._xMax, targetMajor * 5)
+            : TreeCalibration.calendarTicksForInterval(this._xMin, this._xMax, minorInterval);
+          const majorSet = new Set(majorTicks.map(t => t.toFixed(8)));
+          minorTicks = allMinor.filter(t => !majorSet.has(t.toFixed(8)));
+        }
       }
       return { majorTicks, minorTicks, step: null, majorInterval };
     }
