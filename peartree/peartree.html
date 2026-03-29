@@ -390,18 +390,22 @@
     #btn-colour-native-open::-webkit-color-swatch-wrapper { padding: 2px; }
     #btn-colour-native-open::-webkit-color-swatch { border: none; border-radius: 2px; }
     /* Toolbar buttons: subtle fill so enabled buttons read as interactive */
-    .pt-toolbar .btn {
+    .pt-toolbar .btn,
+    #rtt-header .btn {
       background: var(--pt-surface);
       padding: 0.12rem 0.3rem;
       font-size: .90rem;
       line-height: 1.4;
     }
-    .pt-toolbar .btn:hover:not(:disabled) {
+    .pt-toolbar .btn:hover:not(:disabled),
+    #rtt-header .btn:hover:not(:disabled) {
       background: var(--pt-surface-focus);
     }
     /* Disabled toolbar buttons: strongly faded so the contrast with enabled is clear */
     .pt-toolbar .btn:disabled,
-    .pt-toolbar .btn[disabled] {
+    .pt-toolbar .btn[disabled],
+    #rtt-header .btn:disabled,
+    #rtt-header .btn[disabled] {
       opacity: 0.2;
       pointer-events: none;
     }
@@ -2095,7 +2099,8 @@
       <button id="rtt-btn-close" title="Close"><i class="bi bi-x-lg"></i></button>
       <button id="rtt-btn-pin"   title="Pin panel open"><i class="bi bi-pin-angle"></i></button>
       <span class="rtt-title"></span>
-      <button id="rtt-btn-download" title="Download RTT data as CSV"><i class="bi bi-download"></i></button>
+      <button id="rtt-btn-download" class="btn btn-sm btn-outline-info"    title="Download RTT data as CSV"><i class="bi bi-download"></i></button>
+      <button id="rtt-btn-image"    class="btn btn-sm btn-outline-warning" title="Export plot as image (SVG or PNG)"><i class="bi bi-image"></i></button>
       <button id="rtt-btn-stats" class="active" title="Show/hide statistics box"><i class="bi bi-info-circle"></i></button>
     </div>
     <canvas id="rtt-canvas"></canvas>
@@ -2311,6 +2316,20 @@
       <!-- Populated by JS -->
     </div>
     <div id="export-graphic-footer" class="pt-modal-footer"></div>
+  </div>
+</div>
+
+<!-- RTT Export Image Dialog -->
+<div id="rtt-image-overlay" class="pt-modal-overlay">
+  <div class="pt-modal">
+    <div class="pt-modal-header">
+      <h5 class="modal-title"><i class="bi bi-image me-2"></i>Export Plot Image</h5>
+      <button class="pt-modal-close-btn" id="rtt-image-close" title="Close">&times;</button>
+    </div>
+    <div class="pt-modal-body" id="rtt-image-body">
+      <!-- Populated by JS -->
+    </div>
+    <div id="rtt-image-footer" class="pt-modal-footer"></div>
   </div>
 </div>
 

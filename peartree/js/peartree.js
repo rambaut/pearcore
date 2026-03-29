@@ -5528,6 +5528,10 @@ async function fetchExampleTree() {
      *  Set to null to restore browser behaviour. */
     setGraphicsSaveHandler:  (fn) => { _graphicsSaveHandler = fn; },
 
+    /** Override the RTT plot image-export action for the current platform.
+     *  Same signature as setGraphicsSaveHandler. */
+    setRTTImageSaveHandler:  (fn) => { rttChart.setImageSaveHandler(fn); },
+
     /** Fetch a file by relative path, falling back to the absolute GitHub Pages
      *  URL if the relative fetch fails (e.g. file:// context). */
     fetchWithFallback,

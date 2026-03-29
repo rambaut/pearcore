@@ -99,6 +99,7 @@
   };
   app.setExportSaveHandler(_nativeSave);
   app.setGraphicsSaveHandler(_nativeSave);
+  app.setRTTImageSaveHandler(_nativeSave);
 
   // ── Native menu enabled-state sync ────────────────────────────────────────
   // Subscribe to state changes from the JS command registry. Rust sets the
