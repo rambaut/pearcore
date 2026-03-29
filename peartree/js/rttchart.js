@@ -11,6 +11,7 @@
 
 import { RTTRenderer }      from './rttrenderer.js';
 import { TreeCalibration }  from './phylograph.js';
+import { downloadBlob }     from './utils.js';
 
 /**
  * Create the Root-to-Tip panel controller.
@@ -29,6 +30,7 @@ import { TreeCalibration }  from './phylograph.js';
  * @param {Function} [opts.onCalibrationChange] – () called after calibration is recomputed
  * @param {Function} [opts.onClose]         – () called when closed
  * @param {Function} [opts.onPinChange]     – (pinned:boolean) called on pin toggle
+ * @param {Function} [opts.onStatsBoxCornerChange] – (corner:string) called when stats box is dragged to new corner
  */
 export function createRTTChart({
   panel,
@@ -48,6 +50,7 @@ export function createRTTChart({
   onCalibrationChange,
   onClose,
   onPinChange,
+  onStatsBoxCornerChange,
 }) {
   const rtt = new RTTRenderer(canvas);
 
@@ -55,9 +58,12 @@ export function createRTTChart({
   let _pinned = false;
 
   // ── Header buttons ─────────────────────────────────────────────────────────
-  const btnPin   = panel.querySelector('#rtt-btn-pin');
-  const btnClose = panel.querySelector('#rtt-btn-close');
-  const btnStats = panel.querySelector('#rtt-btn-stats');
+  const btnPin      = panel.querySelector('#rtt-btn-pin');
+  const btnClose    = panel.querySelector('#rtt-btn-close');
+  const btnStats    = panel.querySelector('#rtt-btn-stats');
+  const btnDownload = panel.querySelector('#rtt-btn-download');
+
+  btnDownload?.addEventListener('click', () => _downloadCSV());
 
   btnStats?.addEventListener('click', () => {
     rtt.statsBoxVisible = !rtt.statsBoxVisible;
@@ -68,6 +74,9 @@ export function createRTTChart({
   });
   rtt.onStatsBoxVisibleChange = (visible) => {
     btnStats?.classList.toggle('active', visible);
+  };
+  rtt.onStatsBoxCornerChange = (corner) => {
+    if (onStatsBoxCornerChange) onStatsBoxCornerChange(corner);
   };
 
   btnPin.addEventListener('click', () => {
@@ -82,6 +91,45 @@ export function createRTTChart({
     close();
     if (onClose) onClose();
   });
+
+  // ── CSV download ──────────────────────────────────────────────────────────
+
+  function _downloadCSV() {
+    const pts = _buildPoints();
+    const cal = getCalibration();
+    const fmt = getDateFormat();
+    const reg = cal?.regression;
+
+    const header = ['name', 'date', 'date (decimal year)', 'divergence', 'regression', 'residual'];
+    const rows = [header];
+
+    for (const pt of pts) {
+      const dateVal   = pt.x != null ? String(pt.x) : '';
+      const dateStr   = pt.x != null
+        ? (cal?.decYearToString(pt.x, 'full', fmt) ?? String(pt.x))
+        : '';
+      const divStr    = String(pt.y);
+      let   regStr    = '';
+      let   residStr  = '';
+      if (reg && pt.x != null) {
+        const predicted = reg.a * pt.x + reg.b;
+        regStr   = String(predicted);
+        residStr = String(pt.y - predicted);
+      }
+      rows.push([pt.name, dateStr, dateVal, divStr, regStr, residStr]);
+    }
+
+    const csvContent = rows.map(row =>
+      row.map(cell => {
+        const s = cell ?? '';
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+          ? '"' + s.replace(/"/g, '""') + '"'
+          : s;
+      }).join(',')
+    ).join('\n');
+
+    downloadBlob(csvContent, 'text/csv', 'root-to-tip.csv');
+  }
 
   // ── Resize-handle drag ─────────────────────────────────────────────────────
   const handle = panel.querySelector('#rtt-resize-handle');
@@ -268,6 +316,11 @@ export function createRTTChart({
   function open() {
     _open = true;
     panel.classList.add('open');
+    if (_pinned) {
+      panel.classList.add('pinned');
+      btnPin.classList.add('active');
+      if (onPinChange) onPinChange(true);
+    }
     // Resize + populate on the next frame (panel may not have laid out yet)
     requestAnimationFrame(() => {
       rtt._resize();
@@ -278,10 +331,10 @@ export function createRTTChart({
   function close() {
     _open = false;
     panel.classList.remove('open');
+    // Preserve _pinned so reopening the panel restores the pinned layout.
     if (_pinned) {
-      _pinned = false;
       panel.classList.remove('pinned');
-      if (btnPin) btnPin.classList.remove('active');
+      btnPin.classList.remove('active');
       if (onPinChange) onPinChange(false);
     }
   }
@@ -292,6 +345,40 @@ export function createRTTChart({
     close,
     isOpen:   () => _open,
     isPinned: () => _pinned,
+
+    /** Programmatically set the pin state (e.g. to restore from saved settings). */
+    setPin(pinned) {
+      _pinned = !!pinned;
+      btnPin.classList.toggle('active', _pinned);
+      // Only update the DOM layout if the panel is currently open.
+      if (_open) {
+        panel.classList.toggle('pinned', _pinned);
+        if (onPinChange) onPinChange(_pinned);
+        rtt._resize();
+      }
+    },
+
+    /**
+     * Close the panel on tree load — hides it visually but preserves the pin
+     * preference so re-opening restores the pinned layout.
+     */
+    closeForLoad() {
+      if (!_open) return;
+      _open = false;
+      panel.classList.remove('open');
+      // Remove pinned layout from the DOM without clearing the _pinned flag,
+      // so the next open() call will restore the pinned state.
+      if (_pinned) {
+        panel.classList.remove('pinned');
+        if (onPinChange) onPinChange(false);
+      }
+    },
+
+    /** Get/set the stats box corner ('tl'|'tr'|'bl'|'br'). */
+    getStatsBoxCorner: () => rtt.statsBoxCorner,
+    setStatsBoxCorner(corner) {
+      if (corner) { rtt.statsBoxCorner = corner; rtt._dirty = true; }
+    },
 
     /** Resize the canvas (call during window resize or panel-pin transitions). */
     resize() { rtt._resize(); },

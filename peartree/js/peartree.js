@@ -1,6 +1,6 @@
 import { parseNexus, parseNewick, graphToNewick, parseDelimited } from './treeio.js';
 import { computeLayoutFromGraph, graphVisibleTipCount, graphSubtreeHasHidden } from './treeutils.js';
-import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, temporalRootGraph, buildAnnotationSchema, injectBuiltinStats, isNumericType, TreeCalibration } from './phylograph.js';
+import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, temporalRootGraph, optimiseRootEdge, buildAnnotationSchema, injectBuiltinStats, isNumericType, TreeCalibration } from './phylograph.js';
 import { htmlEsc as _esc, downloadBlob as _downloadBlob } from './utils.js';
 import { TreeRenderer, CAL_DATE_KEY, CAL_DATE_HPD_KEY, CAL_DATE_HPD_ONLY_KEY } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
@@ -341,7 +341,6 @@ async function fetchExampleTree() {
   let graph              = null;  // PhyloGraph (adjacency-list model)
   let controlsBound      = false;
   let _cachedMidpoint      = null;  // cached midpointRootGraph() result; cleared on every tree change
-  let _cachedTemporalRoot  = null;  // cached temporalRootGraph() result; cleared on every tree change
   let isExplicitlyRooted = false; // true when root node carries annotations — rerooting disabled
   let _loadedFilename    = null;  // filename of the most recently loaded tree
   let _onTitleChange     = null;  // optional callback(filename|null) for platform title updates
@@ -658,6 +657,8 @@ async function fetchExampleTree() {
       nodeLabelSpacing:    nodeLabelSpacingSlider.value,
       nodeLabelDecimalPlaces: nodeLabelDpEl.value !== '' ? parseInt(nodeLabelDpEl.value) : null,
       mode:             renderer ? renderer._mode : 'nodes',
+      rttPinned:           rttChart?.isPinned() ?? false,
+      rttStatsBoxCorner:   rttChart?.getStatsBoxCorner() ?? 'tl',
     };
   }
 
@@ -2075,8 +2076,14 @@ async function fetchExampleTree() {
     onPinChange: (pinned) => {
       document.body.classList.toggle('rtt-pinned', pinned);
       _resizeDuringTransition();
+      saveSettings();
     },
+    onStatsBoxCornerChange: () => saveSettings(),
   });
+
+  // Restore persistent RTT UI state
+  if (_saved.rttPinned)         rttChart.setPin(true);
+  if (_saved.rttStatsBoxCorner) rttChart.setStatsBoxCorner(_saved.rttStatsBoxCorner);
 
   // Tree hover → RTT hover
   renderer._onHoverChange = id => rttChart.notifyHoverChange(id);
@@ -2703,6 +2710,12 @@ async function fetchExampleTree() {
     // Normalise Windows CRLF and old Mac CR line endings to LF so that all
     // downstream parsers (parseNexus, parseNewick) receive clean input.
     text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Close the RTT panel while the new tree loads (pin preference is preserved
+    // so re-opening the panel will restore the pinned state).
+    if (rttChart?.isOpen()) {
+      rttChart.closeForLoad();
+      btnRtt.classList.remove('active');
+    }
     setModalLoading(true);
     setModalError(null);
     _loadedFilename = filename || null;
@@ -4001,7 +4014,6 @@ async function fetchExampleTree() {
       rerootOnGraph(graph, childNodeId, distFromParent);
 
       _cachedMidpoint     = null;
-      _cachedTemporalRoot = null;
 
       if (currentOrder === 'asc')  reorderGraph(graph, true);
       if (currentOrder === 'desc') reorderGraph(graph, false);
@@ -4101,9 +4113,7 @@ async function fetchExampleTree() {
         }
         if (tipDates.size === 0) tipDates = null;
       }
-      if (!_cachedTemporalRoot) _cachedTemporalRoot = temporalRootGraph(graph, tipDates);
-      const { childNodeId, distFromParent } = _cachedTemporalRoot;
-      _cachedTemporalRoot = null;  // tree is about to change — old result is no longer valid
+      const { childNodeId, distFromParent } = optimiseRootEdge(graph, tipDates);
       applyReroot(childNodeId, distFromParent);
     }
 

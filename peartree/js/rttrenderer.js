@@ -125,7 +125,7 @@ export class RTTRenderer {
 
     // ── Stats box ──────────────────────────────────────────────────────────
     this.statsBoxVisible  = true;
-    this.statsBoxCorner   = 'tr';              // 'tl' | 'tr' | 'bl' | 'br'
+    this.statsBoxCorner   = 'tl';              // 'tl' | 'tr' | 'bl' | 'br'
     this._statsBoxDragActive = false;
     this._statsBoxDragOffset = null;           // {x,y} CSS-px offset: box-TL to mouse
     this._statsBoxDragCss    = null;           // {x,y} CSS-px box-TL position during drag
@@ -150,6 +150,7 @@ export class RTTRenderer {
     this.onSelectionChange       = null;  // (Set<id>) => void
     this.onHoverChange           = null;  // (id|null) => void
     this.onStatsBoxVisibleChange = null;  // (visible:boolean) => void
+    this.onStatsBoxCornerChange  = null;  // (corner:string) => void
 
     this._dirty = true;
     this._setupEvents();
@@ -713,7 +714,7 @@ export class RTTRenderer {
       lines.push(['Root date', rootLbl]);
     }
     lines.push(['R²',   reg.r2.toFixed(4)]);
-    lines.push(['RMSE', reg.rmse != null ? reg.rmse.toExponential(3) : '—']);
+    lines.push(['Res. mean sq.', reg.rms != null ? reg.rms.toExponential(3) : '—']);
     lines.push(['CV',   reg.cv.toFixed(4)]);
 
     const boxW    = Math.round(148 * d);
@@ -1176,6 +1177,7 @@ export class RTTRenderer {
           const midX     = (plotRect.x + plotRect.w / 2) / d;
           const midY     = (plotRect.y + plotRect.h / 2) / d;
           this.statsBoxCorner = (centerY < midY ? 't' : 'b') + (centerX < midX ? 'l' : 'r');
+          if (this.onStatsBoxCornerChange) this.onStatsBoxCornerChange(this.statsBoxCorner);
         }
         this._statsBoxDragActive = false;
         this._statsBoxDragCss    = null;
