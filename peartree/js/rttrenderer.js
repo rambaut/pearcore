@@ -712,8 +712,9 @@ export class RTTRenderer {
       const rootLbl = cal ? cal.decYearToString(reg.xInt, 'full', fmt) : reg.xInt.toFixed(3);
       lines.push(['Root date', rootLbl]);
     }
-    lines.push(['R²', reg.r2.toFixed(4)]);
-    lines.push(['CV',  reg.cv.toFixed(4)]);
+    lines.push(['R²',   reg.r2.toFixed(4)]);
+    lines.push(['RMSE', reg.rmse != null ? reg.rmse.toExponential(3) : '—']);
+    lines.push(['CV',   reg.cv.toFixed(4)]);
 
     const boxW    = Math.round(148 * d);
     const boxH    = lines.length * lh + pad;
@@ -940,12 +941,13 @@ export class RTTRenderer {
     const lh  = Math.round(fsz * 1.6);
     const pad = Math.round(7 * d);
     const lines = [
-      ['n',       String(n)],
-      ['Mean',    fmt(mean)],
-      ['Median',  fmt(median)],
-      ['Std dev', fmt(sd)],
-      ['Min',     fmt(vals[0])],
-      ['Max',     fmt(vals[n - 1])],
+      ['n',        String(n)],
+      ['Mean',     fmt(mean)],
+      ['Median',   fmt(median)],
+      ['Variance', parseFloat(variance.toPrecision(4)).toString()],
+      ['Std dev',  fmt(sd)],
+      ['Min',      fmt(vals[0])],
+      ['Max',      fmt(vals[n - 1])],
     ];
     const boxW    = Math.round(148 * d);
     const boxH    = lines.length * lh + pad;

@@ -77,6 +77,7 @@ _define({ id: 'tree-order-up',      label: 'Order Up',       shortcut: 'CmdOrCtr
 _define({ id: 'tree-order-down',    label: 'Order Down',     shortcut: 'CmdOrCtrl+D', group: 'tree', enabled: false, buttonId: 'btn-order-desc'          });
 _define({ id: 'tree-reroot',        label: 'Re-root Tree',   shortcut: null,          group: 'tree', enabled: false, buttonId: 'btn-reroot'              });
 _define({ id: 'tree-midpoint',      label: 'Midpoint Root',  shortcut: 'CmdOrCtrl+M', group: 'tree', enabled: false, buttonId: 'btn-midpoint-root'       });
+_define({ id: 'tree-temporal-root', label: 'Temporal Root',  shortcut: null,          group: 'tree', enabled: false, buttonId: 'btn-temporal-root'       });
 _define({ id: 'tree-hide',          label: 'Hide Nodes',     shortcut: null,          group: 'tree', enabled: false, buttonId: 'btn-hide'                });
 _define({ id: 'tree-show',          label: 'Show Nodes',     shortcut: null,          group: 'tree', enabled: false, buttonId: 'btn-show'                });
 _define({ id: 'tree-collapse-clade', label: 'Collapse Clade', shortcut: '⌘L',         group: 'tree', enabled: false, buttonId: 'btn-collapse-clade'      });

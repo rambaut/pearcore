@@ -999,22 +999,312 @@ export function reorderGraph(graph, ascending) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Midpoint root  – finds the branch bisecting the tree's diameter
+// Temporal root – finds the root that minimises RMSE (heterochronous) or
+//                 variance (homochronous) analytically on every branch
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Find the midpoint of the tree: the point on a branch that lies exactly
- * halfway along the longest tip-to-tip path (the diameter).
+ * Find the root position that minimises RMSE of a root-to-tip regression
+ * (heterochronous trees with tip dates) or minimises the variance of
+ * root-to-tip distances (homochronous / no tip dates).
  *
- * Uses two BFS passes over the undirected graph — O(n) time.
+ * For every branch the analytically optimal root position is computed in O(1)
+ * from per-subtree aggregate sums built by a single post-order traversal.
+ * The closed-form solution mirrors TemporalRooting.java → findAnalyticalLocalRoot.
  *
- * @param  {PhyloGraph} graph
+ * @param  {PhyloGraph}               graph
+ * @param  {Map<string,number>|null}  tipDates  origId → decimal year; null/empty = homochronous
  * @returns {{ childNodeId: string, distFromParent: number }}
- *   `childNodeId` is the origId of the "child" endpoint of the midpoint edge
- *   (the one whose adjacents[0] points toward the old root).
- *   `distFromParent` is the distance from the parent endpoint to the midpoint.
- *   Both values can be passed directly to applyReroot / rerootOnGraph.
  */
+export function temporalRootGraph(graph, tipDates) {
+  const { nodes, root } = graph;
+  const contemporaneous = !tipDates || tipDates.size === 0;
+
+  // ── Step 1: DFS from the virtual root to get root-to-tip distances ────────
+  const rootToTip = new Map();  // node idx → dist from virtual root
+  const tipIdxArr = [];
+
+  function dfs(curIdx, fromIdx, dist) {
+    const n = nodes[curIdx];
+    if (n.adjacents.length === 1) {
+      rootToTip.set(curIdx, dist);
+      tipIdxArr.push(curIdx);
+      return;
+    }
+    for (let i = 0; i < n.adjacents.length; i++) {
+      const adj = n.adjacents[i];
+      if (adj === fromIdx) continue;
+      dfs(adj, curIdx, dist + n.lengths[i]);
+    }
+  }
+  dfs(root.nodeA, root.nodeB, root.lenA);
+  dfs(root.nodeB, root.nodeA, root.lenB);
+
+  const N = tipIdxArr.length;
+  if (N < 2) {
+    return { childNodeId: nodes[root.nodeB].origId, distFromParent: root.lenB / 2 };
+  }
+
+  // per-tip y0 (root-to-tip distance) and t (decimal date)
+  const tipPos = new Map();
+  for (let i = 0; i < N; i++) tipPos.set(tipIdxArr[i], i);
+
+  const y0 = tipIdxArr.map(i => rootToTip.get(i));
+  const t  = contemporaneous
+    ? new Array(N).fill(0)
+    : tipIdxArr.map(i => {
+        const d = tipDates.get(nodes[i].origId);
+        return (d != null) ? d : 0;
+      });
+
+  // ── Step 2: global sums ───────────────────────────────────────────────────
+  let sum_t = 0, sum_y = 0, sum_tt = 0, sum_ty = 0, sum_yy = 0;
+  for (let i = 0; i < N; i++) {
+    sum_t  += t[i];
+    sum_y  += y0[i];
+    sum_tt += t[i] * t[i];
+    sum_ty += t[i] * y0[i];
+    sum_yy += y0[i] * y0[i];
+  }
+  const Nd     = N;
+  const t_bar  = sum_t / Nd;
+  // C = Σ(t-t_bar)²
+  const C      = sum_tt - sum_t * sum_t / Nd;
+
+  // ── Step 3: post-order subtree sums ──────────────────────────────────────
+  // For each node: aggregates over all tips in its subtree.
+  const sub_n  = new Int32Array(nodes.length);
+  const sub_t  = new Float64Array(nodes.length);
+  const sub_y  = new Float64Array(nodes.length);
+  const sub_ty = new Float64Array(nodes.length);
+  const sub_yy = new Float64Array(nodes.length);
+
+  function postOrder(curIdx, fromIdx) {
+    const n = nodes[curIdx];
+    if (n.adjacents.length === 1) {
+      const ai = tipPos.get(curIdx);
+      sub_n[curIdx]  = 1;
+      sub_t[curIdx]  = t[ai];
+      sub_y[curIdx]  = y0[ai];
+      sub_ty[curIdx] = t[ai] * y0[ai];
+      sub_yy[curIdx] = y0[ai] * y0[ai];
+      return;
+    }
+    sub_n[curIdx] = 0; sub_t[curIdx] = 0; sub_y[curIdx] = 0;
+    sub_ty[curIdx] = 0; sub_yy[curIdx] = 0;
+    for (let i = 0; i < n.adjacents.length; i++) {
+      const adj = n.adjacents[i];
+      if (adj === fromIdx) continue;
+      postOrder(adj, curIdx);
+      sub_n[curIdx]  += sub_n[adj];
+      sub_t[curIdx]  += sub_t[adj];
+      sub_y[curIdx]  += sub_y[adj];
+      sub_ty[curIdx] += sub_ty[adj];
+      sub_yy[curIdx] += sub_yy[adj];
+    }
+  }
+  postOrder(root.nodeA, root.nodeB);
+  postOrder(root.nodeB, root.nodeA);
+
+  // ── Step 4: evaluate every branch analytically ───────────────────────────
+  //
+  // For a branch with total length L between nodes P (parent) and B (child),
+  // place the root at distance d ∈ [0, L] from P toward B.
+  //
+  // Define node-relative distances:
+  //   dP[i] = dist(P → tip i)  = y0[i] - H_P  for all tips
+  //   dB[i] = dist(B → tip i)  = y0[i] - H_B  for all tips
+  // where H_P = rootToTip(P), H_B = rootToTip(B) = H_P + L (for non-root edges).
+  //
+  // Then: y_new[i] = dP[i] + d           for tips NOT in subtree(B)  [go through P]
+  //        y_new[i] = dB[i] + (L - d)    for tips IN subtree(B)      [go through B]
+  //
+  // This is independent of where the current virtual root is — only the
+  // node-to-tip distances matter.
+  //
+  // Let nd = number of B-side tips, N-nd = number of P-side tips.
+  //
+  // Key aggregate sums (all expressible from sub_* arrays + H_P):
+  //   Σ_B  dB[i]   = sub_y[B] - nd * H_B
+  //   Σ_B  t[i]    = sub_t[B]
+  //   Σ_B  t*dB[i] = sub_ty[B] - H_B * sub_t[B]
+  //   Σ_P  dP[i]   = (sum_y - sub_y[B]) - (N - nd) * H_P
+  //   Σ_P  t[i]    = sum_t - sub_t[B]
+  //   Σ_P  t*dP[i] = (sum_ty - sub_ty[B]) - H_P * (sum_t - sub_t[B])
+  //
+  // y_bar_new = [(Σ_P dP[i] + d*(N-nd)) + (Σ_B dB[i] + (L-d)*nd)] / N
+  //           = [Σ_P dP[i] + Σ_B dB[i] + d*(N-nd) - d*nd + L*nd] / N
+  //           = [Σ_P dP[i] + Σ_B dB[i] + L*nd] / N  +  d*(N - 2nd)/N
+  //
+  // Let M0 = [Σ_P dP[i] + Σ_B dB[i] + L*nd] / N   (y_bar_new at d=0)
+  // Let alpha = (N - 2*nd) / N
+  // y_bar_new = M0 + alpha * d
+  //
+  // Centred values v_new[i] = y_new[i] - y_bar_new:
+  //   P-side: v_new[i] = (dP[i] - M0) + d*(1 - alpha) = (dP[i] - M0) + d * 2*nd/N
+  //   B-side: v_new[i] = (dB[i] + L - M0) - d*(1 + alpha) = (dB[i] + L - M0) - d * 2*(N-nd)/N
+  //
+  // Heterochronous — minimise RMSE²:
+  //   Differentiate Σ(v_new[i] - â*(t[i]-t_bar))² with respect to d and set = 0.
+  //   Let u[i] = t[i] - t_bar.
+  //   ssxx = Σ u[i]² = C  (unchanged by rerooting)
+  //   ssxy_new = Σ u[i]*v_new[i]
+  //            = Σ_P u[i]*(dP[i]-M0) + d*(2nd/N)*Σ_P u[i]
+  //              + Σ_B u[i]*(dB[i]+L-M0) - d*(2(N-nd)/N)*Σ_B u[i]
+  //   Let A0 = Σ_P u[i]*(dP[i]-M0) + Σ_B u[i]*(dB[i]+L-M0)
+  //      (this is ssxy_new at d=0, which equals ssxy - 2*0*sum_cu = ssxy at virtual root,
+  //       but now expressed cleanly via dP/dB)
+  //   A1 = (2*nd/N)*Σ_P u[i] - (2(N-nd)/N)*Σ_B u[i]
+  //      = (2*nd/N)*(sum_t - sub_t[B] - (N-nd)*t_bar) - (2(N-nd)/N)*(sub_t[B] - nd*t_bar)
+  //   ssxy_new = A0 + A1*d
+  //   ssyy_new = Σ v_new[i]²   (quadratic in d)
+  //   RMSE² = (ssyy_new - ssxy_new²/C) / N
+  //   d RMSE²/dd = 0  →  closed-form d.
+  //
+  // Homochronous — minimise Var = ssyy_new / N:
+  //   d Var/dd = 0  →  d = -B1 / (2*B2)  where ssyy_new = B0 + B1*d + B2*d²
+  //
+  // Both cases use the same quadratic decomposition of ssyy_new:
+  //   ssyy_new = Σ_P (dP[i]-M0)² + Σ_B (dB[i]+L-M0)²
+  //              + 2d*(2nd/N)*Σ_P(dP[i]-M0) - 2d*(2(N-nd)/N)*Σ_B(dB[i]+L-M0)
+  //              + d² * [(2nd/N)²*(N-nd) + (2(N-nd)/N)²*nd]
+  //            = B0 + B1*d + B2*d²
+  //   B2 = (4*nd*(N-nd)/N²) * (nd + (N-nd)) = 4*nd*(N-nd)/N
+  //   B1 = 2*(2*nd/N)*Σ_P(dP[i]-M0) - 2*(2*(N-nd)/N)*Σ_B(dB[i]+L-M0)
+
+  let bestScore    = Infinity;
+  let bestChildId  = null;
+  let bestDist     = 0;
+
+  function evalBranch(childIdx, parentIdx) {
+    const childNode = nodes[childIdx];
+    const L = childNode.lengths[0];
+    if (!(L > 0)) return;
+
+    const nd = sub_n[childIdx];
+    if (nd === 0 || nd === N) return;
+
+    // Node-to-tip distance aggregates
+    const H_P = rootToTip.get(parentIdx) ?? 0;
+    const H_B = H_P + L;   // rootToTip(child) — same formula for root-edge and non-root
+
+    const sum_tB  = sub_t[childIdx];
+    const sum_yB  = sub_y[childIdx];      // Σ_B y0[i]
+    const sum_tyB = sub_ty[childIdx];     // Σ_B t[i]*y0[i]
+
+    const sum_tP   = sum_t  - sum_tB;
+    const sum_yP   = sum_y  - sum_yB;
+    const sum_tyP  = sum_ty - sum_tyB;
+
+    // Σ_B dB[i] = Σ_B (y0[i] - H_B)
+    const sum_dB = sum_yB - nd * H_B;
+    // Σ_P dP[i] = Σ_P (y0[i] - H_P)
+    const sum_dP = sum_yP - (Nd - nd) * H_P;
+
+    // M0 = y_bar at d=0 (root placed at node P)
+    const M0 = (sum_dP + sum_dB + L * nd) / Nd;
+
+    // B2 = 4*nd*(N-nd)/N   (coefficient of d² in ssyy_new)
+    const B2 = 4 * nd * (Nd - nd) / Nd;
+    if (!(B2 * L > 1e-20)) return;
+
+    // Centred-at-d=0 sums:
+    //   Σ_B (dB[i]+L-M0) and Σ_P (dP[i]-M0)
+    const sumV_B = sum_dB + L * nd - nd * M0;        // Σ_B (dB[i]+L-M0)
+    const sumV_P = sum_dP - (Nd - nd) * M0;          // Σ_P (dP[i]-M0)
+
+    // B1 = 2*(2nd/N)*sumV_P - 2*(2(N-nd)/N)*sumV_B
+    const B1 = 2 * (2 * nd / Nd) * sumV_P - 2 * (2 * (Nd - nd) / Nd) * sumV_B;
+
+    // B0 = ssyy_new at d=0:
+    // Σ_P (dP[i]-M0)² = Σ_P dP²[i] - 2*M0*sum_dP + (N-nd)*M0²
+    // Σ_B (dB[i]+L-M0)² = Σ_B (dB[i]+L)² - 2*M0*(sum_dB+L*nd) + nd*M0²
+    // We need Σ_P dP²[i] = Σ_P(y0-H_P)² and Σ_B(dB[i]+L)² = Σ_B y0²
+    // Use sub_yy: Σ_B y0² = sub_yy[child], Σ_P y0² = sum_yy - sub_yy[child]
+    const sum_yyB  = sub_yy[childIdx];
+    const sum_yyP  = sum_yy - sum_yyB;
+    // Σ_P dP²[i] = Σ_P(y0[i]-H_P)² = sum_yyP - 2*H_P*sum_yP + (N-nd)*H_P²
+    const sum_dP2  = sum_yyP - 2 * H_P * sum_yP + (Nd - nd) * H_P * H_P;
+    // Σ_B(dB[i]+L)² = Σ_B y0[i]² (since dB[i]+L = y0[i]-H_B+L = y0[i]-H_P)
+    //               = sum_yyB - 2*H_P*sum_yB + nd*H_P²
+    const sum_dBL2 = sum_yyB - 2 * H_P * sum_yB + nd * H_P * H_P;
+    const B0 = sum_dP2 - 2 * M0 * sum_dP + (Nd - nd) * M0 * M0
+             + sum_dBL2 - 2 * M0 * (sum_dB + L * nd) + nd * M0 * M0;
+
+    let d, score;
+
+    if (!contemporaneous && C > 1e-20) {
+      // ── Heterochronous ─────────────────────────────────────────────────
+      // ssxy_new = A0 + A1*d  (linear in d)
+      // Σ_B t[i]*dB[i] = sub_ty[B] - H_B*sub_t[B]
+      // Σ_P t[i]*dP[i] = sum_tyP - H_P*sum_tP
+      const sum_tdP = sum_tyP - H_P * sum_tP;
+      const sum_tdB = sum_tyB - H_B * sum_tB;
+
+      // A0 = Σ_P u[i]*(dP[i]-M0) + Σ_B u[i]*(dB[i]+L-M0)
+      //    = Σ_P t[i]*dP[i] - t_bar*sum_dP - M0*Σ_P u[i]
+      //      + Σ_B t[i]*(dB[i]+L) - t_bar*(sum_dB+L*nd) - M0*Σ_B u[i]
+      //    = (sum_tdP + sum_tdB + L*sum_tB)
+      //      - t_bar*(sum_dP + sum_dB + L*nd)
+      //      - M0*(sum_t - N*t_bar)         [Σu[i]=0]
+      //    = (sum_tdP + sum_tdB + L*sum_tB) - t_bar*Nd*M0
+      const A0 = (sum_tdP + sum_tdB + L * sum_tB) - t_bar * Nd * M0;
+
+      // A1 = (2*nd/N)*Σ_P u[i] - (2*(N-nd)/N)*Σ_B u[i]
+      //    = (2*nd/N)*(sum_tP - (N-nd)*t_bar) - (2*(N-nd)/N)*(sum_tB - nd*t_bar)
+      const A1 = (2 * nd / Nd) * (sum_tP - (Nd - nd) * t_bar)
+               - (2 * (Nd - nd) / Nd) * (sum_tB - nd * t_bar);
+
+      // RMSE² = (ssyy_new - ssxy_new²/C) / N
+      //       = (B0+B1*d+B2*d² - (A0+A1*d)²/C) / N
+      // d(RMSE²)/dd = 0:
+      //   B1 + 2*B2*d - 2*A1*(A0+A1*d)/C = 0
+      //   d*(2*B2 - 2*A1²/C) = -B1 + 2*A0*A1/C
+      //   d = (-B1 + 2*A0*A1/C) / (2*B2 - 2*A1²/C)
+      //     = (2*A0*A1/C - B1) / (2*(B2 - A1²/C))
+      const denom = 2 * (B2 - A1 * A1 / C);
+      if (!(Math.abs(denom) > 1e-20)) return;
+      d = (2 * A0 * A1 / C - B1) / denom;
+      d = Math.max(0, Math.min(L, d));
+
+      const ssxy_new = A0 + A1 * d;
+      const ssyy_new = B0 + B1 * d + B2 * d * d;
+      score = (ssyy_new - ssxy_new * ssxy_new / C) / Nd;
+    } else {
+      // ── Homochronous ───────────────────────────────────────────────────
+      // Var = ssyy_new/N = (B0 + B1*d + B2*d²)/N
+      // d Var/dd = 0  →  d = -B1 / (2*B2)
+      d = Math.max(0, Math.min(L, -B1 / (2 * B2)));
+
+      const ssyy_new = B0 + B1 * d + B2 * d * d;
+      score = ssyy_new / Nd;
+    }
+
+    if (score < bestScore) {
+      bestScore   = score;
+      bestChildId = childNode.origId;
+      bestDist    = d;
+    }
+  }
+
+  // Evaluate all non-root-adjacent branches
+  for (const node of nodes) {
+    if (node.idx === root.nodeA || node.idx === root.nodeB) continue;
+    evalBranch(node.idx, node.adjacents[0]);
+  }
+  // Evaluate the root edge — test only one orientation (nodeB as child of nodeA).
+  // Both orientations describe the same physical edge; the algebra above is
+  // expressed purely in terms of node-to-tip distances so the result is identical
+  // from either direction.  We pick nodeB-as-child so distFromParent measures
+  // from nodeA, which is what rerootOnGraph expects.
+  evalBranch(root.nodeB, root.nodeA);
+
+  if (bestChildId === null) {
+    return { childNodeId: nodes[root.nodeB].origId, distFromParent: root.lenB / 2 };
+  }
+  return { childNodeId: bestChildId, distFromParent: bestDist };
+}
+
 export function midpointRootGraph(graph) {
   const { nodes } = graph;
 
@@ -1114,7 +1404,7 @@ export class TreeCalibration {
     this._minTipH       = 0;
     this._active        = false;
     this._rate          = 1;
-    this._regression    = null;  // {a,b,xInt,r,r2,cv,n} or null
+    this._regression    = null;  // {a,b,xInt,r,r2,cv,rmse,n} or null
   }
 
   // ── Instance API ───────────────────────────────────────────────────────────
@@ -1221,7 +1511,7 @@ export class TreeCalibration {
    * Returns null when fewer than 2 dated points or the fit is degenerate.
    *
    * @param  {Array<{x:number, y:number}>} pts
-   * @returns {{a:number,b:number,xInt:number,r:number,r2:number,cv:number,n:number}|null}
+   * @returns {{a:number,b:number,xInt:number,r:number,r2:number,cv:number,rmse:number,n:number}|null}
    */
   static computeOLS(pts) {
     const valid = pts.filter(p => p.x != null && !Number.isNaN(p.x));
@@ -1241,7 +1531,7 @@ export class TreeCalibration {
     let sse = 0;
     for (const { x, y } of valid) { const res = y - (a * x + b); sse += res * res; }
     const rmse = Math.sqrt(sse / n);
-    return { a, b, xInt, r, r2: r * r, cv: yBar > 0 ? rmse / yBar : 0, n };
+    return { a, b, xInt, r, r2: r * r, cv: yBar > 0 ? rmse / yBar : 0, rmse, n };
   }
 
   /**

@@ -1,6 +1,6 @@
 import { parseNexus, parseNewick, graphToNewick, parseDelimited } from './treeio.js';
 import { computeLayoutFromGraph, graphVisibleTipCount, graphSubtreeHasHidden } from './treeutils.js';
-import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, buildAnnotationSchema, injectBuiltinStats, isNumericType, TreeCalibration } from './phylograph.js';
+import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, temporalRootGraph, buildAnnotationSchema, injectBuiltinStats, isNumericType, TreeCalibration } from './phylograph.js';
 import { htmlEsc as _esc, downloadBlob as _downloadBlob } from './utils.js';
 import { TreeRenderer, CAL_DATE_KEY, CAL_DATE_HPD_KEY, CAL_DATE_HPD_ONLY_KEY } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
@@ -187,6 +187,7 @@ async function fetchExampleTree() {
   const btnRtt                 = document.getElementById('btn-rtt');
   const btnExportTree          = document.getElementById('btn-export-tree');
   const btnMPR                 = document.getElementById('btn-midpoint-root');
+  const btnTemporalRoot        = document.getElementById('btn-temporal-root');
   // Hidden native <input type="color"> — value only, never shown directly
   const tipColourPickerEl            = document.getElementById('btn-node-colour');
   // Colour panel elements
@@ -339,7 +340,8 @@ async function fetchExampleTree() {
   // ── Tree state — declared early so hoisted async function loadTree() can access them ──
   let graph              = null;  // PhyloGraph (adjacency-list model)
   let controlsBound      = false;
-  let _cachedMidpoint    = null;  // cached midpointRootGraph() result; cleared on every tree change
+  let _cachedMidpoint      = null;  // cached midpointRootGraph() result; cleared on every tree change
+  let _cachedTemporalRoot  = null;  // cached temporalRootGraph() result; cleared on every tree change
   let isExplicitlyRooted = false; // true when root node carries annotations — rerooting disabled
   let _loadedFilename    = null;  // filename of the most recently loaded tree
   let _onTitleChange     = null;  // optional callback(filename|null) for platform title updates
@@ -2022,10 +2024,11 @@ async function fetchExampleTree() {
     getRenderer:     () => renderer,
     getCalibration:  () => calibration,
     getDateAnnotKey: () => {
-      // Prefer whichever annotation the user has selected in the Axis controls.
-      if (axisDateAnnotEl.value) return axisDateAnnotEl.value;
-      // Fall back to the first date-type (or decimal-year real/integer) annotation
-      // in the schema so the RTT plot is populated even before the axis is configured.
+      // When the Calibrate control is active (not disabled), honour the user's
+      // selection exactly — including an explicit "(none)" choice.
+      if (!axisDateAnnotEl.disabled) return axisDateAnnotEl.value || null;
+      // Control is disabled (no date annotations available yet) — fall back to a
+      // schema scan so the RTT plot populates as soon as annotations are loaded.
       const schema = renderer?._annotationSchema;
       if (!schema) return null;
       for (const [name, def] of schema) {
@@ -2511,7 +2514,7 @@ async function fetchExampleTree() {
   }
 
   /** Repopulate annotation dropdowns (tipColourBy, nodeColourBy, legendAnnotEl) after schema change. */
-  function _refreshAnnotationUIs(schema) {
+  function _refreshAnnotationUIs(schema, { autoSelectDate = true } = {}) {
     // Re-inject built-in geometric stats so they reflect the current tree and
     // calibration state.  This is idempotent — removes old entries first.
     if (renderer?.nodes?.length) {
@@ -2677,9 +2680,11 @@ async function fetchExampleTree() {
       // Restore the previous selection if it still exists; otherwise auto-select the
       // first available date annotation so the Calibrate control is never left blank
       // when date data has just been imported or parsed.
+      // autoSelectDate=false when called from the user-initiated change handler, so
+      // the user's explicit choice of "(none)" is preserved.
       const _prevStillOk = _prevDate &&
                            [...axisDateAnnotEl.options].some(o => o.value === _prevDate);
-      if (_hasDate && !_prevStillOk) {
+      if (_hasDate && !_prevStillOk && autoSelectDate) {
         axisDateAnnotEl.value = axisDateAnnotEl.options[1].value;
       } else {
         axisDateAnnotEl.value = _prevStillOk ? _prevDate : '';
@@ -2812,6 +2817,7 @@ async function fetchExampleTree() {
       document.getElementById('reroot-controls').classList.toggle('visible', !isExplicitlyRooted);
 
       commands.setEnabled('tree-midpoint', !isExplicitlyRooted);
+      commands.setEnabled('tree-temporal-root', !isExplicitlyRooted);
       commands.setEnabled('tree-reroot',   false); // re-enabled on selection by bindControls
 
       // Compute layout early so injectBuiltinStats() has maxX/maxY/node array
@@ -3994,7 +4000,8 @@ async function fetchExampleTree() {
       // Mutate graph in-place (O(depth) parent-pointer flips, no allocation).
       rerootOnGraph(graph, childNodeId, distFromParent);
 
-      _cachedMidpoint = null;
+      _cachedMidpoint     = null;
+      _cachedTemporalRoot = null;
 
       if (currentOrder === 'asc')  reorderGraph(graph, true);
       if (currentOrder === 'desc') reorderGraph(graph, false);
@@ -4057,11 +4064,50 @@ async function fetchExampleTree() {
       if (btnMPR.disabled) return;
       if (!_cachedMidpoint) _cachedMidpoint = midpointRootGraph(graph);
       const { childNodeId, distFromParent } = _cachedMidpoint;
-      _cachedMidpoint = null;  // tree is about to change — old result is no longer valid
+      _cachedMidpoint     = null;  // tree is about to change — old result is no longer valid
       applyReroot(childNodeId, distFromParent);
     }
 
     btnMPR.addEventListener('click', () => applyMidpointRoot());
+
+    function applyTemporalRoot() {
+      if (btnTemporalRoot.disabled) return;
+      // Get the date annotation key (same logic as getDateAnnotKey closure)
+      let dateKey = null;
+      if (!axisDateAnnotEl.disabled) {
+        dateKey = axisDateAnnotEl.value || null;
+      } else {
+        const schema = renderer?._annotationSchema;
+        if (schema) {
+          for (const [name, def] of schema) {
+            if (name.startsWith('__')) continue;
+            const isDate        = def.dataType === 'date';
+            const isDecimalYear = (def.dataType === 'real' || def.dataType === 'integer') &&
+                                   def.min >= 1000 && def.max <= 3000;
+            if (isDate || isDecimalYear) { dateKey = name; break; }
+          }
+        }
+      }
+      let tipDates = null;
+      if (dateKey && renderer && renderer.nodes) {
+        tipDates = new Map();
+        for (const node of renderer.nodes) {
+          if (!node.isTip) continue;
+          const raw = renderer._statValue(node, dateKey);
+          if (raw != null) {
+            const dec = TreeCalibration.parseDateToDecYear(String(raw));
+            if (dec != null) tipDates.set(node.origId, dec);
+          }
+        }
+        if (tipDates.size === 0) tipDates = null;
+      }
+      if (!_cachedTemporalRoot) _cachedTemporalRoot = temporalRootGraph(graph, tipDates);
+      const { childNodeId, distFromParent } = _cachedTemporalRoot;
+      _cachedTemporalRoot = null;  // tree is about to change — old result is no longer valid
+      applyReroot(childNodeId, distFromParent);
+    }
+
+    btnTemporalRoot.addEventListener('click', () => applyTemporalRoot());
 
     // ── Node Info (Cmd+I) ──────────────────────────────────────────────────
 
@@ -5230,7 +5276,8 @@ async function fetchExampleTree() {
     // clamp-row, _showDateTickRows, renderer.setCalibration, and the axis renderer.
     rttChart?.recomputeCalibration?.();
     // Repopulate label dropdowns to add/remove Calendar date options, then sync renderer.
-    _refreshAnnotationUIs(renderer?._annotationSchema ?? new Map());
+    // Pass autoSelectDate:false so the user's explicit choice of "(none)" is not overridden.
+    _refreshAnnotationUIs(renderer?._annotationSchema ?? new Map(), { autoSelectDate: false });
     if (renderer) renderer.setSettings(_buildRendererSettings());
     // If currently viewing a subtree, recompute its params using the new anchor.
     if (axisShowEl.value === 'time' && renderer._viewSubtreeRootId && renderer._onLayoutChange) {
