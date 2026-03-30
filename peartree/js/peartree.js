@@ -962,7 +962,7 @@ async function fetchExampleTree() {
     document.getElementById('rtt-axis-line-width-value').textContent = DEFAULT_SETTINGS.rttAxisLineWidth;
     rttDateFmtEl.value       = DEFAULT_SETTINGS.rttDateFormat;
     rttMajorIntervalEl.value = DEFAULT_SETTINGS.rttMajorInterval;
-    rttMinorIntervalEl.value = DEFAULT_SETTINGS.rttMinorInterval;
+    _updateRttMinorOptions(DEFAULT_SETTINGS.rttMajorInterval, DEFAULT_SETTINGS.rttMinorInterval);
     rttMajorLabelEl.value    = DEFAULT_SETTINGS.rttMajorLabelFormat;
     rttMinorLabelEl.value    = DEFAULT_SETTINGS.rttMinorLabelFormat;
     nodeBarsShowEl.value  = DEFAULT_SETTINGS.nodeBarsEnabled;
@@ -1451,7 +1451,7 @@ async function fetchExampleTree() {
   }
   if (_saved.rttDateFormat)       rttDateFmtEl.value       = _saved.rttDateFormat;
   if (_saved.rttMajorInterval)    rttMajorIntervalEl.value = _saved.rttMajorInterval;
-  if (_saved.rttMinorInterval)    rttMinorIntervalEl.value = _saved.rttMinorInterval;
+  _updateRttMinorOptions(rttMajorIntervalEl.value, _saved.rttMinorInterval || rttMinorIntervalEl.value);
   if (_saved.rttMajorLabelFormat) rttMajorLabelEl.value    = _saved.rttMajorLabelFormat;
   if (_saved.rttMinorLabelFormat) rttMinorLabelEl.value    = _saved.rttMinorLabelFormat;
 
@@ -2091,34 +2091,25 @@ async function fetchExampleTree() {
       }
       return null;
     },
-    getDateFormat:   () => {
-      const rttFmt = rttDateFmtEl.value;
-      return (rttFmt && rttFmt !== 'axis') ? rttFmt : (axisDateFmtEl.value || 'yyyy-MM-dd');
-    },
+    getDateFormat:   () => rttDateFmtEl.value || 'yyyy-MM-dd',
     getAxisColor:      () => rttAxisColorEl.value || axisColorEl.value,
     getAxisFontSize:   () => parseInt(rttAxisFontSizeSlider.value),
     getAxisFontFamily: () => rttAxisFontFamilyEl.value === 'theme'
                          ? _resolveTypeface(axisFontFamilyEl.value)
                          : _resolveTypeface(rttAxisFontFamilyEl.value),
     getAxisLineWidth:  () => parseFloat(rttAxisLineWidthSlider.value),
-    getTickOptions: () => {
-      const rttMaj = rttMajorIntervalEl.value;
-      const rttMin = rttMinorIntervalEl.value;
-      const rttMajLbl = rttMajorLabelEl.value;
-      const rttMinLbl = rttMinorLabelEl.value;
-      return {
-        majorInterval:    (rttMaj    && rttMaj    !== 'axis') ? rttMaj    : axisMajorIntervalEl.value,
-        minorInterval:    (rttMin    && rttMin    !== 'axis') ? rttMin    : axisMinorIntervalEl.value,
-        majorLabelFormat: (rttMajLbl && rttMajLbl !== 'axis') ? rttMajLbl : axisMajorLabelEl.value,
-        minorLabelFormat: (rttMinLbl && rttMinLbl !== 'axis') ? rttMinLbl : axisMinorLabelEl.value,
-      };
-    },
+    getTickOptions: () => ({
+      majorInterval:    rttMajorIntervalEl.value,
+      minorInterval:    rttMinorIntervalEl.value,
+      majorLabelFormat: rttMajorLabelEl.value,
+      minorLabelFormat: rttMinorLabelEl.value,
+    }),
     getIsTimedTree: () => _axisIsTimedTree,
     getShowRootAge: () => rttXOriginEl.value === 'root',
     getGridLines:   () => rttGridLinesEl.value,
     getAspectRatio: () => rttAspectRatioEl.value,
     onCalibrationChange: () => {
-      axisDateFmtRow.style.display = calibration.isActive ? 'flex' : 'none';
+      axisDateFmtRow.style.display = (calibration.isActive && axisShowEl.value === 'time') ? 'flex' : 'none';
       _updateTimeOption();
       const _hideClamp = _axisIsTimedTree || calibration.isActive;
       if (clampNegBranchesRowEl) clampNegBranchesRowEl.style.display = _hideClamp ? 'none' : '';
@@ -5171,6 +5162,7 @@ async function fetchExampleTree() {
       axisRenderer.setDirection(on ? val : 'forward');
     }
     axisRenderer.setVisible(on);
+    axisDateFmtRow.style.display = (val === 'time' && calibration.isActive) ? 'flex' : 'none';
     _showDateTickRows(calibration.isActive && !!axisDateAnnotEl.value);
     _showRttDateTickRows(calibration.isActive && !!axisDateAnnotEl.value);
     // Resize the tree canvas so it fills the remaining space above/below the axis.
@@ -5193,7 +5185,7 @@ async function fetchExampleTree() {
 
   function _updateMinorOptions(majorVal, keepVal) {
     const opts = {
-      auto:       [['auto','Auto'],['centuries','Centuries'],['decades','Decades'],['years','Years'],['months','Months'],['off','Off']],
+      auto:       [['auto','Auto'],['off','Off']],
       millennia:  [['auto','Auto'],['centuries','Centuries'],['decades','Decades'],['off','Off']],
       centuries:  [['auto','Auto'],['decades','Decades'],['years','Years'],['off','Off']],
       decades:    [['auto','Auto'],['years','Years'],['months','Months'],['off','Off']],
@@ -5344,7 +5336,7 @@ async function fetchExampleTree() {
   });
 
   function _showDateTickRows(visible) {
-    const d = visible ? 'flex' : 'none';
+    const d = (visible && axisShowEl.value === 'time') ? 'flex' : 'none';
     axisMajorIntervalRow.style.display  = d;
     axisMinorIntervalRow.style.display  = d;
     axisMajorLabelRow.style.display     = d;
@@ -5362,18 +5354,18 @@ async function fetchExampleTree() {
 
   function _updateRttMinorOptions(majorVal, keepVal) {
     const opts = {
-      millennia:  [['axis','Same as axis'],['auto','Auto'],['centuries','Centuries'],['decades','Decades'],['off','Off']],
-      centuries:  [['axis','Same as axis'],['auto','Auto'],['decades','Decades'],['years','Years'],['off','Off']],
-      decades:    [['axis','Same as axis'],['auto','Auto'],['years','Years'],['months','Months'],['off','Off']],
-      years:      [['axis','Same as axis'],['auto','Auto'],['quarters','Quarters'],['months','Months'],['weeks','Weeks'],['days','Days'],['off','Off']],
-      quarters:   [['axis','Same as axis'],['auto','Auto'],['months','Months'],['days','Days'],['off','Off']],
-      months:     [['axis','Same as axis'],['auto','Auto'],['weeks','Weeks'],['days','Days'],['off','Off']],
-      weeks:      [['axis','Same as axis'],['auto','Auto'],['days','Days'],['off','Off']],
-      days:       [['axis','Same as axis'],['off','Off']],
+      millennia:  [['auto','Auto'],['centuries','Centuries'],['decades','Decades'],['off','Off']],
+      centuries:  [['auto','Auto'],['decades','Decades'],['years','Years'],['off','Off']],
+      decades:    [['auto','Auto'],['years','Years'],['months','Months'],['off','Off']],
+      years:      [['auto','Auto'],['quarters','Quarters'],['months','Months'],['weeks','Weeks'],['days','Days'],['off','Off']],
+      quarters:   [['auto','Auto'],['months','Months'],['days','Days'],['off','Off']],
+      months:     [['auto','Auto'],['weeks','Weeks'],['days','Days'],['off','Off']],
+      weeks:      [['auto','Auto'],['days','Days'],['off','Off']],
+      days:       [['off','Off']],
     };
-    const list = majorVal === 'axis' || majorVal === 'auto'
-      ? [['axis','Same as axis'],['auto','Auto'],['off','Off']]
-      : (opts[majorVal] || [['axis','Same as axis'],['off','Off']]);
+    const list = majorVal === 'auto'
+      ? [['auto','Auto'],['off','Off']]
+      : (opts[majorVal] || [['off','Off']]);
     rttMinorIntervalEl.innerHTML = '';
     for (const [val, label] of list) {
       const opt = document.createElement('option');
@@ -5381,7 +5373,7 @@ async function fetchExampleTree() {
       opt.textContent = label;
       rttMinorIntervalEl.appendChild(opt);
     }
-    rttMinorIntervalEl.value = list.some(o => o[0] === keepVal) ? keepVal : 'axis';
+    rttMinorIntervalEl.value = list.some(o => o[0] === keepVal) ? keepVal : 'off';
   }
 
   axisMajorIntervalEl.addEventListener('change', () => {
