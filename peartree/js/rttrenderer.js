@@ -205,8 +205,11 @@ export class RTTRenderer {
     if (w < 1 || h < 1) return;
     this._canvas.width  = Math.round(w * dpr);
     this._canvas.height = Math.round(h * dpr);
-    this._dpr   = dpr;
-    this._dirty = true;
+    this._dpr = dpr;
+    // Setting canvas dimensions clears the bitmap immediately. Paint synchronously
+    // so the canvas is never blank — the rAF loop will skip the double-render
+    // because _dirty stays false after this.
+    this._render();
   }
 
   // ─── Coordinate helpers ────────────────────────────────────────────────────

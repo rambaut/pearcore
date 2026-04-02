@@ -815,6 +815,17 @@
     #rtt-panel.pinned #rtt-resize-handle { pointer-events: auto; }
     #rtt-resize-handle:hover,
     #rtt-resize-handle:active { background: var(--pt-resize-hover); }
+    /* Ghost divider shown during resize drag */
+    #rtt-resize-ghost {
+      display: none;
+      position: fixed;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: var(--pt-accent, #19A699);
+      opacity: 0.7;
+      z-index: 9999;
+      pointer-events: none;
+    }
     /* Panel header */
     #rtt-header {
       flex-shrink: 0;
@@ -2426,8 +2437,8 @@
         <select class="pt-palette-select" id="tip-label-align">
           <option value="off">Normal</option>
           <option value="aligned">Aligned</option>
-          <option value="dashed">Aligned + dashed</option>
           <option value="dots">Aligned + dots</option>
+          <option value="dashed">Aligned + dashed</option>
           <option value="solid">Aligned + solid</option>
         </select>
       </div>
@@ -3236,9 +3247,9 @@
       <div class="pt-palette-row">
         <span class="pt-palette-label">Reg. line</span>
         <select class="pt-palette-select" id="rtt-regression-style">
-          <option value="dash">Dash</option>
           <option value="solid">Solid</option>
           <option value="bigdash">Big dash</option>
+          <option value="dash">Dash</option>
           <option value="dots">Dots</option>
         </select>
       </div>

@@ -487,13 +487,22 @@ export function createRTTChart({
 
   // ── Resize-handle drag ─────────────────────────────────────────────────────
   const handle = panel.querySelector('#rtt-resize-handle');
-  let _drg = false, _drgX0 = 0, _drgW0 = 0, _rafId = null;
+
+  // Ghost line element — created once, appended to body.
+  const ghost = document.createElement('div');
+  ghost.id = 'rtt-resize-ghost';
+  document.body.appendChild(ghost);
+
+  let _drg = false, _drgX0 = 0, _drgW0 = 0;
 
   if (handle) {
     handle.addEventListener('mousedown', e => {
-      _drg  = true;
+      _drg   = true;
       _drgX0 = e.clientX;
       _drgW0 = panel.offsetWidth;
+      // Show ghost at the handle's current position.
+      ghost.style.left    = `${e.clientX}px`;
+      ghost.style.display = 'block';
       document.body.style.cursor = 'ew-resize';
       e.preventDefault();
     });
@@ -501,21 +510,33 @@ export function createRTTChart({
 
   window.addEventListener('mousemove', e => {
     if (!_drg) return;
-    const delta = _drgX0 - e.clientX;   // drag left → panel grows
+    const delta = _drgX0 - e.clientX;
     const newW  = Math.max(200, Math.min(900, _drgW0 + delta));
-    panel.style.width = `${newW}px`;
-    document.documentElement.style.setProperty('--rtt-panel-w', `${newW}px`);
-    if (_rafId === null) {
-      _rafId = requestAnimationFrame(() => {
-        _rafId = null;
-        rtt._resize();
-        getRenderer()?._resize?.();
-      });
-    }
+    // Position the ghost at what will become the panel's left edge.
+    const panelRight = panel.getBoundingClientRect().right;
+    ghost.style.left = `${panelRight - newW}px`;
   });
 
-  window.addEventListener('mouseup', () => {
-    if (_drg) { _drg = false; document.body.style.cursor = ''; }
+  window.addEventListener('mouseup', e => {
+    if (!_drg) return;
+    _drg = false;
+    ghost.style.display = 'none';
+    document.body.style.cursor = '';
+    // Commit the resize now that the drag is done.
+    const delta = _drgX0 - e.clientX;
+    const newW  = Math.max(200, Math.min(900, _drgW0 + delta));
+    // Suppress the CSS flex-basis transition so the layout snaps to the final
+    // width immediately. Without this, canvas.clientWidth returns the old
+    // (still-animating) size and the bitmap ends up CSS-stretched.
+    panel.style.transition = 'none';
+    panel.style.width = `${newW}px`;
+    document.documentElement.style.setProperty('--rtt-panel-w', `${newW}px`);
+    // Force a synchronous layout reflow so canvas.clientWidth reflects newW.
+    void panel.offsetWidth;
+    rtt._resize();
+    getRenderer()?._resize?.();
+    // Re-enable the transition on the next frame so future open/close animations work.
+    requestAnimationFrame(() => { panel.style.transition = ''; });
   });
 
   // ── Bidirectional selection sync ───────────────────────────────────────────
