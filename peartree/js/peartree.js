@@ -178,6 +178,9 @@ async function fetchExampleTree() {
   const rttAxisColorEl         = document.getElementById('rtt-axis-color');
   const rttStatsBgColorEl      = document.getElementById('rtt-stats-bg-color');
   const rttStatsTextColorEl    = document.getElementById('rtt-stats-text-color');
+  const rttRegressionStyleEl   = document.getElementById('rtt-regression-style');
+  const rttRegressionColorEl   = document.getElementById('rtt-regression-color');
+  const rttRegressionWidthSlider = document.getElementById('rtt-regression-width-slider');
   const rttAxisFontSizeSlider  = document.getElementById('rtt-axis-font-size-slider');
   const rttAxisFontFamilyEl    = document.getElementById('rtt-axis-font-family-select');
   const rttAxisLineWidthSlider = document.getElementById('rtt-axis-line-width-slider');
@@ -649,6 +652,9 @@ async function fetchExampleTree() {
       rttAxisColor:       rttAxisColorEl.value,
       rttStatsBgColor:    rttStatsBgColorEl.value,
       rttStatsTextColor:  rttStatsTextColorEl.value,
+      rttRegressionStyle: rttRegressionStyleEl.value,
+      rttRegressionColor: rttRegressionColorEl.value,
+      rttRegressionWidth: rttRegressionWidthSlider.value,
       rttAxisFontSize:    rttAxisFontSizeSlider.value,
       rttAxisFontFamily:  rttAxisFontFamilyEl.value,
       rttAxisLineWidth:   rttAxisLineWidthSlider.value,
@@ -961,6 +967,10 @@ async function fetchExampleTree() {
     rttAxisColorEl.value         = DEFAULT_SETTINGS.rttAxisColor;
     rttStatsBgColorEl.value      = DEFAULT_SETTINGS.rttStatsBgColor;
     rttStatsTextColorEl.value    = DEFAULT_SETTINGS.rttStatsTextColor;
+    rttRegressionStyleEl.value   = DEFAULT_SETTINGS.rttRegressionStyle;
+    rttRegressionColorEl.value   = DEFAULT_SETTINGS.rttRegressionColor;
+    rttRegressionWidthSlider.value = DEFAULT_SETTINGS.rttRegressionWidth;
+    document.getElementById('rtt-regression-width-value').textContent = DEFAULT_SETTINGS.rttRegressionWidth;
     rttAxisFontSizeSlider.value  = DEFAULT_SETTINGS.rttAxisFontSize;
     document.getElementById('rtt-axis-font-size-value').textContent = DEFAULT_SETTINGS.rttAxisFontSize;
     rttAxisFontFamilyEl.value    = DEFAULT_SETTINGS.rttAxisFontFamily;
@@ -1448,6 +1458,12 @@ async function fetchExampleTree() {
   if (_saved.rttAxisColor != null)     rttAxisColorEl.value          = _saved.rttAxisColor;
   if (_saved.rttStatsBgColor   != null) rttStatsBgColorEl.value       = _saved.rttStatsBgColor;
   if (_saved.rttStatsTextColor != null) rttStatsTextColorEl.value     = _saved.rttStatsTextColor;
+  if (_saved.rttRegressionStyle) rttRegressionStyleEl.value = _saved.rttRegressionStyle;
+  if (_saved.rttRegressionColor != null) rttRegressionColorEl.value = _saved.rttRegressionColor;
+  if (_saved.rttRegressionWidth != null) {
+    rttRegressionWidthSlider.value = _saved.rttRegressionWidth;
+    document.getElementById('rtt-regression-width-value').textContent = _saved.rttRegressionWidth;
+  }
   if (_saved.rttAxisFontSize != null) {
     rttAxisFontSizeSlider.value = _saved.rttAxisFontSize;
     document.getElementById('rtt-axis-font-size-value').textContent = _saved.rttAxisFontSize;
@@ -2103,6 +2119,9 @@ async function fetchExampleTree() {
     getAxisColor:      () => rttAxisColorEl.value || axisColorEl.value,
     getStatsBoxBgColor:    () => rttStatsBgColorEl.value,
     getStatsBoxTextColor:  () => rttStatsTextColorEl.value,
+    getRegressionStyle: () => rttRegressionStyleEl.value,
+    getRegressionColor: () => rttRegressionColorEl.value,
+    getRegressionWidth: () => parseFloat(rttRegressionWidthSlider.value),
     getAxisFontSize:   () => parseInt(rttAxisFontSizeSlider.value),
     getAxisFontFamily: () => rttAxisFontFamilyEl.value === 'theme'
                          ? _resolveTypeface(axisFontFamilyEl.value)
@@ -5283,6 +5302,19 @@ async function fetchExampleTree() {
     saveSettings();
   });
   rttStatsTextColorEl.addEventListener('input', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttRegressionStyleEl.addEventListener('change', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttRegressionColorEl.addEventListener('input', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttRegressionWidthSlider.addEventListener('input', () => {
+    document.getElementById('rtt-regression-width-value').textContent = rttRegressionWidthSlider.value;
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });

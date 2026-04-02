@@ -47,6 +47,9 @@ export function createRTTChart({
   getStatsBoxBgColor,
   getStatsBoxTextColor,
   getIsTimedTree,
+  getRegressionColor,
+  getRegressionWidth,
+  getRegressionStyle,
   getShowRootAge,
   getGridLines,
   getAspectRatio,
@@ -617,6 +620,10 @@ export function createRTTChart({
       // Stats box colours (from the RTT advanced palette section)
       statsBoxBgColor:   getStatsBoxBgColor?.()   ?? rtt.statsBoxBgColor,
       statsBoxTextColor: getStatsBoxTextColor?.()  ?? rtt.statsBoxTextColor,
+      // Regression line style
+      regressionColor: getRegressionColor?.() ?? rtt.regressionColor,
+      regressionWidth: getRegressionWidth?.() ?? rtt.regressionWidth,
+      regressionStyle: getRegressionStyle?.() ?? rtt.regressionStyle,
     });
     rtt.showRootAge   = getShowRootAge?.()  ?? false;
     rtt.gridLines     = getGridLines?.()    ?? 'both';

@@ -3233,6 +3233,24 @@
         <span class="pt-palette-label">Colour</span>
         <input type="color" class="pt-palette-color" id="rtt-axis-color" value="#f2f1e6" />
       </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Reg. line</span>
+        <select class="pt-palette-select" id="rtt-regression-style">
+          <option value="dash">Dash</option>
+          <option value="solid">Solid</option>
+          <option value="bigdash">Big dash</option>
+          <option value="dots">Dots</option>
+        </select>
+      </div>
+      <div class="pt-palette-row">
+        <span class="pt-palette-label">Reg. colour</span>
+        <input type="color" class="pt-palette-color" id="rtt-regression-color" value="#f2f1e6" />
+      </div>
+      <div class="pt-palette-row">
+        <i class="bi bi-distribute-horizontal form-label-sm" title="Regression line width"></i>
+        <input type="range" class="form-range" id="rtt-regression-width-slider" min="0.5" max="6" step="0.5" value="1.5" />
+        <span class="pt-val" id="rtt-regression-width-value">1.5</span>
+      </div>
       <div class="pt-palette-row pt-rtt-adv-row">
         <span class="pt-palette-label">Box bg</span>
         <input type="color" class="pt-palette-color" id="rtt-stats-bg-color" value="#081c22" />

@@ -84,6 +84,11 @@ export class RTTRenderer {
     // ── Stats box colours (theme-settable) ────────────────────────────────
     this.statsBoxBgColor       = '#081c22';
     this.statsBoxTextColor     = '#f2f1e6';
+    // ── Regression line style ─────────────────────────────────────────────
+    this.regressionColor       = '';           // '' → fallback to axisColor at 65%
+    this.regressionWidth       = 1.5;          // CSS px (scaled by dpr)
+    // 'solid' | 'bigdash' | 'dash' | 'dots'
+    this.regressionStyle       = 'dash';
     this.fontSize              = 11;
     this.fontFamily            = 'Inter, system-ui, sans-serif';
 
@@ -610,17 +615,32 @@ export class RTTRenderer {
   _drawRegression(ctx, rect) {
     const reg = this._calibration?.regression;
     if (!reg) return;
-    const d  = this._dpr;
-    const y1 = reg.a * this._xMin + reg.b;
-    const y2 = reg.a * this._xMax + reg.b;
+    const d   = this._dpr;
+    const y1  = reg.a * this._xMin + reg.b;
+    const y2  = reg.a * this._xMax + reg.b;
+
+    // Resolve colour: explicit setting, or fall back to axis colour at 65% alpha
+    const color = this.regressionColor
+      ? this.regressionColor
+      : this._colorWithAlpha(this.axisColor, 0.65);
+
+    // Resolve dash pattern
+    const u = d; // shorthand for one physical pixel
+    let dash;
+    switch (this.regressionStyle) {
+      case 'solid':   dash = [];                                         break;
+      case 'bigdash': dash = [Math.round(12 * u), Math.round(5 * u)];  break;
+      case 'dots':    dash = [Math.round(1.5 * u), Math.round(4 * u)]; break;
+      default:        dash = [Math.round(6 * u), Math.round(4 * u)];   break; // 'dash'
+    }
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
-    ctx.strokeStyle = this._colorWithAlpha(this.axisColor, 0.65);
-    ctx.lineWidth   = 1.5 * d;
-    ctx.setLineDash([Math.round(6 * d), Math.round(4 * d)]);
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = this.regressionWidth * d;
+    ctx.setLineDash(dash);
     ctx.beginPath();
     ctx.moveTo(this._xToScreen(this._xMin, rect), this._yToScreen(y1, rect));
     ctx.lineTo(this._xToScreen(this._xMax, rect), this._yToScreen(y2, rect));
