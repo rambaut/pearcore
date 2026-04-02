@@ -44,6 +44,8 @@ export function createRTTChart({
   getAxisFontFamily,
   getAxisLineWidth,
   getTickOptions,
+  getStatsBoxBgColor,
+  getStatsBoxTextColor,
   getIsTimedTree,
   getShowRootAge,
   getGridLines,
@@ -612,6 +614,9 @@ export function createRTTChart({
       axisFontSize: getAxisFontSize?.() ?? rtt.axisFontSize,
       fontFamily:   getAxisFontFamily?.() ?? rtt.fontFamily,
       axisLineWidth: getAxisLineWidth?.() ?? rtt.axisLineWidth,
+      // Stats box colours (from the RTT advanced palette section)
+      statsBoxBgColor:   getStatsBoxBgColor?.()   ?? rtt.statsBoxBgColor,
+      statsBoxTextColor: getStatsBoxTextColor?.()  ?? rtt.statsBoxTextColor,
     });
     rtt.showRootAge   = getShowRootAge?.()  ?? false;
     rtt.gridLines     = getGridLines?.()    ?? 'both';

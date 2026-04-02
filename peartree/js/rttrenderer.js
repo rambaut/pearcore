@@ -81,6 +81,9 @@ export class RTTRenderer {
     this.tipHaloSize           = 0;
     this.tipShapeBgColor       = 'rgba(2,41,46,0.9)';
     this.bgColor               = '#02292e';
+    // ── Stats box colours (theme-settable) ────────────────────────────────
+    this.statsBoxBgColor       = '#081c22';
+    this.statsBoxTextColor     = '#f2f1e6';
     this.fontSize              = 11;
     this.fontFamily            = 'Inter, system-ui, sans-serif';
 
@@ -755,13 +758,13 @@ export class RTTRenderer {
 
     ctx.save();
     // Box background
-    ctx.globalAlpha = 0.82;
-    ctx.fillStyle   = 'rgba(8,28,34,0.90)';
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle   = this.statsBoxBgColor;
     ctx.beginPath();
     ctx.roundRect(bx, by, boxW, boxH, br);
     ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = this._colorWithAlpha(this.axisColor, 0.22);
+    ctx.strokeStyle = this._colorWithAlpha(this.statsBoxTextColor, 0.22);
     ctx.lineWidth   = d;
     ctx.stroke();
 
@@ -769,11 +772,11 @@ export class RTTRenderer {
     ctx.font = `${fsz}px ${this.fontFamily}`;
     for (let i = 0; i < lines.length; i++) {
       const ty = by + pad * 0.45 + i * lh + fsz * 0.55;
-      ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.50);
+      ctx.fillStyle    = this._colorWithAlpha(this.statsBoxTextColor, 0.50);
       ctx.textAlign    = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(lines[i][0], bx + pad * 0.7, ty);
-      ctx.fillStyle = 'rgba(242,241,230,0.90)';
+      ctx.fillStyle = this._colorWithAlpha(this.statsBoxTextColor, 0.90);
       ctx.textAlign = 'right';
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }
@@ -971,23 +974,23 @@ export class RTTRenderer {
     }
     this._lastStatsRect = { x: bx, y: by, w: boxW, h: boxH };
     ctx.save();
-    ctx.globalAlpha = 0.82;
-    ctx.fillStyle   = 'rgba(8,28,34,0.90)';
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle   = this.statsBoxBgColor;
     ctx.beginPath();
     ctx.roundRect(bx, by, boxW, boxH, br);
     ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = this._colorWithAlpha(this.axisColor, 0.22);
+    ctx.strokeStyle = this._colorWithAlpha(this.statsBoxTextColor, 0.22);
     ctx.lineWidth   = d;
     ctx.stroke();
     ctx.font = `${fsz}px ${this.fontFamily}`;
     for (let i = 0; i < lines.length; i++) {
       const ty = by + pad * 0.45 + i * lh + fsz * 0.55;
-      ctx.fillStyle    = this._colorWithAlpha(this.axisColor, 0.50);
+      ctx.fillStyle    = this._colorWithAlpha(this.statsBoxTextColor, 0.50);
       ctx.textAlign    = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(lines[i][0], bx + pad * 0.7, ty);
-      ctx.fillStyle    = 'rgba(242,241,230,0.90)';
+      ctx.fillStyle    = this._colorWithAlpha(this.statsBoxTextColor, 0.90);
       ctx.textAlign    = 'right';
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }

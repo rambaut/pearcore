@@ -176,6 +176,8 @@ async function fetchExampleTree() {
   const rttGridLinesEl          = document.getElementById('rtt-grid-lines');
   const rttAspectRatioEl        = document.getElementById('rtt-aspect-ratio');
   const rttAxisColorEl         = document.getElementById('rtt-axis-color');
+  const rttStatsBgColorEl      = document.getElementById('rtt-stats-bg-color');
+  const rttStatsTextColorEl    = document.getElementById('rtt-stats-text-color');
   const rttAxisFontSizeSlider  = document.getElementById('rtt-axis-font-size-slider');
   const rttAxisFontFamilyEl    = document.getElementById('rtt-axis-font-family-select');
   const rttAxisLineWidthSlider = document.getElementById('rtt-axis-line-width-slider');
@@ -645,6 +647,8 @@ async function fetchExampleTree() {
       rttGridLines:       rttGridLinesEl.value,
       rttAspectRatio:     rttAspectRatioEl.value,
       rttAxisColor:       rttAxisColorEl.value,
+      rttStatsBgColor:    rttStatsBgColorEl.value,
+      rttStatsTextColor:  rttStatsTextColorEl.value,
       rttAxisFontSize:    rttAxisFontSizeSlider.value,
       rttAxisFontFamily:  rttAxisFontFamilyEl.value,
       rttAxisLineWidth:   rttAxisLineWidthSlider.value,
@@ -955,6 +959,8 @@ async function fetchExampleTree() {
     document.getElementById('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
     axisFontFamilyEl.value = DEFAULT_SETTINGS.axisFontFamily;
     rttAxisColorEl.value         = DEFAULT_SETTINGS.rttAxisColor;
+    rttStatsBgColorEl.value      = DEFAULT_SETTINGS.rttStatsBgColor;
+    rttStatsTextColorEl.value    = DEFAULT_SETTINGS.rttStatsTextColor;
     rttAxisFontSizeSlider.value  = DEFAULT_SETTINGS.rttAxisFontSize;
     document.getElementById('rtt-axis-font-size-value').textContent = DEFAULT_SETTINGS.rttAxisFontSize;
     rttAxisFontFamilyEl.value    = DEFAULT_SETTINGS.rttAxisFontFamily;
@@ -1440,6 +1446,8 @@ async function fetchExampleTree() {
   if (_saved.rttGridLines)  rttGridLinesEl.value  = _saved.rttGridLines;
   if (_saved.rttAspectRatio) rttAspectRatioEl.value = _saved.rttAspectRatio;
   if (_saved.rttAxisColor != null)     rttAxisColorEl.value          = _saved.rttAxisColor;
+  if (_saved.rttStatsBgColor   != null) rttStatsBgColorEl.value       = _saved.rttStatsBgColor;
+  if (_saved.rttStatsTextColor != null) rttStatsTextColorEl.value     = _saved.rttStatsTextColor;
   if (_saved.rttAxisFontSize != null) {
     rttAxisFontSizeSlider.value = _saved.rttAxisFontSize;
     document.getElementById('rtt-axis-font-size-value').textContent = _saved.rttAxisFontSize;
@@ -2093,6 +2101,8 @@ async function fetchExampleTree() {
     },
     getDateFormat:   () => rttDateFmtEl.value || 'yyyy-MM-dd',
     getAxisColor:      () => rttAxisColorEl.value || axisColorEl.value,
+    getStatsBoxBgColor:    () => rttStatsBgColorEl.value,
+    getStatsBoxTextColor:  () => rttStatsTextColorEl.value,
     getAxisFontSize:   () => parseInt(rttAxisFontSizeSlider.value),
     getAxisFontFamily: () => rttAxisFontFamilyEl.value === 'theme'
                          ? _resolveTypeface(axisFontFamilyEl.value)
@@ -5265,6 +5275,14 @@ async function fetchExampleTree() {
   });
 
   rttAxisColorEl.addEventListener('input', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttStatsBgColorEl.addEventListener('input', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttStatsTextColorEl.addEventListener('input', () => {
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });

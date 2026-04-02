@@ -57,6 +57,8 @@ export const DEFAULT_SETTINGS = {
   axisFontFamily:   'theme',
   axisLineWidth:    '1',
   rttAxisColor:     '',
+  rttStatsBgColor:   '#081c22',
+  rttStatsTextColor: '#f2f1e6',
   rttAxisFontSize:  '9',
   rttAxisFontFamily: 'theme',
   rttAxisLineWidth:  '1',

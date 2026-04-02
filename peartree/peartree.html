@@ -1208,6 +1208,8 @@
     }
     #selection-hover-section { display: none; }
     #palette-panel.advanced #selection-hover-section { display: block; }
+    .pt-rtt-adv-row { display: none; }
+    #palette-panel.advanced .pt-rtt-adv-row { display: flex; }
     #palette-panel-header {
       display: flex;
       align-items: center;
@@ -3230,6 +3232,14 @@
       <div class="pt-palette-row">
         <span class="pt-palette-label">Colour</span>
         <input type="color" class="pt-palette-color" id="rtt-axis-color" value="#f2f1e6" />
+      </div>
+      <div class="pt-palette-row pt-rtt-adv-row">
+        <span class="pt-palette-label">Box bg</span>
+        <input type="color" class="pt-palette-color" id="rtt-stats-bg-color" value="#081c22" />
+      </div>
+      <div class="pt-palette-row pt-rtt-adv-row">
+        <span class="pt-palette-label">Box text</span>
+        <input type="color" class="pt-palette-color" id="rtt-stats-text-color" value="#f2f1e6" />
       </div>
       <div class="pt-palette-row">
         <i class="bi bi-fonts form-label-sm"></i>
