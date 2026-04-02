@@ -1228,6 +1228,11 @@ async function fetchExampleTree() {
     const legendColor = t.legendTextColor || t.labelColor;
     legendTextColorEl.value = legendColor;
     fontFamilyEl.value = t.fontFamily ?? DEFAULT_SETTINGS.fontFamily;
+    // RTT plot colours — only override if the theme defines them
+    if (t.rttAxisColor)       rttAxisColorEl.value       = t.rttAxisColor;
+    if (t.rttStatsBgColor)    rttStatsBgColorEl.value    = t.rttStatsBgColor;
+    if (t.rttStatsTextColor)  rttStatsTextColorEl.value  = t.rttStatsTextColor;
+    if (t.rttRegressionColor) rttRegressionColorEl.value = t.rttRegressionColor;
     if (renderer) {
       renderer.setSettings(_buildRendererSettings());
       if (t.axisColor) axisRenderer.setColor(t.axisColor);

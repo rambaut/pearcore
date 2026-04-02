@@ -53,6 +53,11 @@ export const THEMES = {
           tipHoverFillColor:            '#f5a700',
           nodeHoverStrokeColor:         '#f5a700',
           nodeHoverFillColor:           '#f5a700',
+          // RTT plot colours
+          rttAxisColor:       '#302f29',
+          rttStatsBgColor:    '#e8e8e4',
+          rttStatsTextColor:  '#302f29',
+          rttRegressionColor: '#302f29',
       },
       "Artic": {
           canvasBgColor:    '#02292e',
@@ -73,6 +78,11 @@ export const THEMES = {
           axisColor:        '#f7eeca',
           legendTextColor:  '#f7eeca',
           nodeBarsColor:    '#E06961',
+          // RTT plot colours
+          rttAxisColor:       '#f7eeca',
+          rttStatsBgColor:    '#011a1f',
+          rttStatsTextColor:  '#f7eeca',
+          rttRegressionColor: '#19A699',
       },
       "BEAST": {
           canvasBgColor:    '#02292e',
@@ -96,6 +106,11 @@ export const THEMES = {
           selectedTipStrokeColor:   '#FFF4A9',
           selectedNodeFillColor:   '#B1CBB8',
           selectedNodeStrokeColor:       '#B1CBB8',
+          // RTT plot colours
+          rttAxisColor:       '#B1CBB8',
+          rttStatsBgColor:    '#011a1e',
+          rttStatsTextColor:  '#B1CBB8',
+          rttRegressionColor: '#68a3bb',
       },
       // // Warm pastels: Grand Budapest Hotel / Moonrise Kingdom palette
       // "Wes": {
@@ -133,6 +148,11 @@ export const THEMES = {
           axisColor:        '#edd59c',
           legendTextColor:  '#edd59c',
           nodeBarsColor:    '#7dbfcc',
+          // RTT plot colours
+          rttAxisColor:       '#edd59c',
+          rttStatsBgColor:    '#121c24',
+          rttStatsTextColor:  '#edd59c',
+          rttRegressionColor: '#7dbfcc',
       },
       // Royal Tenenbaums: aged plaster, forest green, burgundy, tennis-ball gold
       "Tenenbaums": {
@@ -153,6 +173,11 @@ export const THEMES = {
           axisColor:        '#2b4a2a',
           legendTextColor:  '#2b4a2a',
           nodeBarsColor:    '#a01830',
+          // RTT plot colours
+          rttAxisColor:       '#2b4a2a',
+          rttStatsBgColor:    '#d8cfbf',
+          rttStatsTextColor:  '#1c3220',
+          rttRegressionColor: '#2b4a2a',
       },
       // Fantastic Mr Fox: night earth, fox orange, rust, harvest green
       "Mr Fox": {
@@ -173,6 +198,11 @@ export const THEMES = {
           axisColor:        '#f0c060',
           legendTextColor:  '#f0c060',
           nodeBarsColor:    '#508a28',
+          // RTT plot colours
+          rttAxisColor:       '#f0c060',
+          rttStatsBgColor:    '#0e0800',
+          rttStatsTextColor:  '#f0c060',
+          rttRegressionColor: '#e87830',
       },
       // The Darjeeling Limited: warm cream, saffron, cerulean, rust
       "Darjeeling": {
@@ -193,6 +223,11 @@ export const THEMES = {
           axisColor:        '#3a2010',
           legendTextColor:  '#3a2010',
           nodeBarsColor:    '#1a5878',
+          // RTT plot colours
+          rttAxisColor:       '#3a2010',
+          rttStatsBgColor:    '#e8d8c0',
+          rttStatsTextColor:  '#3a2010',
+          rttRegressionColor: '#c87010',
       },
       // // Mid Century Modern – Birch: warm white, teak, avocado, harvest gold
       // "MCM Birch": {
@@ -271,6 +306,11 @@ export const THEMES = {
           tipHoverStrokeColor:     '#7f3e4d',
           nodeHoverFillColor:  '#263b3f',
           nodeHoverStrokeColor:    '#263b3f',
+          // RTT plot colours
+          rttAxisColor:       '#7984BC',
+          rttStatsBgColor:    '#dddcdb',
+          rttStatsTextColor:  '#7984BC',
+          rttRegressionColor: '#88B2BA',
       },
 };
 
