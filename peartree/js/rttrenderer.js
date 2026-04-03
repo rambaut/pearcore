@@ -11,7 +11,7 @@
 
 import { TreeCalibration } from './phylograph.js';
 import { overlapsZones }   from './utils.js';
-import { buildFont, TYPEFACES } from './themes.js';
+import { buildFont, TYPEFACES } from './typefaces.js';
 
 // ─── Tick helpers ─────────────────────────────────────────────────────────────
 

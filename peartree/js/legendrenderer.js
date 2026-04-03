@@ -21,7 +21,7 @@ import { getSequentialPalette,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE,
          MISSING_DATA_COLOUR, buildCategoricalColourMap } from './palettes.js';
 import { dateToDecimalYear, isNumericType } from './phylograph.js';
-import { buildFont, TYPEFACES } from './themes.js';
+import { buildFont, TYPEFACES } from './typefaces.js';
 
 export class LegendRenderer {
   /**

@@ -5,7 +5,8 @@ import { htmlEsc as _esc, downloadBlob as _downloadBlob } from './utils.js';
 import { TreeRenderer, CAL_DATE_KEY, CAL_DATE_HPD_KEY, CAL_DATE_HPD_ONLY_KEY } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
-import { THEMES, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY, TYPEFACES, buildFont, resolveLegacyTypeface } from './themes.js';
+import { THEMES, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY } from './themes.js';
+import { TYPEFACES, buildFont } from './typefaces.js';
 import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';

@@ -7,7 +7,7 @@ import { dateToDecimalYear, isNumericType, TreeCalibration } from './phylograph.
 import { getSequentialPalette, lerpSequential,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE,
          MISSING_DATA_COLOUR, buildCategoricalColourMap } from './palettes.js';
-import { buildFont, TYPEFACES } from './themes.js';
+import { buildFont, TYPEFACES } from './typefaces.js';
 
 // Sentinel annotation keys for calendar-date synthetic node/tip labels.
 // peartree.js imports these to populate the label dropdowns.

@@ -1,6 +1,6 @@
 import { TreeCalibration } from './phylograph.js';
 import { overlapsZones }   from './utils.js';
-import { buildFont, TYPEFACES } from './themes.js';
+import { buildFont, TYPEFACES } from './typefaces.js';
 
 /**
  * AxisRenderer — draws an x-axis below the tree canvas.
