@@ -625,7 +625,7 @@ async function fetchExampleTree() {
     if (!axisRenderer) return;
     const key = axisFontFamilyEl?.value || 'theme';
     const effectiveKey = (key === 'theme') ? fontFamilyEl.value : key;
-    const style = axisTypefaceStyleEl?.value || '';
+    const style = axisTypefaceStyleEl?.value || fontTypefaceStyleEl?.value || '';
     axisRenderer.setTypeface(effectiveKey, style || null);
   }
 
@@ -634,7 +634,7 @@ async function fetchExampleTree() {
     if (!legendRenderer) return;
     const key = legendFontFamilyEl?.value || 'theme';
     const effectiveKey = (key === 'theme') ? fontFamilyEl.value : key;
-    const style = legendTypefaceStyleEl?.value || '';
+    const style = legendTypefaceStyleEl?.value || fontTypefaceStyleEl?.value || '';
     legendRenderer.setTypeface(effectiveKey, style || null);
     if (typeof legend2Renderer !== 'undefined' && legend2Renderer) {
       legend2Renderer.setTypeface(effectiveKey, style || null);
@@ -648,7 +648,7 @@ async function fetchExampleTree() {
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
       fontSize:         fontSlider.value,
-      fontFamily:       fontFamilyEl.value,
+      typeface:         fontFamilyEl.value,
       typefaceStyle:    fontTypefaceStyleEl?.value || '',
       tipLabelTypefaceKey:         tipLabelTypefaceEl?.value  || '',
       tipLabelTypefaceStyle:       typefaceStyleEl?.value     || '',
@@ -795,7 +795,7 @@ async function fetchExampleTree() {
       fontSlider.value = s.fontSize;
       document.getElementById('font-size-value').textContent = s.fontSize;
     }
-    if (s.fontFamily)            fontFamilyEl.value       = s.fontFamily;
+    if (s.typeface)              fontFamilyEl.value       = s.typeface;
     if (fontTypefaceStyleEl) {
       _populateStyleSelect(fontFamilyEl.value, fontTypefaceStyleEl, s.typefaceStyle);
     }
@@ -1258,7 +1258,6 @@ async function fetchExampleTree() {
       collapsedCladeTypefaceKey:   collapsedCladeTypefaceEl?.value   || null,
       collapsedCladeTypefaceStyle: collapsedCladeTypefaceStyleEl?.value || null,
       clampNegativeBranches: clampNegBranchesEl.value === 'on',
-      fontFamily:         TYPEFACES[fontFamilyEl.value]?.family ?? fontFamilyEl.value,
       typefaceKey:        fontFamilyEl.value,
       typefaceStyle:      fontTypefaceStyleEl?.value || TYPEFACES[fontFamilyEl.value]?.defaultStyle || 'Regular',
       tipLabelsOff:       tipLabelShow.value === 'off',
@@ -1372,7 +1371,7 @@ async function fetchExampleTree() {
     // legendTextColor falls back to labelColor for themes that don't define it explicitly.
     const legendColor = t.legendTextColor || t.labelColor;
     legendTextColorEl.value = legendColor;
-    fontFamilyEl.value = t.fontFamily ?? DEFAULT_SETTINGS.fontFamily;
+    fontFamilyEl.value = t.typeface ?? DEFAULT_SETTINGS.typeface;
     // Populate typeface style selects for the new theme
     const _themeStyle = t.typefaceStyle ?? TYPEFACES[fontFamilyEl.value]?.defaultStyle ?? 'Regular';
     _populateStyleSelect(fontFamilyEl.value, fontTypefaceStyleEl, _themeStyle);
@@ -1440,7 +1439,7 @@ async function fetchExampleTree() {
     fontSlider.value = _saved.fontSize;
     document.getElementById('font-size-value').textContent = _saved.fontSize;
   }
-  if (_saved.fontFamily)           fontFamilyEl.value       = _saved.fontFamily;
+  if (_saved.typeface)             fontFamilyEl.value       = _saved.typeface;
   _populateStyleSelect(fontFamilyEl.value, fontTypefaceStyleEl, _saved.typefaceStyle);
   if (_saved.tipLabelTypefaceKey && tipLabelTypefaceEl) tipLabelTypefaceEl.value = _saved.tipLabelTypefaceKey;
   _populateStyleSelect(tipLabelTypefaceEl?.value || fontFamilyEl.value, typefaceStyleEl, _saved.tipLabelTypefaceStyle, true);
@@ -2303,7 +2302,7 @@ async function fetchExampleTree() {
     getAxisFontFamily: () => {
       const rttKey = rttAxisFontFamilyEl.value === 'theme' ? axisFontFamilyEl.value : rttAxisFontFamilyEl.value;
       const effectiveKey = rttKey === 'theme' ? fontFamilyEl.value : rttKey;
-      const style = rttAxisTypefaceStyleEl?.value || axisTypefaceStyleEl?.value || '';
+      const style = rttAxisTypefaceStyleEl?.value || axisTypefaceStyleEl?.value || fontTypefaceStyleEl?.value || '';
       if (style && TYPEFACES[effectiveKey]) return buildFont(effectiveKey, style, parseInt(rttAxisFontSizeSlider.value));
       return _resolveTypeface(rttKey);
     },

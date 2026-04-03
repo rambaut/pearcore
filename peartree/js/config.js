@@ -7,7 +7,7 @@ export const PEARTREE_BASE_URL = 'http://peartree.live/';
 
 export const DEFAULT_SETTINGS = {
   theme:            'Artic',
-  fontFamily:       'Monospace',
+  typeface:         'Monospace',
   typefaceStyle:    'Regular',
   canvasBgColor:    '#ffffff',
   branchColor:      '#444444',

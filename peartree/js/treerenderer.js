@@ -186,8 +186,8 @@ export class TreeRenderer {
     this.branchColor       = s.branchColor;
     this.branchWidth       = s.branchWidth;
     this.fontSize          = s.fontSize;
-    this.fontFamily        = s.fontFamily        ?? 'monospace';
     this._typefaceKey      = s.typefaceKey      ?? 'Monospace';
+    this.fontFamily        = TYPEFACES[this._typefaceKey]?.family ?? this._typefaceKey ?? 'monospace';
     this._typefaceStyle    = s.typefaceStyle    ?? (TYPEFACES[this._typefaceKey]?.defaultStyle ?? 'Regular');
     this._tipLabelTypefaceKey   = s.tipLabelTypefaceKey   ?? null;  // null = follow main typeface
     this._tipLabelTypefaceStyle = s.tipLabelTypefaceStyle ?? null;
