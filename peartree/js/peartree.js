@@ -39,6 +39,60 @@ async function fetchExampleTree() {
 }
 
 (async () => {
+  // ── Embed configuration ───────────────────────────────────────────────────
+  // Supports window.peartreeConfig (same-page / iframe embedding) and URL
+  // search params as a lower-priority alternative.  window.peartreeConfig
+  // properties always win over URL params.
+  //
+  // window.peartreeConfig shape (all optional):
+  //   ui: {
+  //     palette:   boolean  — show/hide the Settings sidebar toggle button
+  //     rtt:       boolean  — show/hide the RTT panel button + panel
+  //     dataTable: boolean  — show/hide the Data Table panel button + panel
+  //     import:    boolean  — show/hide Open Tree + Import Annotations buttons
+  //     export:    boolean  — show/hide Export Tree + Export Graphic buttons
+  //     statusBar: boolean  — show/hide the status bar
+  //   }
+  //   settings: { …settingsOverrides }  — merged on top of stored/default settings
+  //   storageKey: string | null         — null = no localStorage persistence;
+  //                                       string = custom key (default: SETTINGS_KEY)
+  //
+  // Equivalent URL parameters (value of '0' hides; anything else shows):
+  //   palette=0, rtt=0, dt=0, import=0, export=0, statusbar=0
+  //   nostore=1             — same as storageKey: null
+  //   storageKey=my-key     — custom storage key
+  const _cfg = (() => {
+    const _p  = new URLSearchParams(window.location.search);
+    const _wc = window.peartreeConfig || {};
+    const _ui = _wc.ui || {};
+    /** Resolve a boolean flag: explicit window.peartreeConfig value > URL param > default (true). */
+    const _flag = (uiVal, param) => uiVal !== undefined ? Boolean(uiVal) : _p.get(param) !== '0';
+    const _sk = _wc.storageKey !== undefined
+      ? _wc.storageKey
+      : _p.get('storageKey') ?? (_p.get('nostore') === '1' ? null : SETTINGS_KEY);
+    return {
+      showPalette:   _flag(_ui.palette,   'palette'),
+      showRTT:       _flag(_ui.rtt,       'rtt'),
+      showDataTable: _flag(_ui.dataTable, 'dt'),
+      showImport:    _flag(_ui.import,    'import'),
+      showExport:    _flag(_ui.export,    'export'),
+      showStatusBar: _flag(_ui.statusBar, 'statusbar'),
+      storageKey:    _sk,
+      initSettings:  _wc.settings || {},
+    };
+  })();
+  // Apply UI restrictions immediately so hidden elements never flash visible.
+  if (!_cfg.showPalette)   document.getElementById('btn-palette')        ?.classList.add('d-none');
+  if (!_cfg.showRTT)     { document.getElementById('btn-rtt')            ?.classList.add('d-none');
+                           document.getElementById('rtt-panel')          ?.classList.add('d-none'); }
+  if (!_cfg.showDataTable){ document.getElementById('btn-data-table')    ?.classList.add('d-none');
+                            document.getElementById('data-table-panel')  ?.classList.add('d-none'); }
+  if (!_cfg.showImport)  { document.getElementById('btn-open-tree')      ?.classList.add('d-none');
+                           document.getElementById('btn-import-annot')   ?.classList.add('d-none'); }
+  if (!_cfg.showExport)  { document.getElementById('btn-export-tree')    ?.classList.add('d-none');
+                           document.getElementById('btn-export-graphic') ?.classList.add('d-none'); }
+  if (!_cfg.showStatusBar) document.getElementById('status-bar')          ?.classList.add('d-none');
+
   const canvas            = document.getElementById('tree-canvas');
   const loadingEl         = document.getElementById('loading');
   const canvasBgColorEl   = document.getElementById('canvas-bg-color');
@@ -572,7 +626,8 @@ async function fetchExampleTree() {
 
 
   function loadSettings() {
-    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); }
+    if (_cfg.storageKey === null) return {};
+    try { return JSON.parse(localStorage.getItem(_cfg.storageKey) || '{}'); }
     catch { return {}; }
   }
 
@@ -609,7 +664,8 @@ async function fetchExampleTree() {
   }
 
   function saveSettings() {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(_buildSettingsSnapshot()));
+    if (_cfg.storageKey === null) return;
+    localStorage.setItem(_cfg.storageKey, JSON.stringify(_buildSettingsSnapshot()));
   }
 
   /**
@@ -1417,8 +1473,9 @@ async function fetchExampleTree() {
   _populateThemeSelect();
   _syncThemeButtons();
 
-  // Load stored settings and immediately hydrate the visual DOM controls.
-  const _saved = loadSettings();
+  // Load stored settings, then merge any embed-time initSettings on top so
+  // window.peartreeConfig.settings always wins over persisted values.
+  const _saved = Object.assign(loadSettings(), _cfg.initSettings);
   // Restore per-annotation palette choices.
   if (_saved.annotationPalettes) {
     for (const [k, v] of Object.entries(_saved.annotationPalettes)) annotationPalettes.set(k, v);
@@ -6003,7 +6060,70 @@ async function fetchExampleTree() {
     /** Register a callback invoked whenever the loaded filename changes.
      *  fn(filename: string|null) — used by platform adapters to update native window titles. */
     onTitleChange: (fn) => { _onTitleChange = fn; },
+
+    // ── Embedding API ───────────────────────────────────────────────────────
+
+    /**
+     * Return the active embed configuration (resolved from window.peartreeConfig
+     * and/or URL params at startup).  Read-only snapshot.
+     */
+    get embedConfig() { return { ..._cfg }; },
+
+    /**
+     * Return a snapshot of the current visual settings in the same format
+     * accepted by window.peartreeConfig.settings.
+     * Useful for capturing state from an embedding page or for debugging.
+     * @returns {object}
+     */
+    getSettings: () => _buildSettingsSnapshot(),
+
+    /**
+     * Apply a named built-in or user theme by name.
+     * Same effect as the user selecting a theme from the theme drop-down.
+     * @param {string} name  e.g. 'Artic', 'Dark', 'Custom'
+     */
+    applyTheme: (name) => _applyTheme(name),
+
+    /**
+     * Programmatically show or hide a panel and its associated toolbar button.
+     * Takes effect immediately; if hiding an open panel it is also closed.
+     * @param {'rtt'|'dataTable'|'palette'} panel
+     * @param {boolean} visible
+     */
+    setPanelVisible(panel, visible) {
+      if (panel === 'rtt') {
+        document.getElementById('btn-rtt')  ?.classList.toggle('d-none', !visible);
+        document.getElementById('rtt-panel')?.classList.toggle('d-none', !visible);
+        if (!visible) rttChart?.close?.();
+      } else if (panel === 'dataTable') {
+        document.getElementById('btn-data-table')  ?.classList.toggle('d-none', !visible);
+        document.getElementById('data-table-panel')?.classList.toggle('d-none', !visible);
+        if (!visible) dataTableRenderer?.close?.();
+      } else if (panel === 'palette') {
+        document.getElementById('btn-palette')?.classList.toggle('d-none', !visible);
+      }
+    },
   };
+
+  // ── postMessage API (iframe embedding) ────────────────────────────────────
+  // Accepts messages from the parent page to load trees or apply themes.
+  // Validates that the message originates from the same origin or a trusted
+  // same-site parent to mitigate cross-origin injection.
+  window.addEventListener('message', (e) => {
+    // Only accept structured objects; ignore string blobs.
+    if (!e.data || typeof e.data !== 'object') return;
+    // Reject messages from unknown cross-origin frames (allows same-origin and null for file://).
+    if (e.origin !== window.location.origin && e.origin !== 'null' && e.origin !== '') return;
+    try {
+      const msg = e.data;
+      if (msg.type === 'pt:loadTree' && typeof msg.text === 'string') {
+        window.peartree.loadTree(msg.text, typeof msg.filename === 'string' ? msg.filename : 'tree');
+      } else if (msg.type === 'pt:applyTheme' && typeof msg.name === 'string') {
+        _applyTheme(msg.name);
+      }
+    } catch (_) { /* never propagate errors back to caller */ }
+  });
+
 
   // ── URL parameter: auto-load treeUrl on startup ───────────────────────────
   // When the page URL contains a `treeUrl` query parameter, automatically

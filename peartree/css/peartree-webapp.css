@@ -1,0 +1,328 @@
+/*
+ * peartree-webapp.css — styles for the full-page standalone web app.
+ * Included by peartree.html alongside peartree.css.
+ * Not needed when PearTree is embedded directly in a report page
+ * (use peartree-embed.css instead).
+ */
+
+/* ── Layout ── */
+html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+/* Prevents white flash before CSS/JS loads — matches the default canvas bg */
+html { background: var(--pt-bg-deepest); }
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pt-bg-deepest);
+  color: var(--pt-off-white);
+  font-family: var(--bs-body-font-family);
+  font-size: 14px;
+}
+
+/* ── Data table panel ─────────────────────────────────────────────── */
+/* Overlay mode (default): slides in from the right over the canvas  */
+#data-table-panel {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 300px;              /* JS sets computed content width        */
+  background: var(--pt-bg-panel);
+  border-left: 1px solid var(--pt-divider-panel);
+  z-index: 10;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  cursor: default;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1),
+              box-shadow  0.22s cubic-bezier(.4,0,.2,1);
+}
+#data-table-panel.open {
+  transform: translateX(0);
+  box-shadow: -4px 0 20px var(--pt-shadow-panel);
+}
+/* Pinned: join the flex flow so the canvas-container shrinks to make room */
+#data-table-panel.pinned {
+  position: relative;
+  flex: 0 0 var(--dt-panel-w, 300px);
+  transform: none !important;
+  transition: flex-basis 0.22s cubic-bezier(.4,0,.2,1);
+  box-shadow: none;
+  z-index: auto;
+}
+
+/* ── Frozen number column (left strip) ── */
+#dt-num-col {
+  flex: none;
+  width: var(--dt-num-w, 36px);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--pt-divider);
+  background: inherit;
+  z-index: 2;
+  flex-shrink: 0;
+}
+/* Number-column header: holds pin + close buttons */
+#dt-num-header {
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-bottom: 1px solid var(--pt-divider);
+}
+#dt-btn-pin, #dt-btn-close {
+  background: none;
+  border: none;
+  color: var(--pt-off-white);
+  padding: 2px 4px;
+  line-height: 1;
+  font-size: 0.82rem;
+  border-radius: 3px;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+#dt-btn-pin:hover,
+#dt-btn-close:hover { background: var(--pt-surface-hover); opacity: 1; }
+#dt-btn-pin.active  { color: var(--pt-gold, #b5890a); opacity: 1; }
+/* Number cells inside the frozen strip */
+#dt-num-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.dt-num-cell {
+  position: absolute;
+  left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+  font-size: var(--dt-font-size, 0.72rem);
+  font-family: var(--dt-cell-font-family, monospace);
+  color: var(--pt-text-dim);
+  border-bottom: 1px solid var(--pt-divider-micro);
+  cursor: pointer;
+  user-select: none;
+}
+.dt-num-cell.dt-row-selected { background: var(--pt-selection-bg); color: var(--pt-text-icon-hover); }
+.dt-num-cell:not(.dt-row-selected):hover { background: var(--pt-surface-row); }
+
+/* ── Scrollable data area (header + rows scroll together horizontally) ── */
+#dt-scroll-area {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+#dt-scroll-area::-webkit-scrollbar       { height: 5px; }
+#dt-scroll-area::-webkit-scrollbar-track { background: var(--pt-scrollbar-track); }
+#dt-scroll-area::-webkit-scrollbar-thumb { background: var(--pt-scrollbar-thumb); border-radius: 3px; }
+
+/* Column-name header row */
+.dt-header {
+  flex-shrink: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  background: inherit;
+  border-bottom: 1px solid var(--pt-divider);
+  pointer-events: none;
+}
+.dt-header-name {
+  flex: none;
+  padding: 0 5px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pt-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dt-header-cell {
+  flex: none;
+  min-width: 48px;
+  padding: 0 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pt-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Body: absolutely-placed rows; min-width drives the h-scroll bar */
+.dt-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Each tip row */
+.dt-row {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--pt-divider-micro);
+  cursor: pointer;
+}
+.dt-row:not(.dt-row-selected):hover { background: var(--pt-surface-row); }
+
+/* Selected row highlight */
+.dt-row-selected { background: var(--pt-selection-bg) !important; }
+.dt-row-selected .dt-name-cell { color: var(--pt-text-bright) !important; }
+.dt-row-selected .dt-cell input[type="text"] { color: var(--pt-text-bright); }
+
+/* Tip-name column */
+.dt-name-cell {
+  flex: none;
+  padding: 0 5px;
+  font-size: var(--dt-font-size, 0.72rem);
+  color: var(--pt-text-subdued);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--pt-divider-micro);
+  cursor: pointer;
+}
+
+/* Data-value columns */
+.dt-cell {
+  flex: none;
+  min-width: 48px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.dt-cell input[type="text"] {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--pt-divider-micro);
+  color: var(--pt-text-bright);
+  font-size: var(--dt-font-size, 0.72rem);
+  font-family: var(--dt-cell-font-family, monospace);
+  padding: 0 5px;
+  outline: none;
+  transition: background 0.1s;
+}
+.dt-cell input[type="text"]:hover  { background: var(--pt-surface-row); }
+.dt-cell input[type="text"]:focus  {
+  background: var(--pt-selection-focus);
+  color: #fff;
+  border-right-color: var(--pt-teal, #2aa198);
+}
+
+/* Resize handle — left edge; only interactive when pinned */
+#data-table-resize-handle {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 4;
+  pointer-events: none;
+}
+#data-table-panel.pinned #data-table-resize-handle { pointer-events: auto; }
+#data-table-resize-handle:hover,
+#data-table-resize-handle:active { background: var(--pt-resize-hover); }
+
+/* ── Root-to-tip divergence panel ─────────────────────────────────── */
+#rtt-panel {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: var(--rtt-panel-w, 380px);
+  background: var(--pt-bg-panel);
+  border-left: 1px solid var(--pt-divider-panel);
+  z-index: 11;   /* above data-table when both visible */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: default;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1),
+              box-shadow  0.22s cubic-bezier(.4,0,.2,1);
+}
+#rtt-panel.open {
+  transform: translateX(0);
+  box-shadow: -4px 0 20px var(--pt-shadow-panel);
+}
+/* Pinned: join the flex flow */
+#rtt-panel.pinned {
+  position: relative;
+  flex: 0 0 var(--rtt-panel-w, 380px);
+  transform: none !important;
+  transition: flex-basis 0.22s cubic-bezier(.4,0,.2,1);
+  box-shadow: none;
+  z-index: auto;
+}
+/* Resize handle — left edge; interactive only when pinned */
+#rtt-resize-handle {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 4;
+  pointer-events: none;
+}
+#rtt-panel.pinned #rtt-resize-handle { pointer-events: auto; }
+#rtt-resize-handle:hover,
+#rtt-resize-handle:active { background: var(--pt-resize-hover); }
+/* Ghost divider shown during resize drag */
+#rtt-resize-ghost {
+  display: none;
+  position: fixed;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--pt-accent, #19A699);
+  opacity: 0.7;
+  z-index: 9999;
+  pointer-events: none;
+}
+/* Panel header */
+#rtt-header {
+  flex-shrink: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 4px;
+  border-bottom: 1px solid var(--pt-divider);
+  user-select: none;
+}
+.rtt-title {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--pt-text-accent-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#rtt-btn-pin, #rtt-btn-close {
+  background: none;
+  border: none;
+  color: var(--pt-off-white);
+  padding: 2px 4px;
+  line-height: 1;
+  font-size: 0.82rem;
+  border-radius: 3px;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+#rtt-btn-pin:hover,
+#rtt-btn-close:hover { background: var(--pt-surface-hover); opacity: 1; }
+#rtt-btn-pin.active   { color: var(--pt-gold, #b5890a); opacity: 1; }
+/* Canvas fills the remaining panel */
+#rtt-canvas { flex: 1; display: block; min-height: 0; min-width: 0; }
