@@ -130,32 +130,44 @@ let aboutLoaded = false;
 /* ── Light / dark mode toggle ── */
 (function () {
   const STORAGE_KEY = 'pt-theme';
-  const htmlEl = document.documentElement;
   const btnTheme = document.getElementById('btn-theme');
   const icon = btnTheme.querySelector('i');
 
+  // When the calling page sets storageKey:null, all localStorage is disabled for the embed.
+  const noStorage = Object.prototype.hasOwnProperty.call(window.peartreeConfig ?? {}, 'storageKey')
+                    && window.peartreeConfig.storageKey === null;
+
+  // In embed mode scope the theme attribute to the .pt-embed-wrap element so we don't
+  // affect the surrounding report page.  In standalone mode use <html> as normal.
+  const themeRoot = noStorage
+    ? (btnTheme.closest('.pt-embed-wrap') ?? document.documentElement)
+    : document.documentElement;
+
   function applyTheme(mode) {
     if (mode === 'light') {
-      htmlEl.setAttribute('data-bs-theme', 'light');
+      themeRoot.setAttribute('data-bs-theme', 'light');
       icon.className = 'bi bi-moon-stars';
       btnTheme.title = 'Switch to dark mode';
     } else {
-      htmlEl.setAttribute('data-bs-theme', 'dark');
+      themeRoot.setAttribute('data-bs-theme', 'dark');
       icon.className = 'bi bi-sun';
       btnTheme.title = 'Switch to light mode';
     }
   }
 
-  // Priority: ?mode=dark/light URL param > localStorage > system preference
+  // Priority: ?mode=dark/light URL param > peartreeConfig.ui.theme > localStorage (if enabled) > system preference
   const urlMode = new URLSearchParams(window.location.search).get('mode');
-  const saved = (urlMode === 'dark' || urlMode === 'light') ? urlMode : localStorage.getItem(STORAGE_KEY);
+  const cfgTheme = window.peartreeConfig?.ui?.theme;
+  const saved = (urlMode === 'dark' || urlMode === 'light') ? urlMode
+              : (cfgTheme === 'dark' || cfgTheme === 'light') ? cfgTheme
+              : (!noStorage ? localStorage.getItem(STORAGE_KEY) : null);
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   applyTheme(saved ?? (prefersDark ? 'dark' : 'light'));
 
   btnTheme.addEventListener('click', () => {
-    const next = htmlEl.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
+    const next = themeRoot.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
     applyTheme(next);
-    localStorage.setItem(STORAGE_KEY, next);
+    if (!noStorage) localStorage.setItem(STORAGE_KEY, next);
   });
 })();
 

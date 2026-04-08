@@ -78,7 +78,7 @@ async function fetchExampleTree() {
       showExport:    _flag(_ui.export,    'export'),
       showStatusBar: _flag(_ui.statusBar, 'statusbar'),
       storageKey:    _sk,
-      initSettings:  _wc.settings || {},
+      initSettings:  _wc.settings || _wc.initSettings || {},
     };
   })();
   // Apply UI restrictions immediately so hidden elements never flash visible.
@@ -6116,8 +6116,22 @@ async function fetchExampleTree() {
     if (e.origin !== window.location.origin && e.origin !== 'null' && e.origin !== '') return;
     try {
       const msg = e.data;
-      if (msg.type === 'pt:loadTree' && typeof msg.text === 'string') {
-        window.peartree.loadTree(msg.text, typeof msg.filename === 'string' ? msg.filename : 'tree');
+      if (msg.type === 'pt:loadTree') {
+        if (typeof msg.text === 'string') {
+          window.peartree.loadTree(msg.text, typeof msg.filename === 'string' ? msg.filename : 'tree');
+        } else if (typeof msg.url === 'string') {
+          (async () => {
+            try {
+              const resp = await fetch(msg.url);
+              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+              const text = await resp.text();
+              const name = msg.filename || msg.url.split('/').pop() || 'tree';
+              window.peartree.loadTree(text, name);
+            } catch (err) {
+              console.warn('peartree: pt:loadTree url fetch failed –', err.message);
+            }
+          })();
+        }
       } else if (msg.type === 'pt:applyTheme' && typeof msg.name === 'string') {
         _applyTheme(msg.name);
       }

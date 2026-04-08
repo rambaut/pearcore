@@ -8,7 +8,7 @@
  *
  *   PearTree keeps its coral-red brand only for the logo text.
  */
-:root {
+:root, [data-bs-theme="dark"] {
   /* ── Surface backgrounds ── */
   --pt-bg-deepest:   #02292e;            /* html/body + canvas flash-prevention */
   --pt-bg:           #005B68;            /* Solar body bg – canvas container */
