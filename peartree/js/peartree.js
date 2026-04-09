@@ -6400,15 +6400,11 @@ const _selfBase = (() => {
 //   toolbarSections: string | []     — Toolbar sub-sections to show.
 //
 export async function app(options = {}) {
-  const ui = Object.assign({
-    palette:   true,
-    openTree:  true,
-    import:    true,
-    export:    true,
-    rtt:       true,
-    dataTable: true,
-    statusBar: true,
-  }, options.ui || {});
+  // Only forward flags that were explicitly provided in options.ui.
+  // DO NOT merge defaults here — _initCore()'s _flag() falls back to URL params
+  // when a flag is undefined, which is how ?statusbar=0 etc. work for embedFrame() iframes.
+  const ui = options.ui || {};
+  // Enforce the openTree ↔ import coupling for explicitly passed values only.
   if (ui.openTree === false) ui.import   = false;
   if (ui.import   === false) ui.openTree = false;
 
