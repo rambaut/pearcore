@@ -3129,7 +3129,9 @@ async function _initCore() {
       }
 
       // If the parsed tree has node labels (stored under the sentinel key
-      // "_node_label" by parseNewick), ask the user what annotation name to use.
+      // "_node_label" by parseNewick), rename them to the configured annotation name.
+      // window.peartreeConfig.nodeLabelName (or ?nodeLabelName= URL param) lets callers
+      // pre-specify the name; otherwise the user is prompted (interactive mode only).
       {
         const labelledNodes = [];
         function _collectNodeLabels(node) {
@@ -3140,12 +3142,16 @@ async function _initCore() {
         if (labelledNodes.length > 0) {
           const allNumeric = labelledNodes.every(n => !isNaN(parseFloat(n.annotations["_node_label"])));
           const defaultName = allNumeric ? 'bootstrap' : 'label';
-          const chosen = (
-            prompt(
-              `This tree has labels on ${labelledNodes.length} internal node(s).\nWhat annotation name should these be stored as?`,
-              defaultName
-            ) ?? defaultName
-          ).trim() || defaultName;
+          const _preconfigured = window.peartreeConfig?.nodeLabelName
+            || new URLSearchParams(window.location.search).get('nodeLabelName');
+          const chosen = _preconfigured
+            ? (_preconfigured.trim() || defaultName)
+            : (
+              prompt(
+                `This tree has labels on ${labelledNodes.length} internal node(s).\nWhat annotation name should these be stored as?`,
+                defaultName
+              ) ?? defaultName
+            ).trim() || defaultName;
           for (const n of labelledNodes) {
             const raw = n.annotations["_node_label"];
             delete n.annotations["_node_label"];
@@ -6487,6 +6493,7 @@ export async function embed(options = {}) {
     paletteSections: options.paletteSections || 'all',
     appSections:     options.appSections     || 'all',
     toolbarSections: options.toolbarSections || 'all',
+    nodeLabelName:   options.nodeLabelName   || null,
   };
 
   // Inject styles immediately so the page doesn't flash unstyled.
@@ -6588,6 +6595,8 @@ export function embedFrame(options = {}) {
     params.set('appSections', btoa(JSON.stringify(options.appSections)));
   if (options.paletteSections && options.paletteSections !== 'all')
     params.set('paletteSections', btoa(JSON.stringify(options.paletteSections)));
+  if (options.nodeLabelName)
+    params.set('nodeLabelName', options.nodeLabelName);
 
   // treeUrl is passed as a URL param (already supported natively by peartree.html).
   // Resolve relative URLs to absolute so they work from the iframe's origin.
