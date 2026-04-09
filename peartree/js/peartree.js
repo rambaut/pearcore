@@ -129,10 +129,12 @@ async function _initCore(root = document) {
     $('btn-data-table')?.classList.add('d-none');
     $('dt-btn-pin')?.classList.add('d-none');
     $('dt-btn-close')?.classList.add('d-none');
-    const _dtW = (window.peartreeConfig || {}).dataTableWidth ?? 30;
-    const _dtPx = typeof _dtW === 'string' && _dtW.endsWith('%') ? _dtW
-                : `${_dtW}%`;
-    root.querySelector('#canvas-container')?.style.setProperty('--dt-panel-w', _dtPx);
+    const _dtW = (window.peartreeConfig || {}).dataTableWidth;
+    if (_dtW != null) {
+      const _dtPx = typeof _dtW === 'string' && _dtW.endsWith('%') ? _dtW
+                  : `${_dtW}%`;
+      root.querySelector('#canvas-container')?.style.setProperty('--dt-panel-w', _dtPx);
+    }
   }
   if (!_cfg.showImport)  { $('btn-open-tree')      ?.classList.add('d-none');
                            $('btn-import-annot')   ?.classList.add('d-none');
@@ -6770,7 +6772,7 @@ export async function embed(options = {}) {
   const _theme           = ui.theme           || options.theme           || 'dark';
   const _toolbarSections = ui.toolbarSections || options.toolbarSections || 'all';
   const _rttWidth        = ui.rttWidth        ?? options.rttWidth        ?? 35;
-  const _dataTableWidth  = ui.dataTableWidth  ?? options.dataTableWidth  ?? 30;
+  const _dataTableWidth  = ui.dataTableWidth  ?? options.dataTableWidth  ?? null;
   const _dataTableCols   = ui.dataTableColumns ?? options.dataTableColumns ?? null;
 
   // Set window.peartreeConfig BEFORE loading or re-using peartree-ui.js.

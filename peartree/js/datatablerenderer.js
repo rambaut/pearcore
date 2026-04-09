@@ -346,12 +346,12 @@ export function createDataTableRenderer({
     let wi   = 0;
     if (_showNames) {
       const w = _colWidths[wi++] ?? 100;
-      html += `<div class="dt-header-name" style="flex:0 0 ${w}px;width:${w}px" title="Tip names">Names</div>`;
+      html += `<div class="dt-header-name" style="flex:1 1 ${w}px;min-width:${w}px" title="Tip names">Names</div>`;
     }
     for (const col of _columns) {
       const w     = _colWidths[wi++] ?? 80;
       const label = _colLabel(col);
-      html += `<div class="dt-header-cell" style="flex:0 0 ${w}px;width:${w}px" title="${_esc(label)}">${_esc(label)}</div>`;
+      html += `<div class="dt-header-cell" style="flex:1 1 ${w}px;min-width:${w}px" title="${_esc(label)}">${_esc(label)}</div>`;
     }
     const totalW = _colWidths.reduce((s, w) => s + w, 0);
     headerEl.style.minWidth = totalW + 'px';
@@ -519,12 +519,13 @@ export function createDataTableRenderer({
         rowEl.dataset.dtIdx = ri;
         rowEl.style.top     = `${topY}px`;
         rowEl.style.height  = `${rowH}px`;
+        rowEl.style.width   = '100%';
 
         if (_showNames) {
           const nameCell = document.createElement('div');
           nameCell.className = 'dt-name-cell';
           const w = _colWidths[0] ?? 100;
-          nameCell.style.cssText = `flex:0 0 ${w}px;width:${w}px`;
+          nameCell.style.cssText = `flex:1 1 ${w}px;min-width:${w}px`;
           nameCell.textContent = tipLabel;
           nameCell.title       = tipLabel;
           rowEl.appendChild(nameCell);
@@ -536,7 +537,7 @@ export function createDataTableRenderer({
           const cell = document.createElement('div');
           cell.className     = 'dt-cell';
           const w = _colWidths[wi++] ?? 80;
-          cell.style.cssText = `flex:0 0 ${w}px;width:${w}px`;
+          cell.style.cssText = `flex:1 1 ${w}px;min-width:${w}px`;
 
           const input         = document.createElement('input');
           input.type          = 'text';

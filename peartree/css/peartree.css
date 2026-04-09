@@ -1596,7 +1596,7 @@ body.palette-pinned #canvas-and-axis-wrapper {
 /* Pinned: join the flex flow so the canvas-container shrinks to make room */
 #data-table-panel.pinned {
   position: relative;
-  flex: 0 0 var(--dt-panel-w, 300px);
+  flex: 0 0 var(--dt-panel-w, auto);
   transform: none !important;
   transition: flex-basis 0.22s cubic-bezier(.4,0,.2,1);
   box-shadow: none;
