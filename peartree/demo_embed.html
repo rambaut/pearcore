@@ -152,38 +152,37 @@
     axisMinorLabelFormat: 'component',
   };
 
-  const _sharedUi = {
-    palette:   false,
-    toolbar:   true,
-    openTree:  false,
-    import:    false,
-    export:    false,
-    rtt:       false,
-    dataTable: false,
-    statusBar: true,
-  };
-
   // First tree — direct same-page embed.  Returns a controller immediately.
   const tree1 = await embed({
-    container:       'pt-tree',
-    treeUrl:         'data/ebov.tree',
-    filename:        'ebov.tree',
-    height:          '620px',
-    theme:           'light',
-    settings:        {
-    theme:               'Minimal',
-    introAnimation:      '',
-    tipLabelShow:        'names',
-    tipLabelSize:        '6',
-    axisShow:            'time',
-    axisDateFormat:      'dd MMM yyyy',
-    axisMajorInterval:   'auto',
-    axisMinorInterval:   'auto',
-    axisMajorLabelFormat: 'component',
-    axisMinorLabelFormat: 'component',
-  },
-    ui:              _sharedUi,
-    toolbarSections: ['navigation', 'zoom'],
+        container:       'pt-tree',
+        treeUrl:         'data/ebov.tree',
+        filename:        'ebov.tree',
+        height:          '620px',
+        theme:           'light',
+        rttWidth: 40,        // 40% of container width
+        settings:        {
+            theme:               'Minimal',
+            introAnimation:      '',
+            tipLabelShow:        'names',
+            tipLabelSize:        '6',
+            axisShow:            'time',
+            axisDateFormat:      'dd MMM yyyy',
+            axisMajorInterval:   'auto',
+            axisMinorInterval:   'auto',
+            axisMajorLabelFormat: 'component',
+            axisMinorLabelFormat: 'component',
+        },
+        ui: {
+            palette:   false,
+            toolbar:   true,
+            openTree:  false,
+            import:    false,
+            export:    false,
+            rtt:       'fixed',  // fixed mode: always open and pinned, no toggle
+            dataTable: false,
+            statusBar: true,
+        },
+        toolbarSections: ['navigation', 'zoom'],
   });
 
   // onTreeLoad() fires once the tree data is fully parsed and rendered.
@@ -207,7 +206,16 @@
     tipLabelSize:        '6',
     axisShow:            'Reverse',
   },
-    ui:              _sharedUi,
+    ui:  {
+      palette:   false,
+      toolbar:   false,
+      openTree:  false,
+      import:    false,
+      export:    false,
+      rtt:       false,
+      dataTable: false,
+      statusBar: false,
+    },
     toolbarSections: ['navigation', 'zoom'],
   });
 

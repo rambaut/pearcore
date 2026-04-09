@@ -602,15 +602,20 @@ function _buildCanvasContainer() {
 }
 
 function _buildStatusBar() {
+  const _ui = window.peartreeConfig?.ui || {};
+  const showBrand  = _ui.brand        !== false;
+  const showTheme  = _ui.themeToggle  !== false;
+  const showAbout  = _ui.about        !== false;
+  const showHelp   = _ui.help         !== false;
   return `
 <div id="status-bar">
-  <a id="status-brand" href="https://github.com/artic-network/peartree" target="_blank" rel="noopener" title="PearTree on GitHub"><i class="bi bi-tree"></i>PearTree</a>
+  ${showBrand ? `<a id="status-brand" href="https://github.com/artic-network/peartree" target="_blank" rel="noopener" title="PearTree on GitHub"><i class="bi bi-tree"></i>PearTree</a>` : ''}
   <span id="status-stats"></span>
   <span id="status-select"></span>
   <span id="status-message"></span>
-  <button id="btn-theme" title="Toggle light/dark mode"><i class="bi bi-sun"></i></button>
-  <button id="btn-about" title="About PearTree"><i class="bi bi-info-circle"></i></button>
-  <button id="btn-help" title="Help (⌘?)"><i class="bi bi-question-circle"></i></button>
+  ${showTheme ? `<button id="btn-theme" title="Toggle light/dark mode"><i class="bi bi-sun"></i></button>` : ''}
+  ${showAbout ? `<button id="btn-about" title="About PearTree"><i class="bi bi-info-circle"></i></button>` : ''}
+  ${showHelp  ? `<button id="btn-help" title="Help (⌘?)"><i class="bi bi-question-circle"></i></button>` : ''}
 </div>`;
 }
 
@@ -779,7 +784,11 @@ function _buildModals() {
 }
 
 function _buildHelpAbout() {
-  return `
+  const _ui = window.peartreeConfig?.ui || {};
+  const showHelp  = _ui.help  !== false;
+  const showAbout = _ui.about !== false;
+  if (!showHelp && !showAbout) return '';
+  return (showHelp ? `
 <div id="help-panel">
   <div id="help-panel-header">
     <h2>PearTree Help</h2>
@@ -788,7 +797,7 @@ function _buildHelpAbout() {
   <div id="help-panel-body">
     <div class="help-md" id="help-content"><p style="opacity:0.5">Loading…</p></div>
   </div>
-</div>
+</div>` : '') + (showAbout ? `
 <div id="about-backdrop"></div>
 <div id="about-panel">
   <div id="about-panel-header">
@@ -798,7 +807,7 @@ function _buildHelpAbout() {
   <div id="about-panel-body">
     <div class="help-md" id="about-content"><p style="opacity:0.5">Loading…</p></div>
   </div>
-</div>`;
+</div>` : '');
 }
 
 const _APP_SECTION_BUILDERS = {
@@ -986,9 +995,10 @@ function initPearTreeUIBindings(root) {
   const btnHelp     = $('btn-help');
   const btnHelpClose = $('btn-help-close');
   let helpLoaded = false;
-  helpPanel.inert = true;  // off-screen by default; inert removes from tab order
+  if (helpPanel) helpPanel.inert = true;  // off-screen by default; inert removes from tab order
 
   async function openHelp() {
+    if (!helpPanel) return;
     if (!helpLoaded) {
       try {
         const md = await window.peartree.fetchWithFallback('help.md');
@@ -1001,20 +1011,23 @@ function initPearTreeUIBindings(root) {
     closeAbout();
     helpPanel.classList.add('open');
     helpPanel.inert = false;
-    btnHelp.classList.add('active');
+    btnHelp?.classList.add('active');
   }
 
   function closeHelp() {
+    if (!helpPanel) return;
     helpPanel.classList.remove('open');
     helpPanel.inert = true;
-    btnHelp.classList.remove('active');
+    btnHelp?.classList.remove('active');
   }
 
-  btnHelp.addEventListener('click', e => {
-    e.stopPropagation();
-    helpPanel.classList.contains('open') ? closeHelp() : openHelp();
-  });
-  btnHelpClose.addEventListener('click', closeHelp);
+  if (btnHelp) {
+    btnHelp.addEventListener('click', e => {
+      e.stopPropagation();
+      helpPanel?.classList.contains('open') ? closeHelp() : openHelp();
+    });
+  }
+  if (btnHelpClose) btnHelpClose.addEventListener('click', closeHelp);
 
   // ── About modal ─────────────────────────────────────────────────────────
   const aboutPanel    = $('about-panel');
@@ -1023,7 +1036,7 @@ function initPearTreeUIBindings(root) {
   const btnAbout      = $('btn-about');
   const btnAboutClose = $('btn-about-close');
   let aboutLoaded = false;
-  aboutPanel.inert = true;  // off-screen by default; inert removes from tab order
+  if (aboutPanel) aboutPanel.inert = true;  // off-screen by default; inert removes from tab order
 
   /* ── Light / dark mode toggle ── */
   (function () {
@@ -1068,6 +1081,7 @@ function initPearTreeUIBindings(root) {
   })();
 
   async function openAbout() {
+    if (!aboutPanel) return;
     if (!aboutLoaded) {
       try {
         const md = await window.peartree.fetchWithFallback('about.md');
@@ -1080,23 +1094,26 @@ function initPearTreeUIBindings(root) {
     closeHelp();
     aboutPanel.classList.add('open');
     aboutPanel.inert = false;
-    aboutBackdrop.classList.add('open');
-    btnAbout.classList.add('active');
+    aboutBackdrop?.classList.add('open');
+    btnAbout?.classList.add('active');
   }
 
   function closeAbout() {
+    if (!aboutPanel) return;
     aboutPanel.classList.remove('open');
     aboutPanel.inert = true;
-    aboutBackdrop.classList.remove('open');
-    btnAbout.classList.remove('active');
+    aboutBackdrop?.classList.remove('open');
+    btnAbout?.classList.remove('active');
   }
 
-  btnAbout.addEventListener('click', e => {
-    e.stopPropagation();
-    aboutPanel.classList.contains('open') ? closeAbout() : openAbout();
-  });
-  btnAboutClose.addEventListener('click', closeAbout);
-  aboutBackdrop.addEventListener('click', closeAbout);
+  if (btnAbout) {
+    btnAbout.addEventListener('click', e => {
+      e.stopPropagation();
+      aboutPanel?.classList.contains('open') ? closeAbout() : openAbout();
+    });
+  }
+  if (btnAboutClose) btnAboutClose.addEventListener('click', closeAbout);
+  if (aboutBackdrop) aboutBackdrop.addEventListener('click', closeAbout);
 
   // Clicking the tree canvas closes any open panel immediately (unless pinned).
   $('tree-canvas').addEventListener('pointerdown', () => {

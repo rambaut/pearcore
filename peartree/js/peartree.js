@@ -68,17 +68,27 @@ async function _initCore(root = document) {
     const _ui = _wc.ui || {};
     /** Resolve a boolean flag: explicit window.peartreeConfig value > URL param > default (true). */
     const _flag = (uiVal, param) => uiVal !== undefined ? Boolean(uiVal) : _p.get(param) !== '0';
+    // Like _flag but also preserves the string value 'fixed'.
+    const _flagEx = (uiVal, param) => {
+      if (uiVal === 'fixed') return 'fixed';
+      if (uiVal !== undefined) return Boolean(uiVal);
+      return _p.get(param) !== '0';
+    };
     const _sk = _wc.storageKey !== undefined
       ? _wc.storageKey
       : _p.get('storageKey') ?? (_p.get('nostore') === '1' ? null : SETTINGS_KEY);
     return {
       showPalette:   _flag(_ui.palette,   'palette'),
       showToolbar:   _flag(_ui.toolbar,   'toolbar'),
-      showRTT:       _flag(_ui.rtt,       'rtt'),
-      showDataTable: _flag(_ui.dataTable, 'dt'),
+      showRTT:       _flagEx(_ui.rtt,       'rtt'),
+      showDataTable: _flagEx(_ui.dataTable, 'dt'),
       showImport:    _flag(_ui.import,    'import'),
       showExport:    _flag(_ui.export,    'export'),
-      showStatusBar:  _flag(_ui.statusBar, 'statusbar'),
+      showStatusBar:  _flag(_ui.statusBar,    'statusbar'),
+      showHelp:        _flag(_ui.help,         'help'),
+      showAbout:       _flag(_ui.about,        'about'),
+      showThemeToggle: _flag(_ui.themeToggle,  'themetoggle'),
+      showBrand:       _flag(_ui.brand,        'brand'),
       enableKeyboard: _ui.keyboard !== undefined ? Boolean(_ui.keyboard) : _p.get('keyboard') !== '0',
       storageKey:    _sk,
       initSettings:  (() => {
@@ -96,8 +106,26 @@ async function _initCore(root = document) {
   if (!_cfg.showToolbar)   root.querySelector('.pt-toolbar')          ?.classList.add('d-none');
   if (!_cfg.showRTT)     { $('btn-rtt')            ?.classList.add('d-none');
                            $('rtt-panel')          ?.classList.add('d-none'); }
+  if (_cfg.showRTT === 'fixed') {
+    $('btn-rtt')?.classList.add('d-none');
+    $('rtt-btn-pin')?.classList.add('d-none');
+    $('rtt-btn-close')?.classList.add('d-none');
+    const _rttW = (window.peartreeConfig || {}).rttWidth ?? 35;
+    const _rttPx = typeof _rttW === 'string' && _rttW.endsWith('%') ? _rttW
+                 : `${_rttW}%`;
+    root.querySelector('#canvas-container')?.style.setProperty('--rtt-panel-w', _rttPx);
+  }
   if (!_cfg.showDataTable){ $('btn-data-table')    ?.classList.add('d-none');
                             $('data-table-panel')  ?.classList.add('d-none'); }
+  if (_cfg.showDataTable === 'fixed') {
+    $('btn-data-table')?.classList.add('d-none');
+    $('dt-btn-pin')?.classList.add('d-none');
+    $('dt-btn-close')?.classList.add('d-none');
+    const _dtW = (window.peartreeConfig || {}).dataTableWidth ?? 30;
+    const _dtPx = typeof _dtW === 'string' && _dtW.endsWith('%') ? _dtW
+                : `${_dtW}%`;
+    root.querySelector('#canvas-container')?.style.setProperty('--dt-panel-w', _dtPx);
+  }
   if (!_cfg.showImport)  { $('btn-open-tree')      ?.classList.add('d-none');
                            $('btn-import-annot')   ?.classList.add('d-none');
                            $('empty-state-hint')        ?.classList.add('d-none');
@@ -2344,6 +2372,13 @@ async function _initCore(root = document) {
     });
   }
 
+  // Fixed mode: force open + pinned immediately, disable the toggle button.
+  if (_cfg.showDataTable === 'fixed') {
+    dataTableRenderer.open();
+    dataTableRenderer.pin();
+    $('data-table-resize-handle')?.style.setProperty('pointer-events', 'none');
+  }
+
   // ── Root-to-Tip Divergence Panel ─────────────────────────────────────────
   rttChart = createRTTChart({
     panel:           $('rtt-panel'),
@@ -2428,6 +2463,12 @@ async function _initCore(root = document) {
   // Restore persistent RTT UI state
   if (_saved.rttPinned)         rttChart.setPin(true);
   if (_saved.rttStatsBoxCorner) rttChart.setStatsBoxCorner(_saved.rttStatsBoxCorner);
+
+  // Fixed mode: force open + pinned, suppress save/restore interactions.
+  if (_cfg.showRTT === 'fixed') {
+    rttChart.open();
+    rttChart.setPin(true);
+  }
 
   // Tree hover → RTT hover
   renderer._onHoverChange = id => rttChart.notifyHoverChange(id);
@@ -3058,7 +3099,8 @@ async function _initCore(root = document) {
     text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     // Close the RTT panel while the new tree loads (pin preference is preserved
     // so re-opening the panel will restore the pinned state).
-    if (rttChart?.isOpen()) {
+    // Skip in fixed mode — the panel must stay visible at all times.
+    if (rttChart?.isOpen() && _cfg.showRTT !== 'fixed') {
       rttChart.closeForLoad();
       btnRtt?.classList.remove('active');
     }
@@ -6684,15 +6726,19 @@ export async function embed(options = {}) {
   const base = typeof options.base === 'string' ? options.base : _selfBase;
 
   const ui = Object.assign({
-    palette:   true,
-    toolbar:   true,
-    openTree:  false,
-    import:    false,
-    export:    true,
-    rtt:       false,
-    dataTable: false,
-    statusBar: true,
-    keyboard:  false,
+    palette:     true,
+    toolbar:     true,
+    openTree:    false,
+    import:      false,
+    export:      true,
+    rtt:         false,
+    dataTable:   false,
+    statusBar:   true,
+    keyboard:    false,
+    help:        false,
+    about:       false,
+    themeToggle: false,
+    brand:       false,
   }, options.ui || {});
   if (ui.openTree === false) ui.import   = false;
   if (ui.import   === false) ui.openTree = false;
@@ -6703,23 +6749,29 @@ export async function embed(options = {}) {
   // directly (since the IIFEs won't re-fire for an already-loaded script).
   window.peartreeConfig = {
     ui: {
-      palette:   ui.palette,
-      toolbar:   ui.toolbar,
-      openTree:  ui.openTree,
-      import:    ui.import,
-      export:    ui.export,
-      rtt:       ui.rtt,
-      dataTable: ui.dataTable,
-      statusBar: ui.statusBar,
-      keyboard:  ui.keyboard,
+      palette:     ui.palette,
+      toolbar:     ui.toolbar,
+      openTree:    ui.openTree,
+      import:      ui.import,
+      export:      ui.export,
+      rtt:         ui.rtt,
+      dataTable:   ui.dataTable,
+      statusBar:   ui.statusBar,
+      keyboard:    ui.keyboard,
+      help:        ui.help,
+      about:       ui.about,
+      themeToggle: ui.themeToggle,
+      brand:       ui.brand,
       theme:     options.theme || 'dark',
     },
-    storageKey:      null,  // embeds never persist settings
-    settings:        options.settings        || {},
-    paletteSections: options.paletteSections || 'all',
-    appSections:     options.appSections     || 'all',
-    toolbarSections: options.toolbarSections || 'all',
-    nodeLabelName:   options.nodeLabelName   || null,
+    storageKey:       null,  // embeds never persist settings
+    settings:         options.settings        || {},
+    paletteSections:  options.paletteSections || 'all',
+    appSections:      options.appSections     || 'all',
+    toolbarSections:  options.toolbarSections || 'all',
+    nodeLabelName:    options.nodeLabelName   || null,
+    rttWidth:         options.rttWidth        ?? 35,
+    dataTableWidth:   options.dataTableWidth  ?? 30,
   };
 
   // Inject styles immediately so the page doesn't flash unstyled.

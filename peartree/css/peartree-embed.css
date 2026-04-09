@@ -26,6 +26,7 @@
    those vars are absolute pixel values measured from the embed wrap's own
    top/bottom edges. */
 .pt-embed-wrap #palette-panel,
-.pt-embed-wrap #help-panel {
+.pt-embed-wrap #help-panel,
+.pt-embed-wrap #about-panel {
   position: absolute;
 }
