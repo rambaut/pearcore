@@ -14,6 +14,7 @@
   <script src="vendor/marked.min.js"></script>
 
   <link rel="stylesheet" href="css/peartree.css" />
+  <link rel="stylesheet" href="css/peartree-webapp.css" />
 </head>
 <body>
 
@@ -187,7 +188,8 @@
         <div style="text-align:center">
           <img src="img/peartree.png" class="pt-empty-icon" alt="PearTree">
           <p class="pt-empty-title">No tree loaded</p>
-          <p class="pt-empty-hint">Drag a NEXUS or Newick file here</p>
+          <p class="pt-empty-hint" id="empty-state-hint">Drag a NEXUS or Newick file here</p>
+          <p id="empty-state-error" style="display:none;color:var(--pt-red);font-size:0.85rem;margin:0.5rem 1rem 0"></p>
           <button class="btn btn-sm btn-outline-primary" id="empty-state-open-btn"><i class="bi bi-folder2-open me-1"></i>Open…</button>
           <button class="btn btn-sm btn-outline-secondary ms-2" id="empty-state-example-btn"><i class="bi bi-tree me-1"></i>Example…</button>
         </div>

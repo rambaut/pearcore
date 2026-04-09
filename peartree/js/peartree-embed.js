@@ -227,7 +227,8 @@
         <div style="text-align:center">
           <img src="img/peartree.png" class="pt-empty-icon" alt="PearTree">
           <p class="pt-empty-title">No tree loaded</p>
-          <p class="pt-empty-hint">Drag a NEXUS or Newick file here</p>
+          <p class="pt-empty-hint" id="empty-state-hint">Drag a NEXUS or Newick file here</p>
+          <p id="empty-state-error" style="display:none;color:var(--pt-red);font-size:0.85rem;margin:0.5rem 1rem 0"></p>
           <button class="btn btn-sm btn-outline-primary" id="empty-state-open-btn"><i class="bi bi-folder2-open me-1"></i>Open…</button>
           <button class="btn btn-sm btn-outline-secondary ms-2" id="empty-state-example-btn"><i class="bi bi-tree me-1"></i>Example…</button>
         </div>
@@ -499,14 +500,16 @@
       dataTable: true,
       statusBar: true,
     }, options.ui || {});
-    // `import` is an alias for `openTree` in peartree.js
-    if (ui.import === false) ui.openTree = false;
+    // `openTree` and `import` are aliases for the same flag.
+    if (ui.openTree === false) ui.import = false;
+    if (ui.import   === false) ui.openTree = false;
 
     // Set window.peartreeConfig BEFORE injecting HTML (peartree.js reads it
     // synchronously at module-parse time using the d-none class trick).
     window.peartreeConfig = {
       ui: {
         palette:   ui.palette,
+        openTree:  ui.openTree,
         rtt:       ui.rtt,
         dataTable: ui.dataTable,
         import:    ui.import,

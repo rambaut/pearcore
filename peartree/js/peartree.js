@@ -88,7 +88,10 @@ async function fetchExampleTree() {
   if (!_cfg.showDataTable){ document.getElementById('btn-data-table')    ?.classList.add('d-none');
                             document.getElementById('data-table-panel')  ?.classList.add('d-none'); }
   if (!_cfg.showImport)  { document.getElementById('btn-open-tree')      ?.classList.add('d-none');
-                           document.getElementById('btn-import-annot')   ?.classList.add('d-none'); }
+                           document.getElementById('btn-import-annot')   ?.classList.add('d-none');
+                           document.getElementById('empty-state-hint')        ?.classList.add('d-none');
+                           document.getElementById('empty-state-open-btn')    ?.classList.add('d-none');
+                           document.getElementById('empty-state-example-btn') ?.classList.add('d-none'); }
   if (!_cfg.showExport)  { document.getElementById('btn-export-tree')    ?.classList.add('d-none');
                            document.getElementById('btn-export-graphic') ?.classList.add('d-none'); }
   if (!_cfg.showStatusBar) document.getElementById('status-bar')          ?.classList.add('d-none');
@@ -2108,6 +2111,12 @@ async function fetchExampleTree() {
 
   function hideEmptyState() { emptyStateEl.classList.add('hidden'); }
   function showEmptyState() { if (!treeLoaded) emptyStateEl.classList.remove('hidden'); }
+  function showEmptyStateError(msg) {
+    const el = document.getElementById('empty-state-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = msg ? '' : 'none';
+  }
 
   document.getElementById('empty-state-open-btn').addEventListener('click', () => pickTreeFile());
   document.getElementById('empty-state-example-btn').addEventListener('click', () => {
@@ -3487,10 +3496,13 @@ async function fetchExampleTree() {
       closeModal();
     } catch (err) {
       // If the Open Tree modal is already visible, show the error inside it.
-      // Otherwise (file opened via native picker, drag-drop, etc.) show a
-      // standalone error dialog instead of hijacking the modal.
+      // If no tree has been loaded yet (auto-load from embed), show on the empty-state panel.
+      // Otherwise show a standalone error dialog.
       if (modal.classList.contains('open')) {
         setModalError(err.message);
+      } else if (!treeLoaded) {
+        showEmptyState();
+        showEmptyStateError(err.message);
       } else {
         showErrorDialog(err.message);
       }
@@ -6126,12 +6138,13 @@ async function fetchExampleTree() {
           (async () => {
             try {
               const resp = await fetch(msg.url);
-              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+              if (!resp.ok) throw new Error('HTTP ' + resp.status + '\u00a0\u2014 could not fetch tree');
               const text = await resp.text();
               const name = msg.filename || msg.url.split('/').pop() || 'tree';
-              window.peartree.loadTree(text, name);
+              await window.peartree.loadTree(text, name);
             } catch (err) {
-              console.warn('peartree: pt:loadTree url fetch failed –', err.message);
+              showEmptyState();
+              showEmptyStateError(err.message);
             }
           })();
         }
