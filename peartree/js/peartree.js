@@ -3513,6 +3513,13 @@ async function _initCore() {
       document.getElementById('btn-mode-branches')?.classList.toggle('active', _restoredMode === 'branches');
 
       _syncControlVisibility();
+      // Notify any programmatic callers that a tree is now loaded and ready.
+      window.dispatchEvent(new CustomEvent('peartree-tree-loaded'));
+      // Re-broadcast to the parent frame (if running inside an iframe) so
+      // _buildFrameController.onTreeLoad() can detect it via message event.
+      if (window.parent !== window) {
+        try { window.parent.postMessage({ type: 'pt:treeLoaded' }, '*'); } catch (_) {}
+      }
       closeModal();
     } catch (err) {
       // If the Open Tree modal is already visible, show the error inside it.
@@ -6603,6 +6610,16 @@ function _buildDirectController() {
     getSettings:   ()         => window.peartree?.getSettings(),
     /** Load a tree from an inline string. */
     loadTree:      (text, fn) => window.peartree?.loadTree(text, fn),
+    /**
+     * Register a callback invoked each time a tree finishes loading.
+     * The callback receives no arguments.  Returns an unsubscribe function.
+     * @param {() => void} fn
+     */
+    onTreeLoad(fn) {
+      const handler = () => fn();
+      window.addEventListener('peartree-tree-loaded', handler);
+      return () => window.removeEventListener('peartree-tree-loaded', handler);
+    },
   };
 }
 
@@ -6621,6 +6638,19 @@ function _buildFrameController(iframe) {
     applySettings: (settings) => _send({ type: 'pt:applySettings', settings }),
     applyTheme:    (name)     => _send({ type: 'pt:applyTheme',    name }),
     loadTree:      (text, fn) => _send({ type: 'pt:loadTree',      text, filename: fn }),
+    /**
+     * Register a callback invoked each time the iframe tree finishes loading.
+     * Listens for the `pt:treeLoaded` message re-posted from the iframe.
+     * Returns an unsubscribe function.
+     * @param {() => void} fn
+     */
+    onTreeLoad(fn) {
+      const handler = (e) => {
+        if (e.source === iframe.contentWindow && e.data?.type === 'pt:treeLoaded') fn();
+      };
+      window.addEventListener('message', handler);
+      return () => window.removeEventListener('message', handler);
+    },
     /** The underlying <iframe> element — use for layout, resize observation, etc. */
     get iframe() { return iframe; },
   };

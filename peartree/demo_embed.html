@@ -175,12 +175,11 @@
     toolbarSections: ['navigation', 'zoom'],
   });
 
-  // Example: apply midpoint root and sort after the tree is loaded.
-  // The peartree-ready event fires once the engine is initialised; tree
-  // load is dispatched asynchronously so we listen for the data to arrive.
-  window.addEventListener('peartree-ready', () => {
+  // onTreeLoad() fires once the tree data is fully parsed and rendered.
+  tree1.onTreeLoad(() => {
+    tree1.fitLabels();
     tree1.sort('desc');
-  }, { once: true });
+  });
 
   // Second tree — embed() detects this is a second call and automatically
   // uses an isolated <iframe>.  Returns a postMessage controller.
@@ -196,14 +195,13 @@
     toolbarSections: ['navigation', 'zoom'],
   });
 
-  // Example: programmatically change branch colour after load.
-  tree2.iframe.addEventListener('load', () => {
-    tree2.iframe.contentWindow.addEventListener('peartree-ready', () => {
+  // onTreeLoad() on the frame controller fires when the iframe's tree is ready.
+  tree2.onTreeLoad(() => {
     tree2.midpointRoot();
-      tree2.applySettings({ branchColor: '#2aa198' });
-      tree2.fitLabels();
-    }, { once: true });
-  }, { once: true });
+    tree2.applySettings({ branchColor: '#2aa198' });
+        tree2.sort('desc');
+
+  });
 </script>
 
 </body>
