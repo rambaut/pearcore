@@ -38,7 +38,8 @@ async function fetchExampleTree() {
   return fetchWithFallback(EXAMPLE_TREE_PATH);
 }
 
-async function _initCore() {
+async function _initCore(root = document) {
+  const $ = id => root.querySelector('#' + id);
   // ── Embed configuration ───────────────────────────────────────────────────
   // Supports window.peartreeConfig (same-page / iframe embedding) and URL
   // search params as a lower-priority alternative.  window.peartreeConfig
@@ -90,214 +91,214 @@ async function _initCore() {
     };
   })();
   // Apply UI restrictions immediately so hidden elements never flash visible.
-  if (!_cfg.showPalette)   document.getElementById('btn-palette')        ?.classList.add('d-none');
-  if (!_cfg.showToolbar)   document.querySelector('.pt-toolbar')          ?.classList.add('d-none');
-  if (!_cfg.showRTT)     { document.getElementById('btn-rtt')            ?.classList.add('d-none');
-                           document.getElementById('rtt-panel')          ?.classList.add('d-none'); }
-  if (!_cfg.showDataTable){ document.getElementById('btn-data-table')    ?.classList.add('d-none');
-                            document.getElementById('data-table-panel')  ?.classList.add('d-none'); }
-  if (!_cfg.showImport)  { document.getElementById('btn-open-tree')      ?.classList.add('d-none');
-                           document.getElementById('btn-import-annot')   ?.classList.add('d-none');
-                           document.getElementById('empty-state-hint')        ?.classList.add('d-none');
-                           document.getElementById('empty-state-open-btn')    ?.classList.add('d-none');
-                           document.getElementById('empty-state-example-btn') ?.classList.add('d-none'); }
-  if (!_cfg.showExport)  { document.getElementById('btn-export-tree')    ?.classList.add('d-none');
-                           document.getElementById('btn-export-graphic') ?.classList.add('d-none'); }
-  if (!_cfg.showStatusBar) document.getElementById('status-bar')          ?.classList.add('d-none');
+  if (!_cfg.showPalette)   $('btn-palette')        ?.classList.add('d-none');
+  if (!_cfg.showToolbar)   root.querySelector('.pt-toolbar')          ?.classList.add('d-none');
+  if (!_cfg.showRTT)     { $('btn-rtt')            ?.classList.add('d-none');
+                           $('rtt-panel')          ?.classList.add('d-none'); }
+  if (!_cfg.showDataTable){ $('btn-data-table')    ?.classList.add('d-none');
+                            $('data-table-panel')  ?.classList.add('d-none'); }
+  if (!_cfg.showImport)  { $('btn-open-tree')      ?.classList.add('d-none');
+                           $('btn-import-annot')   ?.classList.add('d-none');
+                           $('empty-state-hint')        ?.classList.add('d-none');
+                           $('empty-state-open-btn')    ?.classList.add('d-none');
+                           $('empty-state-example-btn') ?.classList.add('d-none'); }
+  if (!_cfg.showExport)  { $('btn-export-tree')    ?.classList.add('d-none');
+                           $('btn-export-graphic') ?.classList.add('d-none'); }
+  if (!_cfg.showStatusBar) $('status-bar')          ?.classList.add('d-none');
 
-  const canvas            = document.getElementById('tree-canvas');
-  const loadingEl         = document.getElementById('loading');
-  const canvasBgColorEl   = document.getElementById('canvas-bg-color');
-  const branchColorEl     = document.getElementById('branch-color');
-  const branchWidthSlider = document.getElementById('branch-width-slider');
-  const fontSlider        = document.getElementById('font-size-slider');
-  const tipSlider         = document.getElementById('tip-size-slider');
-  const tipHaloSlider      = document.getElementById('tip-halo-slider');
-  const nodeSlider        = document.getElementById('node-size-slider');
-  const nodeHaloSlider     = document.getElementById('node-halo-slider');
-  const tipShapeColorEl   = document.getElementById('tip-shape-color');
-  const tipShapeBgEl      = document.getElementById('tip-shape-bg-color');
-  const labelColorEl      = document.getElementById('label-color');
-  const selectedLabelStyleEl = document.getElementById('selected-label-style');
-  const selectedTipStrokeEl   = document.getElementById('selected-tip-stroke');
-  const selectedNodeStrokeEl       = document.getElementById('selected-node-stroke');
-  const tipHoverFillEl       = document.getElementById('tip-hover-fill');
-  const nodeHoverFillEl  = document.getElementById('node-hover-fill');
-  const selectedTipFillEl                = document.getElementById('selected-tip-fill');
-  const selectedTipGrowthSlider          = document.getElementById('selected-tip-growth');
-  const selectedTipMinSizeSlider         = document.getElementById('selected-tip-min-size');
-  const selectedTipFillOpacitySlider     = document.getElementById('selected-tip-fill-opacity');
-  const selectedTipStrokeWidthSlider     = document.getElementById('selected-tip-stroke-width');
-  const selectedTipStrokeOpacitySlider   = document.getElementById('selected-tip-stroke-opacity');
-  const selectedNodeFillEl               = document.getElementById('selected-node-fill');
-  const selectedNodeGrowthSlider         = document.getElementById('selected-node-growth');
-  const selectedNodeMinSizeSlider        = document.getElementById('selected-node-min-size');
-  const selectedNodeFillOpacitySlider    = document.getElementById('selected-node-fill-opacity');
-  const selectedNodeStrokeWidthSlider    = document.getElementById('selected-node-stroke-width');
-  const selectedNodeStrokeOpacitySlider  = document.getElementById('selected-node-stroke-opacity');
-  const tipHoverStrokeEl                 = document.getElementById('tip-hover-stroke');
-  const tipHoverGrowthSlider             = document.getElementById('tip-hover-growth');
-  const tipHoverMinSizeSlider            = document.getElementById('tip-hover-min-size');
-  const tipHoverFillOpacitySlider        = document.getElementById('tip-hover-fill-opacity');
-  const tipHoverStrokeWidthSlider        = document.getElementById('tip-hover-stroke-width');
-  const tipHoverStrokeOpacitySlider      = document.getElementById('tip-hover-stroke-opacity');
-  const nodeHoverStrokeEl                = document.getElementById('node-hover-stroke');
-  const nodeHoverGrowthSlider            = document.getElementById('node-hover-growth');
-  const nodeHoverMinSizeSlider           = document.getElementById('node-hover-min-size');
-  const nodeHoverFillOpacitySlider       = document.getElementById('node-hover-fill-opacity');
-  const nodeHoverStrokeWidthSlider       = document.getElementById('node-hover-stroke-width');
-  const nodeHoverStrokeOpacitySlider     = document.getElementById('node-hover-stroke-opacity');
-  const nodeShapeColorEl  = document.getElementById('node-shape-color');
-  const nodeShapeBgEl     = document.getElementById('node-shape-bg-color');
-  const nodeBarsShowEl      = document.getElementById('node-bars-show');
-  const nodeBarsColorEl     = document.getElementById('node-bars-color');
-  const nodeBarsWidthSlider = document.getElementById('node-bars-width-slider');
-  const nodeBarsMedianEl    = document.getElementById('node-bars-median');
-  const nodeBarsRangeEl     = document.getElementById('node-bars-range');
-  const nodeBarsControlsEl  = document.getElementById('node-bars-controls');
-  const nodeBarsUnavailEl   = document.getElementById('node-bars-unavail');
-  const collapsedOpacitySlider = document.getElementById('collapsed-opacity-slider');
-  const collapsedHeightNSlider = document.getElementById('collapsed-height-n-slider');
-  const collapsedCladeFontSizeSlider = document.getElementById('collapsed-clade-font-size-slider');
-  const tipShapeDetailEl    = document.getElementById('tip-shape-detail');
-  const nodeShapeDetailEl   = document.getElementById('node-shape-detail');
-  const nodeLabelDetailEl   = document.getElementById('node-label-detail');
-  const nodeBarsDetailEl    = document.getElementById('node-bars-detail');
-  const legendDetailEl      = document.getElementById('legend-detail');
-  const axisDetailEl        = document.getElementById('axis-detail');
-  const clampNegBranchesEl  = document.getElementById('clamp-neg-branches');
-  const clampNegBranchesRowEl = document.getElementById('clamp-neg-branches-row');
-  const rootStemPctSlider    = document.getElementById('root-stem-pct-slider');
-  const fontFamilyEl        = document.getElementById('font-family-select');
-  const fontTypefaceStyleEl = document.getElementById('font-typeface-style-select');
-  const tipLabelTypefaceEl  = document.getElementById('typeface-select');
-  const typefaceStyleEl     = document.getElementById('typeface-style-select');
-  const nodeLabelTypefaceEl      = document.getElementById('node-label-typeface-select');
-  const nodeLabelTypefaceStyleEl = document.getElementById('node-label-typeface-style-select');
-  const collapsedCladeTypefaceEl      = document.getElementById('collapsed-clade-typeface-select');
-  const collapsedCladeTypefaceStyleEl = document.getElementById('collapsed-clade-typeface-style-select');
-  const legendTypefaceStyleEl  = document.getElementById('legend-typeface-style-select');
-  const axisTypefaceStyleEl    = document.getElementById('axis-typeface-style-select');
-  const rttAxisTypefaceStyleEl = document.getElementById('rtt-axis-typeface-style-select');
-  const tipColourBy       = document.getElementById('tip-colour-by');
-  const nodeColourBy      = document.getElementById('node-colour-by');
-  const labelColourBy     = document.getElementById('label-colour-by');
-  const tipLabelShow      = document.getElementById('tip-label-show');
-  const tipLabelControlsEl = document.getElementById('tip-label-controls');
-  const tipLabelAlignEl   = document.getElementById('tip-label-align');
-  const nodeLabelShowEl         = document.getElementById('node-label-show');
-  const nodeLabelPositionEl     = document.getElementById('node-label-position');
-  const nodeLabelFontSizeSlider = document.getElementById('node-label-font-size-slider');
-  const nodeLabelColorEl        = document.getElementById('node-label-color');
-  const nodeLabelSpacingSlider  = document.getElementById('node-label-spacing-slider');
-  const tipLabelSpacingSlider   = document.getElementById('tip-label-spacing-slider');
-  const tipLabelDpRowEl          = document.getElementById('tip-label-dp-row');
-  const tipLabelDpEl             = document.getElementById('tip-label-decimal-places');
-  const nodeLabelDpRowEl         = document.getElementById('node-label-dp-row');
-  const nodeLabelDpEl            = document.getElementById('node-label-decimal-places');
-  const tipPaletteSelect   = document.getElementById('tip-palette-select');
-  const tipPaletteRow      = document.getElementById('tip-palette-row');
-  const nodePaletteSelect  = document.getElementById('node-palette-select');
-  const nodePaletteRow     = document.getElementById('node-palette-row');
-  const labelPaletteSelect = document.getElementById('label-palette-select');
-  const labelPaletteRow    = document.getElementById('label-palette-row');
-  const tipLabelShapeEl              = document.getElementById('tip-label-shape');
-  const tipLabelShapeColorEl         = document.getElementById('tip-label-shape-color');
-  const tipLabelShapeColourBy        = document.getElementById('tip-label-shape-colour-by');
-  const tipLabelShapePaletteRow      = document.getElementById('tip-label-shape-palette-row');
-  const tipLabelShapePaletteSelect   = document.getElementById('tip-label-shape-palette-select');
-  const tipLabelShapeMarginLeftSlider  = document.getElementById('tip-label-shape-margin-left-slider');
-  const tipLabelShapeMarginRightSlider = document.getElementById('tip-label-shape-margin-right-slider');
-  const tipLabelShapeSpacingSlider     = document.getElementById('tip-label-shape-spacing-slider');
-  const tipLabelShapeSizeSlider        = document.getElementById('tip-label-shape-size-slider');
-  const tipLabelShapeDetailEl        = document.getElementById('tip-label-shape-detail');
+  const canvas            = $('tree-canvas');
+  const loadingEl         = $('loading');
+  const canvasBgColorEl   = $('canvas-bg-color');
+  const branchColorEl     = $('branch-color');
+  const branchWidthSlider = $('branch-width-slider');
+  const fontSlider        = $('font-size-slider');
+  const tipSlider         = $('tip-size-slider');
+  const tipHaloSlider      = $('tip-halo-slider');
+  const nodeSlider        = $('node-size-slider');
+  const nodeHaloSlider     = $('node-halo-slider');
+  const tipShapeColorEl   = $('tip-shape-color');
+  const tipShapeBgEl      = $('tip-shape-bg-color');
+  const labelColorEl      = $('label-color');
+  const selectedLabelStyleEl = $('selected-label-style');
+  const selectedTipStrokeEl   = $('selected-tip-stroke');
+  const selectedNodeStrokeEl       = $('selected-node-stroke');
+  const tipHoverFillEl       = $('tip-hover-fill');
+  const nodeHoverFillEl  = $('node-hover-fill');
+  const selectedTipFillEl                = $('selected-tip-fill');
+  const selectedTipGrowthSlider          = $('selected-tip-growth');
+  const selectedTipMinSizeSlider         = $('selected-tip-min-size');
+  const selectedTipFillOpacitySlider     = $('selected-tip-fill-opacity');
+  const selectedTipStrokeWidthSlider     = $('selected-tip-stroke-width');
+  const selectedTipStrokeOpacitySlider   = $('selected-tip-stroke-opacity');
+  const selectedNodeFillEl               = $('selected-node-fill');
+  const selectedNodeGrowthSlider         = $('selected-node-growth');
+  const selectedNodeMinSizeSlider        = $('selected-node-min-size');
+  const selectedNodeFillOpacitySlider    = $('selected-node-fill-opacity');
+  const selectedNodeStrokeWidthSlider    = $('selected-node-stroke-width');
+  const selectedNodeStrokeOpacitySlider  = $('selected-node-stroke-opacity');
+  const tipHoverStrokeEl                 = $('tip-hover-stroke');
+  const tipHoverGrowthSlider             = $('tip-hover-growth');
+  const tipHoverMinSizeSlider            = $('tip-hover-min-size');
+  const tipHoverFillOpacitySlider        = $('tip-hover-fill-opacity');
+  const tipHoverStrokeWidthSlider        = $('tip-hover-stroke-width');
+  const tipHoverStrokeOpacitySlider      = $('tip-hover-stroke-opacity');
+  const nodeHoverStrokeEl                = $('node-hover-stroke');
+  const nodeHoverGrowthSlider            = $('node-hover-growth');
+  const nodeHoverMinSizeSlider           = $('node-hover-min-size');
+  const nodeHoverFillOpacitySlider       = $('node-hover-fill-opacity');
+  const nodeHoverStrokeWidthSlider       = $('node-hover-stroke-width');
+  const nodeHoverStrokeOpacitySlider     = $('node-hover-stroke-opacity');
+  const nodeShapeColorEl  = $('node-shape-color');
+  const nodeShapeBgEl     = $('node-shape-bg-color');
+  const nodeBarsShowEl      = $('node-bars-show');
+  const nodeBarsColorEl     = $('node-bars-color');
+  const nodeBarsWidthSlider = $('node-bars-width-slider');
+  const nodeBarsMedianEl    = $('node-bars-median');
+  const nodeBarsRangeEl     = $('node-bars-range');
+  const nodeBarsControlsEl  = $('node-bars-controls');
+  const nodeBarsUnavailEl   = $('node-bars-unavail');
+  const collapsedOpacitySlider = $('collapsed-opacity-slider');
+  const collapsedHeightNSlider = $('collapsed-height-n-slider');
+  const collapsedCladeFontSizeSlider = $('collapsed-clade-font-size-slider');
+  const tipShapeDetailEl    = $('tip-shape-detail');
+  const nodeShapeDetailEl   = $('node-shape-detail');
+  const nodeLabelDetailEl   = $('node-label-detail');
+  const nodeBarsDetailEl    = $('node-bars-detail');
+  const legendDetailEl      = $('legend-detail');
+  const axisDetailEl        = $('axis-detail');
+  const clampNegBranchesEl  = $('clamp-neg-branches');
+  const clampNegBranchesRowEl = $('clamp-neg-branches-row');
+  const rootStemPctSlider    = $('root-stem-pct-slider');
+  const fontFamilyEl        = $('font-family-select');
+  const fontTypefaceStyleEl = $('font-typeface-style-select');
+  const tipLabelTypefaceEl  = $('typeface-select');
+  const typefaceStyleEl     = $('typeface-style-select');
+  const nodeLabelTypefaceEl      = $('node-label-typeface-select');
+  const nodeLabelTypefaceStyleEl = $('node-label-typeface-style-select');
+  const collapsedCladeTypefaceEl      = $('collapsed-clade-typeface-select');
+  const collapsedCladeTypefaceStyleEl = $('collapsed-clade-typeface-style-select');
+  const legendTypefaceStyleEl  = $('legend-typeface-style-select');
+  const axisTypefaceStyleEl    = $('axis-typeface-style-select');
+  const rttAxisTypefaceStyleEl = $('rtt-axis-typeface-style-select');
+  const tipColourBy       = $('tip-colour-by');
+  const nodeColourBy      = $('node-colour-by');
+  const labelColourBy     = $('label-colour-by');
+  const tipLabelShow      = $('tip-label-show');
+  const tipLabelControlsEl = $('tip-label-controls');
+  const tipLabelAlignEl   = $('tip-label-align');
+  const nodeLabelShowEl         = $('node-label-show');
+  const nodeLabelPositionEl     = $('node-label-position');
+  const nodeLabelFontSizeSlider = $('node-label-font-size-slider');
+  const nodeLabelColorEl        = $('node-label-color');
+  const nodeLabelSpacingSlider  = $('node-label-spacing-slider');
+  const tipLabelSpacingSlider   = $('tip-label-spacing-slider');
+  const tipLabelDpRowEl          = $('tip-label-dp-row');
+  const tipLabelDpEl             = $('tip-label-decimal-places');
+  const nodeLabelDpRowEl         = $('node-label-dp-row');
+  const nodeLabelDpEl            = $('node-label-decimal-places');
+  const tipPaletteSelect   = $('tip-palette-select');
+  const tipPaletteRow      = $('tip-palette-row');
+  const nodePaletteSelect  = $('node-palette-select');
+  const nodePaletteRow     = $('node-palette-row');
+  const labelPaletteSelect = $('label-palette-select');
+  const labelPaletteRow    = $('label-palette-row');
+  const tipLabelShapeEl              = $('tip-label-shape');
+  const tipLabelShapeColorEl         = $('tip-label-shape-color');
+  const tipLabelShapeColourBy        = $('tip-label-shape-colour-by');
+  const tipLabelShapePaletteRow      = $('tip-label-shape-palette-row');
+  const tipLabelShapePaletteSelect   = $('tip-label-shape-palette-select');
+  const tipLabelShapeMarginLeftSlider  = $('tip-label-shape-margin-left-slider');
+  const tipLabelShapeMarginRightSlider = $('tip-label-shape-margin-right-slider');
+  const tipLabelShapeSpacingSlider     = $('tip-label-shape-spacing-slider');
+  const tipLabelShapeSizeSlider        = $('tip-label-shape-size-slider');
+  const tipLabelShapeDetailEl        = $('tip-label-shape-detail');
   // Extra label shapes 2–10 (indices 0–8 correspond to shape numbers 2–10)
   const EXTRA_SHAPE_COUNT = 9;
-  const tipLabelShapeExtraEls           = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => document.getElementById(`tip-label-shape-${i + 2}`));
-  const tipLabelShapeExtraColourBys     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => document.getElementById(`tip-label-shape-${i + 2}-colour-by`));
-  const tipLabelShapeExtraPaletteRows   = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => document.getElementById(`tip-label-shape-${i + 2}-palette-row`));
-  const tipLabelShapeExtraPaletteSelects = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => document.getElementById(`tip-label-shape-${i + 2}-palette-select`));
-  const tipLabelShapeExtraSectionEls    = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => document.getElementById(`tip-label-shape-${i + 2}-section`));
-  const tipLabelShapeExtraDetailEls     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => document.getElementById(`tip-label-shape-${i + 2}-detail`));
-  const legendShowEl          = document.getElementById('legend-show');
-  const legendAnnotEl         = document.getElementById('legend-annotation');
-  const legendTextColorEl     = document.getElementById('legend-text-color');
-  const legendFontSizeSlider   = document.getElementById('legend-font-size-slider');
-  const legendHeightPctSlider  = document.getElementById('legend-height-pct-slider');
-  const legendFontFamilyEl     = document.getElementById('legend-font-family-select');
-  const legendLeftCanvas   = document.getElementById('legend-left-canvas');
-  const legendRightCanvas  = document.getElementById('legend-right-canvas');
-  const legend2LeftCanvas  = document.getElementById('legend2-left-canvas');
-  const legend2RightCanvas = document.getElementById('legend2-right-canvas');
-  const legend2AnnotEl          = document.getElementById('legend-annotation-2');
-  const legend2ShowEl           = document.getElementById('legend2-show');
-  const legend2HeightPctSlider  = document.getElementById('legend2-height-pct-slider');
-  const legend2DetailEl         = document.getElementById('legend2-detail');
-  const axisCanvas             = document.getElementById('axis-canvas');
-  const axisShowEl             = document.getElementById('axis-show');
-  const axisDateAnnotEl        = document.getElementById('axis-date-annotation');
-  const axisDateRow            = document.getElementById('axis-date-row');
-  const axisDateFmtEl          = document.getElementById('axis-date-format');
-  const axisDateFmtRow         = document.getElementById('axis-date-format-row');
-  const axisMajorIntervalEl    = document.getElementById('axis-major-interval');
-  const axisMinorIntervalEl    = document.getElementById('axis-minor-interval');
-  const axisMajorLabelEl       = document.getElementById('axis-major-label');
-  const axisMinorLabelEl       = document.getElementById('axis-minor-label');
-  const axisMajorIntervalRow   = document.getElementById('axis-major-interval-row');
-  const axisMinorIntervalRow   = document.getElementById('axis-minor-interval-row');
-  const axisMajorLabelRow      = document.getElementById('axis-major-label-row');
-  const axisMinorLabelRow      = document.getElementById('axis-minor-label-row');
-  const axisColorEl           = document.getElementById('axis-color');
-  const axisFontSizeSlider    = document.getElementById('axis-font-size-slider');
-  const axisFontFamilyEl      = document.getElementById('axis-font-family-select');
-  const axisLineWidthSlider   = document.getElementById('axis-line-width-slider');
-  const rttXOriginEl           = document.getElementById('rtt-x-origin');
-  const rttGridLinesEl          = document.getElementById('rtt-grid-lines');
-  const rttAspectRatioEl        = document.getElementById('rtt-aspect-ratio');
-  const rttAxisColorEl         = document.getElementById('rtt-axis-color');
-  const rttStatsBgColorEl      = document.getElementById('rtt-stats-bg-color');
-  const rttStatsTextColorEl    = document.getElementById('rtt-stats-text-color');
-  const rttRegressionStyleEl   = document.getElementById('rtt-regression-style');
-  const rttRegressionColorEl   = document.getElementById('rtt-regression-color');
-  const rttRegressionWidthSlider = document.getElementById('rtt-regression-width-slider');
-  const rttAxisFontSizeSlider  = document.getElementById('rtt-axis-font-size-slider');
-  const rttAxisFontFamilyEl    = document.getElementById('rtt-axis-font-family-select');
-  const rttAxisLineWidthSlider = document.getElementById('rtt-axis-line-width-slider');
-  const rttDateFmtEl           = document.getElementById('rtt-date-format');
-  const rttMajorIntervalEl     = document.getElementById('rtt-major-interval');
-  const rttMinorIntervalEl     = document.getElementById('rtt-minor-interval');
-  const rttMajorLabelEl        = document.getElementById('rtt-major-label');
-  const rttMinorLabelEl        = document.getElementById('rtt-minor-label');
-  const rttDateFmtRow          = document.getElementById('rtt-date-format-row');
-  const rttMajorIntervalRow    = document.getElementById('rtt-major-interval-row');
-  const rttMinorIntervalRow    = document.getElementById('rtt-minor-interval-row');
-  const rttMajorLabelRow       = document.getElementById('rtt-major-label-row');
-  const rttMinorLabelRow       = document.getElementById('rtt-minor-label-row');
-  const themeSelect            = document.getElementById('theme-select');
-  const btnStoreTheme          = document.getElementById('btn-store-theme');
-  const btnDefaultTheme        = document.getElementById('btn-default-theme');
-  const btnRemoveTheme         = document.getElementById('btn-remove-theme');
-  const btnFit                 = document.getElementById('btn-fit');
-  const btnResetSettings       = document.getElementById('btn-reset-settings');
-  const btnImportAnnot         = document.getElementById('btn-import-annot');
-  const btnCurateAnnot         = document.getElementById('btn-curate-annot');
-  const btnDataTable           = document.getElementById('btn-data-table');
-  const btnRtt                 = document.getElementById('btn-rtt');
-  const btnExportTree          = document.getElementById('btn-export-tree');
-  const btnMPR                 = document.getElementById('btn-midpoint-root');
-  const btnTemporalRoot        = document.getElementById('btn-temporal-root');
-  const btnTemporalRootGlobal  = document.getElementById('btn-temporal-root-global');
+  const tipLabelShapeExtraEls           = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}`));
+  const tipLabelShapeExtraColourBys     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-colour-by`));
+  const tipLabelShapeExtraPaletteRows   = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-palette-row`));
+  const tipLabelShapeExtraPaletteSelects = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-palette-select`));
+  const tipLabelShapeExtraSectionEls    = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-section`));
+  const tipLabelShapeExtraDetailEls     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-detail`));
+  const legendShowEl          = $('legend-show');
+  const legendAnnotEl         = $('legend-annotation');
+  const legendTextColorEl     = $('legend-text-color');
+  const legendFontSizeSlider   = $('legend-font-size-slider');
+  const legendHeightPctSlider  = $('legend-height-pct-slider');
+  const legendFontFamilyEl     = $('legend-font-family-select');
+  const legendLeftCanvas   = $('legend-left-canvas');
+  const legendRightCanvas  = $('legend-right-canvas');
+  const legend2LeftCanvas  = $('legend2-left-canvas');
+  const legend2RightCanvas = $('legend2-right-canvas');
+  const legend2AnnotEl          = $('legend-annotation-2');
+  const legend2ShowEl           = $('legend2-show');
+  const legend2HeightPctSlider  = $('legend2-height-pct-slider');
+  const legend2DetailEl         = $('legend2-detail');
+  const axisCanvas             = $('axis-canvas');
+  const axisShowEl             = $('axis-show');
+  const axisDateAnnotEl        = $('axis-date-annotation');
+  const axisDateRow            = $('axis-date-row');
+  const axisDateFmtEl          = $('axis-date-format');
+  const axisDateFmtRow         = $('axis-date-format-row');
+  const axisMajorIntervalEl    = $('axis-major-interval');
+  const axisMinorIntervalEl    = $('axis-minor-interval');
+  const axisMajorLabelEl       = $('axis-major-label');
+  const axisMinorLabelEl       = $('axis-minor-label');
+  const axisMajorIntervalRow   = $('axis-major-interval-row');
+  const axisMinorIntervalRow   = $('axis-minor-interval-row');
+  const axisMajorLabelRow      = $('axis-major-label-row');
+  const axisMinorLabelRow      = $('axis-minor-label-row');
+  const axisColorEl           = $('axis-color');
+  const axisFontSizeSlider    = $('axis-font-size-slider');
+  const axisFontFamilyEl      = $('axis-font-family-select');
+  const axisLineWidthSlider   = $('axis-line-width-slider');
+  const rttXOriginEl           = $('rtt-x-origin');
+  const rttGridLinesEl          = $('rtt-grid-lines');
+  const rttAspectRatioEl        = $('rtt-aspect-ratio');
+  const rttAxisColorEl         = $('rtt-axis-color');
+  const rttStatsBgColorEl      = $('rtt-stats-bg-color');
+  const rttStatsTextColorEl    = $('rtt-stats-text-color');
+  const rttRegressionStyleEl   = $('rtt-regression-style');
+  const rttRegressionColorEl   = $('rtt-regression-color');
+  const rttRegressionWidthSlider = $('rtt-regression-width-slider');
+  const rttAxisFontSizeSlider  = $('rtt-axis-font-size-slider');
+  const rttAxisFontFamilyEl    = $('rtt-axis-font-family-select');
+  const rttAxisLineWidthSlider = $('rtt-axis-line-width-slider');
+  const rttDateFmtEl           = $('rtt-date-format');
+  const rttMajorIntervalEl     = $('rtt-major-interval');
+  const rttMinorIntervalEl     = $('rtt-minor-interval');
+  const rttMajorLabelEl        = $('rtt-major-label');
+  const rttMinorLabelEl        = $('rtt-minor-label');
+  const rttDateFmtRow          = $('rtt-date-format-row');
+  const rttMajorIntervalRow    = $('rtt-major-interval-row');
+  const rttMinorIntervalRow    = $('rtt-minor-interval-row');
+  const rttMajorLabelRow       = $('rtt-major-label-row');
+  const rttMinorLabelRow       = $('rtt-minor-label-row');
+  const themeSelect            = $('theme-select');
+  const btnStoreTheme          = $('btn-store-theme');
+  const btnDefaultTheme        = $('btn-default-theme');
+  const btnRemoveTheme         = $('btn-remove-theme');
+  const btnFit                 = $('btn-fit');
+  const btnResetSettings       = $('btn-reset-settings');
+  const btnImportAnnot         = $('btn-import-annot');
+  const btnCurateAnnot         = $('btn-curate-annot');
+  const btnDataTable           = $('btn-data-table');
+  const btnRtt                 = $('btn-rtt');
+  const btnExportTree          = $('btn-export-tree');
+  const btnMPR                 = $('btn-midpoint-root');
+  const btnTemporalRoot        = $('btn-temporal-root');
+  const btnTemporalRootGlobal  = $('btn-temporal-root-global');
   // Hidden native <input type="color"> — value only, never shown directly
-  const tipColourPickerEl            = document.getElementById('btn-node-colour');
+  const tipColourPickerEl            = $('btn-node-colour');
   // Colour panel elements
-  const btnColourTrigger             = document.getElementById('btn-colour-trigger');
-  const btnColourTriggerSwatch       = document.getElementById('btn-colour-trigger-swatch');
-  const colourPickerPopup            = document.getElementById('colour-picker-popup');
-  const btnColourNativeOpen          = document.getElementById('btn-colour-native-open');
-  const colourPickerRecentEl         = document.getElementById('colour-picker-recent');
-  const colourPickerPalettesEl       = document.getElementById('colour-picker-palettes');
-  const btnApplyUserColour           = document.getElementById('btn-apply-user-colour');
-  const btnClearUserColour           = document.getElementById('btn-clear-user-colour');
+  const btnColourTrigger             = $('btn-colour-trigger');
+  const btnColourTriggerSwatch       = $('btn-colour-trigger-swatch');
+  const colourPickerPopup            = $('colour-picker-popup');
+  const btnColourNativeOpen          = $('btn-colour-native-open');
+  const colourPickerRecentEl         = $('colour-picker-recent');
+  const colourPickerPalettesEl       = $('colour-picker-palettes');
+  const btnApplyUserColour           = $('btn-apply-user-colour');
+  const btnClearUserColour           = $('btn-clear-user-colour');
 
   // Recent colours (persisted) — max 8 entries
   const RECENT_COLOURS_KEY = 'pt-recent-colours';
@@ -403,6 +404,7 @@ async function _initCore() {
 
   // Close when clicking outside the popup
   document.addEventListener('click', (e) => {
+    if (!root.contains(e.target)) return;
     if (colourPickerPopup?.classList.contains('open') &&
         !colourPickerPopup.contains(e.target) &&
         e.target !== btnColourTrigger) {
@@ -410,17 +412,18 @@ async function _initCore() {
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') _closeColourPanel();
+    if (e.key === 'Escape' && (root === document || root.contains(document.activeElement))) _closeColourPanel();
   });
-  const tipFilterEl            = document.getElementById('tip-filter');
-  const btnFilterColEl         = document.getElementById('btn-filter-col');
-  const btnFilterRegexEl       = document.getElementById('btn-filter-regex');
-  const filterColPopupEl       = document.getElementById('filter-col-popup');
+  const tipFilterEl            = $('tip-filter');
+  const btnFilterColEl         = $('btn-filter-col');
+  const btnFilterRegexEl       = $('btn-filter-regex');
+  const filterColPopupEl       = $('filter-col-popup');
   let   _filterCol             = '__name__';  // currently active filter column
   let   _filterRegex           = false;       // regex mode toggle
 
   // Close filter-column popup on outside click or Escape
   document.addEventListener('click', (e) => {
+    if (!root.contains(e.target)) return;
     if (filterColPopupEl?.classList.contains('open') &&
         !filterColPopupEl.contains(e.target) &&
         e.target !== btnFilterColEl) {
@@ -428,7 +431,7 @@ async function _initCore() {
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') filterColPopupEl?.classList.remove('open');
+    if (e.key === 'Escape' && (root === document || root.contains(document.activeElement))) filterColPopupEl?.classList.remove('open');
   });
 
   // ── Settings persistence ──────────────────────────────────────────────────
@@ -858,11 +861,11 @@ async function _initCore() {
     if (s.branchColor)          branchColorEl.value      = s.branchColor;
     if (s.branchWidth    != null) {
       branchWidthSlider.value = s.branchWidth;
-      document.getElementById('branch-width-value').textContent = s.branchWidth;
+      $('branch-width-value').textContent = s.branchWidth;
     }
     if (s.fontSize       != null) {
       fontSlider.value = s.fontSize;
-      document.getElementById('font-size-value').textContent = s.fontSize;
+      $('font-size-value').textContent = s.fontSize;
     }
     if (s.typeface)              fontFamilyEl.value       = s.typeface;
     if (fontTypefaceStyleEl) {
@@ -898,94 +901,94 @@ async function _initCore() {
     if (s.selectedTipFillColor)  selectedTipFillEl.value = s.selectedTipFillColor;
     if (s.selectedTipGrowthFactor != null) {
       selectedTipGrowthSlider.value = s.selectedTipGrowthFactor;
-      document.getElementById('selected-tip-growth-value').textContent = s.selectedTipGrowthFactor;
+      $('selected-tip-growth-value').textContent = s.selectedTipGrowthFactor;
     }
     if (s.selectedTipMinSize != null) {
       selectedTipMinSizeSlider.value = s.selectedTipMinSize;
-      document.getElementById('selected-tip-min-size-value').textContent = s.selectedTipMinSize;
+      $('selected-tip-min-size-value').textContent = s.selectedTipMinSize;
     }
     if (s.selectedTipFillOpacity != null) {
       selectedTipFillOpacitySlider.value = s.selectedTipFillOpacity;
-      document.getElementById('selected-tip-fill-opacity-value').textContent = s.selectedTipFillOpacity;
+      $('selected-tip-fill-opacity-value').textContent = s.selectedTipFillOpacity;
     }
     if (s.selectedTipStrokeWidth != null) {
       selectedTipStrokeWidthSlider.value = s.selectedTipStrokeWidth;
-      document.getElementById('selected-tip-stroke-width-value').textContent = s.selectedTipStrokeWidth;
+      $('selected-tip-stroke-width-value').textContent = s.selectedTipStrokeWidth;
     }
     if (s.selectedTipStrokeOpacity != null) {
       selectedTipStrokeOpacitySlider.value = s.selectedTipStrokeOpacity;
-      document.getElementById('selected-tip-stroke-opacity-value').textContent = s.selectedTipStrokeOpacity;
+      $('selected-tip-stroke-opacity-value').textContent = s.selectedTipStrokeOpacity;
     }
     if (s.selectedNodeFillColor) selectedNodeFillEl.value = s.selectedNodeFillColor;
     if (s.selectedNodeGrowthFactor != null) {
       selectedNodeGrowthSlider.value = s.selectedNodeGrowthFactor;
-      document.getElementById('selected-node-growth-value').textContent = s.selectedNodeGrowthFactor;
+      $('selected-node-growth-value').textContent = s.selectedNodeGrowthFactor;
     }
     if (s.selectedNodeMinSize != null) {
       selectedNodeMinSizeSlider.value = s.selectedNodeMinSize;
-      document.getElementById('selected-node-min-size-value').textContent = s.selectedNodeMinSize;
+      $('selected-node-min-size-value').textContent = s.selectedNodeMinSize;
     }
     if (s.selectedNodeFillOpacity != null) {
       selectedNodeFillOpacitySlider.value = s.selectedNodeFillOpacity;
-      document.getElementById('selected-node-fill-opacity-value').textContent = s.selectedNodeFillOpacity;
+      $('selected-node-fill-opacity-value').textContent = s.selectedNodeFillOpacity;
     }
     if (s.selectedNodeStrokeWidth != null) {
       selectedNodeStrokeWidthSlider.value = s.selectedNodeStrokeWidth;
-      document.getElementById('selected-node-stroke-width-value').textContent = s.selectedNodeStrokeWidth;
+      $('selected-node-stroke-width-value').textContent = s.selectedNodeStrokeWidth;
     }
     if (s.selectedNodeStrokeOpacity != null) {
       selectedNodeStrokeOpacitySlider.value = s.selectedNodeStrokeOpacity;
-      document.getElementById('selected-node-stroke-opacity-value').textContent = s.selectedNodeStrokeOpacity;
+      $('selected-node-stroke-opacity-value').textContent = s.selectedNodeStrokeOpacity;
     }
     if (s.tipHoverStrokeColor)   tipHoverStrokeEl.value = s.tipHoverStrokeColor;
     if (s.tipHoverGrowthFactor != null) {
       tipHoverGrowthSlider.value = s.tipHoverGrowthFactor;
-      document.getElementById('tip-hover-growth-value').textContent = s.tipHoverGrowthFactor;
+      $('tip-hover-growth-value').textContent = s.tipHoverGrowthFactor;
     }
     if (s.tipHoverMinSize != null) {
       tipHoverMinSizeSlider.value = s.tipHoverMinSize;
-      document.getElementById('tip-hover-min-size-value').textContent = s.tipHoverMinSize;
+      $('tip-hover-min-size-value').textContent = s.tipHoverMinSize;
     }
     if (s.tipHoverFillOpacity != null) {
       tipHoverFillOpacitySlider.value = s.tipHoverFillOpacity;
-      document.getElementById('tip-hover-fill-opacity-value').textContent = s.tipHoverFillOpacity;
+      $('tip-hover-fill-opacity-value').textContent = s.tipHoverFillOpacity;
     }
     if (s.tipHoverStrokeWidth != null) {
       tipHoverStrokeWidthSlider.value = s.tipHoverStrokeWidth;
-      document.getElementById('tip-hover-stroke-width-value').textContent = s.tipHoverStrokeWidth;
+      $('tip-hover-stroke-width-value').textContent = s.tipHoverStrokeWidth;
     }
     if (s.tipHoverStrokeOpacity != null) {
       tipHoverStrokeOpacitySlider.value = s.tipHoverStrokeOpacity;
-      document.getElementById('tip-hover-stroke-opacity-value').textContent = s.tipHoverStrokeOpacity;
+      $('tip-hover-stroke-opacity-value').textContent = s.tipHoverStrokeOpacity;
     }
     if (s.nodeHoverStrokeColor)  nodeHoverStrokeEl.value = s.nodeHoverStrokeColor;
     if (s.nodeHoverGrowthFactor != null) {
       nodeHoverGrowthSlider.value = s.nodeHoverGrowthFactor;
-      document.getElementById('node-hover-growth-value').textContent = s.nodeHoverGrowthFactor;
+      $('node-hover-growth-value').textContent = s.nodeHoverGrowthFactor;
     }
     if (s.nodeHoverMinSize != null) {
       nodeHoverMinSizeSlider.value = s.nodeHoverMinSize;
-      document.getElementById('node-hover-min-size-value').textContent = s.nodeHoverMinSize;
+      $('node-hover-min-size-value').textContent = s.nodeHoverMinSize;
     }
     if (s.nodeHoverFillOpacity != null) {
       nodeHoverFillOpacitySlider.value = s.nodeHoverFillOpacity;
-      document.getElementById('node-hover-fill-opacity-value').textContent = s.nodeHoverFillOpacity;
+      $('node-hover-fill-opacity-value').textContent = s.nodeHoverFillOpacity;
     }
     if (s.nodeHoverStrokeWidth != null) {
       nodeHoverStrokeWidthSlider.value = s.nodeHoverStrokeWidth;
-      document.getElementById('node-hover-stroke-width-value').textContent = s.nodeHoverStrokeWidth;
+      $('node-hover-stroke-width-value').textContent = s.nodeHoverStrokeWidth;
     }
     if (s.nodeHoverStrokeOpacity != null) {
       nodeHoverStrokeOpacitySlider.value = s.nodeHoverStrokeOpacity;
-      document.getElementById('node-hover-stroke-opacity-value').textContent = s.nodeHoverStrokeOpacity;
+      $('node-hover-stroke-opacity-value').textContent = s.nodeHoverStrokeOpacity;
     }
     if (s.tipSize        != null) {
       tipSlider.value = s.tipSize;
-      document.getElementById('tip-size-value').textContent = s.tipSize;
+      $('tip-size-value').textContent = s.tipSize;
     }
     if (s.tipHaloSize    != null) {
       tipHaloSlider.value = s.tipHaloSize;
-      document.getElementById('tip-halo-value').textContent = s.tipHaloSize;
+      $('tip-halo-value').textContent = s.tipHaloSize;
     }
     if (s.tipShapeColor)         tipShapeColorEl.value    = s.tipShapeColor;
     if (s.tipShapeBgColor)       tipShapeBgEl.value       = s.tipShapeBgColor;
@@ -993,19 +996,19 @@ async function _initCore() {
     if (s.tipLabelShapeColor)    tipLabelShapeColorEl.value = s.tipLabelShapeColor;
     if (s.tipLabelShapeMarginLeft != null) {
       tipLabelShapeMarginLeftSlider.value = s.tipLabelShapeMarginLeft;
-      document.getElementById('tip-label-shape-margin-left-value').textContent = s.tipLabelShapeMarginLeft;
+      $('tip-label-shape-margin-left-value').textContent = s.tipLabelShapeMarginLeft;
     }
     if (s.tipLabelShapeMarginRight != null) {
       tipLabelShapeMarginRightSlider.value = s.tipLabelShapeMarginRight;
-      document.getElementById('tip-label-shape-margin-right-value').textContent = s.tipLabelShapeMarginRight;
+      $('tip-label-shape-margin-right-value').textContent = s.tipLabelShapeMarginRight;
     }
     if (s.tipLabelShapeSpacing != null) {
       tipLabelShapeSpacingSlider.value = s.tipLabelShapeSpacing;
-      document.getElementById('tip-label-shape-spacing-value').textContent = s.tipLabelShapeSpacing;
+      $('tip-label-shape-spacing-value').textContent = s.tipLabelShapeSpacing;
     }
     if (s.tipLabelShapeSize != null) {
       tipLabelShapeSizeSlider.value = s.tipLabelShapeSize;
-      document.getElementById('tip-label-shape-size-value').textContent = s.tipLabelShapeSize;
+      $('tip-label-shape-size-value').textContent = s.tipLabelShapeSize;
     }
     // Extra shapes 2–10 (new array format + backward compat for old tipLabelShape2 key)
     if (Array.isArray(s.tipLabelShapesExtra)) {
@@ -1019,11 +1022,11 @@ async function _initCore() {
     }
     if (s.nodeSize       != null) {
       nodeSlider.value = s.nodeSize;
-      document.getElementById('node-size-value').textContent = s.nodeSize;
+      $('node-size-value').textContent = s.nodeSize;
     }
     if (s.nodeHaloSize   != null) {
       nodeHaloSlider.value = s.nodeHaloSize;
-      document.getElementById('node-halo-value').textContent = s.nodeHaloSize;
+      $('node-halo-value').textContent = s.nodeHaloSize;
     }
     if (s.nodeShapeColor)        nodeShapeColorEl.value   = s.nodeShapeColor;
     if (s.nodeShapeBgColor)      nodeShapeBgEl.value      = s.nodeShapeBgColor;
@@ -1043,11 +1046,11 @@ async function _initCore() {
     if (s.legendTextColor) legendTextColorEl.value = s.legendTextColor;
     if (s.legendFontSize != null) {
       legendFontSizeSlider.value = s.legendFontSize;
-      document.getElementById('legend-font-size-value').textContent = s.legendFontSize;
+      $('legend-font-size-value').textContent = s.legendFontSize;
     }
     if (s.legendHeightPct != null) {
       legendHeightPctSlider.value = s.legendHeightPct;
-      document.getElementById('legend-height-pct-value').textContent = s.legendHeightPct + '%';
+      $('legend-height-pct-value').textContent = s.legendHeightPct + '%';
     }
     if (s.legendFontFamily)      legendFontFamilyEl.value = s.legendFontFamily;
     if (legendTypefaceStyleEl) {
@@ -1056,7 +1059,7 @@ async function _initCore() {
     if (s.legend2Position)        legend2ShowEl.value      = s.legend2Position;
     if (s.legendHeightPct2 != null) {
       legend2HeightPctSlider.value = s.legendHeightPct2;
-      document.getElementById('legend2-height-pct-value').textContent = s.legendHeightPct2 + '%';
+      $('legend2-height-pct-value').textContent = s.legendHeightPct2 + '%';
     }
     // Note: legendAnnotation2 is annotation-dependent and restored later in loadTree.
     // Node bars settings
@@ -1064,41 +1067,41 @@ async function _initCore() {
     if (s.nodeBarsColor)    nodeBarsColorEl.value = s.nodeBarsColor;
     if (s.nodeBarsWidth != null) {
       nodeBarsWidthSlider.value = s.nodeBarsWidth;
-      document.getElementById('node-bars-width-value').textContent = s.nodeBarsWidth;
+      $('node-bars-width-value').textContent = s.nodeBarsWidth;
     }
     if (s.nodeBarsShowMedian) nodeBarsMedianEl.value = s.nodeBarsShowMedian;
     if (s.nodeBarsShowRange)  nodeBarsRangeEl.value  = s.nodeBarsShowRange;
     if (s.collapsedCladeOpacity != null) {
       collapsedOpacitySlider.value = s.collapsedCladeOpacity;
-      document.getElementById('collapsed-opacity-value').textContent = s.collapsedCladeOpacity;
+      $('collapsed-opacity-value').textContent = s.collapsedCladeOpacity;
     }
     if (s.collapsedCladeHeightN != null) {
       collapsedHeightNSlider.value = s.collapsedCladeHeightN;
-      document.getElementById('collapsed-height-n-value').textContent = s.collapsedCladeHeightN;
+      $('collapsed-height-n-value').textContent = s.collapsedCladeHeightN;
     }
     if (s.collapsedCladeFontSize != null) {
       collapsedCladeFontSizeSlider.value = s.collapsedCladeFontSize;
-      document.getElementById('collapsed-clade-font-size-value').textContent = s.collapsedCladeFontSize;
+      $('collapsed-clade-font-size-value').textContent = s.collapsedCladeFontSize;
     }
     if (s.clampNegBranches)   clampNegBranchesEl.value = s.clampNegBranches;
     if (s.rootStemPct != null) {
       rootStemPctSlider.value = s.rootStemPct;
-      document.getElementById('root-stem-pct-value').textContent = s.rootStemPct + '%';
+      $('root-stem-pct-value').textContent = s.rootStemPct + '%';
     }
     // Node label settings (annotation-dependent: nodeLabelAnnotation is applied later in loadTree)
     if (s.nodeLabelPosition)  nodeLabelPositionEl.value   = s.nodeLabelPosition;
     if (s.nodeLabelFontSize != null) {
       nodeLabelFontSizeSlider.value = s.nodeLabelFontSize;
-      document.getElementById('node-label-font-size-value').textContent = s.nodeLabelFontSize;
+      $('node-label-font-size-value').textContent = s.nodeLabelFontSize;
     }
     if (s.nodeLabelColor)     nodeLabelColorEl.value      = s.nodeLabelColor;
     if (s.nodeLabelSpacing != null) {
       nodeLabelSpacingSlider.value = s.nodeLabelSpacing;
-      document.getElementById('node-label-spacing-value').textContent = s.nodeLabelSpacing;
+      $('node-label-spacing-value').textContent = s.nodeLabelSpacing;
     }
     if (s.tipLabelSpacing != null) {
       tipLabelSpacingSlider.value = s.tipLabelSpacing;
-      document.getElementById('tip-label-spacing-value').textContent = s.tipLabelSpacing;
+      $('tip-label-spacing-value').textContent = s.tipLabelSpacing;
     }
     if (s.tipLabelDecimalPlaces  != null && tipLabelDpEl)  tipLabelDpEl.value  = String(s.tipLabelDecimalPlaces);
     if (s.nodeLabelDecimalPlaces != null && nodeLabelDpEl) nodeLabelDpEl.value = String(s.nodeLabelDecimalPlaces);
@@ -1131,10 +1134,10 @@ async function _initCore() {
     legend2AnnotEl.value     = '';
     legend2ShowEl.value      = DEFAULT_SETTINGS.legend2Position;
     legend2HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct2;
-    document.getElementById('legend2-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct2 + '%';
+    $('legend2-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct2 + '%';
     legendTextColorEl.value  = DEFAULT_SETTINGS.legendTextColor;
     legendFontSizeSlider.value = DEFAULT_SETTINGS.legendFontSize;
-    document.getElementById('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
+    $('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
     legendFontFamilyEl.value = DEFAULT_SETTINGS.legendFontFamily;
     _populateStyleSelect(fontFamilyEl.value, legendTypefaceStyleEl, '', true);
     axisShowEl.value         = DEFAULT_SETTINGS.axisShow;  // 'off'
@@ -1149,22 +1152,22 @@ async function _initCore() {
     axisMinorLabelEl.value       = DEFAULT_SETTINGS.axisMinorLabelFormat;
     _updateMinorOptions(DEFAULT_SETTINGS.axisMajorInterval, DEFAULT_SETTINGS.axisMinorInterval);
     axisFontSizeSlider.value = DEFAULT_SETTINGS.axisFontSize;
-    document.getElementById('axis-font-size-value').textContent = DEFAULT_SETTINGS.axisFontSize;
+    $('axis-font-size-value').textContent = DEFAULT_SETTINGS.axisFontSize;
     axisLineWidthSlider.value = DEFAULT_SETTINGS.axisLineWidth;
-    document.getElementById('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
+    $('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
     axisFontFamilyEl.value = DEFAULT_SETTINGS.axisFontFamily;
     _populateStyleSelect(fontFamilyEl.value, axisTypefaceStyleEl, '', true);
     // RTT axis/stats/regression colours are already set by applyTheme('Artic') above.
     // Only reset the non-colour RTT controls that applyTheme doesn't touch.
     rttRegressionStyleEl.value   = DEFAULT_SETTINGS.rttRegressionStyle;
     rttRegressionWidthSlider.value = DEFAULT_SETTINGS.rttRegressionWidth;
-    document.getElementById('rtt-regression-width-value').textContent = DEFAULT_SETTINGS.rttRegressionWidth;
+    $('rtt-regression-width-value').textContent = DEFAULT_SETTINGS.rttRegressionWidth;
     rttAxisFontSizeSlider.value  = DEFAULT_SETTINGS.rttAxisFontSize;
-    document.getElementById('rtt-axis-font-size-value').textContent = DEFAULT_SETTINGS.rttAxisFontSize;
+    $('rtt-axis-font-size-value').textContent = DEFAULT_SETTINGS.rttAxisFontSize;
     rttAxisFontFamilyEl.value    = DEFAULT_SETTINGS.rttAxisFontFamily;
     _populateStyleSelect(fontFamilyEl.value, rttAxisTypefaceStyleEl, '', true);
     rttAxisLineWidthSlider.value = DEFAULT_SETTINGS.rttAxisLineWidth;
-    document.getElementById('rtt-axis-line-width-value').textContent = DEFAULT_SETTINGS.rttAxisLineWidth;
+    $('rtt-axis-line-width-value').textContent = DEFAULT_SETTINGS.rttAxisLineWidth;
     rttDateFmtEl.value       = DEFAULT_SETTINGS.rttDateFormat;
     rttMajorIntervalEl.value = DEFAULT_SETTINGS.rttMajorInterval;
     _updateRttMinorOptions(DEFAULT_SETTINGS.rttMajorInterval, DEFAULT_SETTINGS.rttMinorInterval);
@@ -1173,18 +1176,18 @@ async function _initCore() {
     nodeBarsShowEl.value  = DEFAULT_SETTINGS.nodeBarsEnabled;
     nodeBarsColorEl.value = DEFAULT_SETTINGS.nodeBarsColor;
     nodeBarsWidthSlider.value = DEFAULT_SETTINGS.nodeBarsWidth;
-    document.getElementById('node-bars-width-value').textContent = DEFAULT_SETTINGS.nodeBarsWidth;
+    $('node-bars-width-value').textContent = DEFAULT_SETTINGS.nodeBarsWidth;
     nodeBarsMedianEl.value = DEFAULT_SETTINGS.nodeBarsShowMedian;
     nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsShowRange;
     clampNegBranchesEl.value = DEFAULT_SETTINGS.clampNegBranches ?? 'off';
     rootStemPctSlider.value = DEFAULT_SETTINGS.rootStemPct ?? '0';
-    document.getElementById('root-stem-pct-value').textContent = (DEFAULT_SETTINGS.rootStemPct ?? '0') + '%';
+    $('root-stem-pct-value').textContent = (DEFAULT_SETTINGS.rootStemPct ?? '0') + '%';
     nodeLabelShowEl.value       = DEFAULT_SETTINGS.nodeLabelAnnotation;
     nodeLabelPositionEl.value   = DEFAULT_SETTINGS.nodeLabelPosition;
     nodeLabelFontSizeSlider.value = DEFAULT_SETTINGS.nodeLabelFontSize;
-    document.getElementById('node-label-font-size-value').textContent = DEFAULT_SETTINGS.nodeLabelFontSize;
+    $('node-label-font-size-value').textContent = DEFAULT_SETTINGS.nodeLabelFontSize;
     collapsedCladeFontSizeSlider.value = DEFAULT_SETTINGS.collapsedCladeFontSize;
-    document.getElementById('collapsed-clade-font-size-value').textContent = DEFAULT_SETTINGS.collapsedCladeFontSize;
+    $('collapsed-clade-font-size-value').textContent = DEFAULT_SETTINGS.collapsedCladeFontSize;
     if (tipLabelTypefaceEl)            tipLabelTypefaceEl.value = '';
     _populateStyleSelect(fontFamilyEl.value, typefaceStyleEl, '', true);
     if (collapsedCladeTypefaceEl)      collapsedCladeTypefaceEl.value = '';
@@ -1193,22 +1196,22 @@ async function _initCore() {
     _populateStyleSelect(fontFamilyEl.value, nodeLabelTypefaceStyleEl, '', true);
     nodeLabelColorEl.value      = DEFAULT_SETTINGS.nodeLabelColor;
     nodeLabelSpacingSlider.value = DEFAULT_SETTINGS.nodeLabelSpacing;
-    document.getElementById('node-label-spacing-value').textContent = DEFAULT_SETTINGS.nodeLabelSpacing;
+    $('node-label-spacing-value').textContent = DEFAULT_SETTINGS.nodeLabelSpacing;
     tipLabelSpacingSlider.value = DEFAULT_SETTINGS.tipLabelSpacing;
-    document.getElementById('tip-label-spacing-value').textContent = DEFAULT_SETTINGS.tipLabelSpacing;
+    $('tip-label-spacing-value').textContent = DEFAULT_SETTINGS.tipLabelSpacing;
     if (tipLabelDpEl)    tipLabelDpEl.value    = '';
     if (nodeLabelDpEl)   nodeLabelDpEl.value   = '';
     tipLabelShapeEl.value        = DEFAULT_SETTINGS.tipLabelShape;
     tipLabelShapeColorEl.value   = DEFAULT_SETTINGS.tipLabelShapeColor;
     tipLabelShapeColourBy.value  = 'user_colour';
     tipLabelShapeMarginLeftSlider.value  = DEFAULT_SETTINGS.tipLabelShapeMarginLeft;
-    document.getElementById('tip-label-shape-margin-left-value').textContent  = DEFAULT_SETTINGS.tipLabelShapeMarginLeft;
+    $('tip-label-shape-margin-left-value').textContent  = DEFAULT_SETTINGS.tipLabelShapeMarginLeft;
     tipLabelShapeMarginRightSlider.value = DEFAULT_SETTINGS.tipLabelShapeMarginRight;
-    document.getElementById('tip-label-shape-margin-right-value').textContent = DEFAULT_SETTINGS.tipLabelShapeMarginRight;
+    $('tip-label-shape-margin-right-value').textContent = DEFAULT_SETTINGS.tipLabelShapeMarginRight;
     tipLabelShapeSpacingSlider.value = DEFAULT_SETTINGS.tipLabelShapeSpacing;
-    document.getElementById('tip-label-shape-spacing-value').textContent = DEFAULT_SETTINGS.tipLabelShapeSpacing;
+    $('tip-label-shape-spacing-value').textContent = DEFAULT_SETTINGS.tipLabelShapeSpacing;
     tipLabelShapeSizeSlider.value = DEFAULT_SETTINGS.tipLabelShapeSize;
-    document.getElementById('tip-label-shape-size-value').textContent = DEFAULT_SETTINGS.tipLabelShapeSize;
+    $('tip-label-shape-size-value').textContent = DEFAULT_SETTINGS.tipLabelShapeSize;
     tipLabelShapeExtraEls.forEach(e => { e.value = 'off'; });
     tipLabelShapeExtraColourBys.forEach(e => { e.value = 'user_colour'; });
 
@@ -1232,10 +1235,10 @@ async function _initCore() {
 
     // Reset order + mode button states (if controls are already bound).
     currentOrder = null;
-    document.getElementById('btn-order-asc') ?.classList.remove('active');
-    document.getElementById('btn-order-desc')?.classList.remove('active');
-    document.getElementById('btn-mode-nodes')    ?.classList.toggle('active', true);
-    document.getElementById('btn-mode-branches') ?.classList.toggle('active', false);
+    $('btn-order-asc') ?.classList.remove('active');
+    $('btn-order-desc')?.classList.remove('active');
+    $('btn-mode-nodes')    ?.classList.toggle('active', true);
+    $('btn-mode-branches') ?.classList.toggle('active', false);
 
     saveSettings();
   }
@@ -1363,7 +1366,7 @@ async function _initCore() {
     _vis(tipShapeDetailEl,      parseInt(tipSlider.value)   > 0);
     _vis(nodeShapeDetailEl,     parseInt(nodeSlider.value)  > 0);
     _vis(tipLabelShapeDetailEl, tipLabelShapeEl.value       !== 'off');
-    const _spacingRow = document.getElementById('tip-label-shape-spacing-row');
+    const _spacingRow = $('tip-label-shape-spacing-row');
     if (_spacingRow) _spacingRow.style.display = (tipLabelShapeEl.value !== 'off' && tipLabelShapeExtraEls[0].value !== 'off') ? '' : 'none';
     // Progressive disclosure: extra shape N section shown only when shape N-1 is on.
     for (let i = 0; i < EXTRA_SHAPE_COUNT; i++) {
@@ -1386,9 +1389,9 @@ async function _initCore() {
    */
   function _syncCanvasWrapperBg(color) {
     if (!treeLoaded) return;
-    document.getElementById('canvas-container').style.background        = color;
-    document.getElementById('canvas-wrapper').style.background          = color;
-    document.getElementById('canvas-and-axis-wrapper').style.background = color;
+    $('canvas-container').style.background        = color;
+    $('canvas-wrapper').style.background          = color;
+    $('canvas-and-axis-wrapper').style.background = color;
     // Data table panel keeps the UI theme background, independent of the tree theme.
   }
 
@@ -1400,9 +1403,9 @@ async function _initCore() {
     _syncCanvasWrapperBg(t.canvasBgColor);
     branchColorEl.value     = t.branchColor;
     branchWidthSlider.value = t.branchWidth;
-    document.getElementById('branch-width-value').textContent = t.branchWidth;
+    $('branch-width-value').textContent = t.branchWidth;
     fontSlider.value        = t.fontSize;
-    document.getElementById('font-size-value').textContent    = t.fontSize;
+    $('font-size-value').textContent    = t.fontSize;
     labelColorEl.value         = t.labelColor;
     selectedLabelStyleEl.value = t.selectedLabelStyle       ?? DEFAULT_SETTINGS.selectedLabelStyle;
     selectedTipStrokeEl.value  = t.selectedTipStrokeColor   ?? DEFAULT_SETTINGS.selectedTipStrokeColor;
@@ -1414,15 +1417,15 @@ async function _initCore() {
     tipHoverStrokeEl.value     = t.tipHoverStrokeColor      ?? DEFAULT_SETTINGS.tipHoverStrokeColor;
     nodeHoverStrokeEl.value    = t.nodeHoverStrokeColor     ?? DEFAULT_SETTINGS.nodeHoverStrokeColor;
     tipSlider.value         = t.tipSize;
-    document.getElementById('tip-size-value').textContent     = t.tipSize;
+    $('tip-size-value').textContent     = t.tipSize;
     tipHaloSlider.value     = t.tipHaloSize;
-    document.getElementById('tip-halo-value').textContent     = t.tipHaloSize;
+    $('tip-halo-value').textContent     = t.tipHaloSize;
     tipShapeColorEl.value   = t.tipShapeColor;
     tipShapeBgEl.value      = t.tipShapeBgColor;
     nodeSlider.value        = t.nodeSize;
-    document.getElementById('node-size-value').textContent    = t.nodeSize;
+    $('node-size-value').textContent    = t.nodeSize;
     nodeHaloSlider.value    = t.nodeHaloSize;
-    document.getElementById('node-halo-value').textContent    = t.nodeHaloSize;
+    $('node-halo-value').textContent    = t.nodeHaloSize;
     nodeShapeColorEl.value  = t.nodeShapeColor;
     nodeShapeBgEl.value     = t.nodeShapeBgColor;
     // Label shapes fall back to the theme's tip/node shape colours when not
@@ -1498,11 +1501,11 @@ async function _initCore() {
   if (_saved.branchColor)          branchColorEl.value      = _saved.branchColor;
   if (_saved.branchWidth    != null) {
     branchWidthSlider.value = _saved.branchWidth;
-    document.getElementById('branch-width-value').textContent = _saved.branchWidth;
+    $('branch-width-value').textContent = _saved.branchWidth;
   }
   if (_saved.fontSize       != null) {
     fontSlider.value = _saved.fontSize;
-    document.getElementById('font-size-value').textContent = _saved.fontSize;
+    $('font-size-value').textContent = _saved.fontSize;
   }
   if (_saved.typeface)             fontFamilyEl.value       = _saved.typeface;
   _populateStyleSelect(fontFamilyEl.value, fontTypefaceStyleEl, _saved.typefaceStyle);
@@ -1521,94 +1524,94 @@ async function _initCore() {
   if (_saved.selectedTipFillColor)  selectedTipFillEl.value = _saved.selectedTipFillColor;
   if (_saved.selectedTipGrowthFactor != null) {
     selectedTipGrowthSlider.value = _saved.selectedTipGrowthFactor;
-    document.getElementById('selected-tip-growth-value').textContent = _saved.selectedTipGrowthFactor;
+    $('selected-tip-growth-value').textContent = _saved.selectedTipGrowthFactor;
   }
   if (_saved.selectedTipMinSize != null) {
     selectedTipMinSizeSlider.value = _saved.selectedTipMinSize;
-    document.getElementById('selected-tip-min-size-value').textContent = _saved.selectedTipMinSize;
+    $('selected-tip-min-size-value').textContent = _saved.selectedTipMinSize;
   }
   if (_saved.selectedTipFillOpacity != null) {
     selectedTipFillOpacitySlider.value = _saved.selectedTipFillOpacity;
-    document.getElementById('selected-tip-fill-opacity-value').textContent = _saved.selectedTipFillOpacity;
+    $('selected-tip-fill-opacity-value').textContent = _saved.selectedTipFillOpacity;
   }
   if (_saved.selectedTipStrokeWidth != null) {
     selectedTipStrokeWidthSlider.value = _saved.selectedTipStrokeWidth;
-    document.getElementById('selected-tip-stroke-width-value').textContent = _saved.selectedTipStrokeWidth;
+    $('selected-tip-stroke-width-value').textContent = _saved.selectedTipStrokeWidth;
   }
   if (_saved.selectedTipStrokeOpacity != null) {
     selectedTipStrokeOpacitySlider.value = _saved.selectedTipStrokeOpacity;
-    document.getElementById('selected-tip-stroke-opacity-value').textContent = _saved.selectedTipStrokeOpacity;
+    $('selected-tip-stroke-opacity-value').textContent = _saved.selectedTipStrokeOpacity;
   }
   if (_saved.selectedNodeFillColor) selectedNodeFillEl.value = _saved.selectedNodeFillColor;
   if (_saved.selectedNodeGrowthFactor != null) {
     selectedNodeGrowthSlider.value = _saved.selectedNodeGrowthFactor;
-    document.getElementById('selected-node-growth-value').textContent = _saved.selectedNodeGrowthFactor;
+    $('selected-node-growth-value').textContent = _saved.selectedNodeGrowthFactor;
   }
   if (_saved.selectedNodeMinSize != null) {
     selectedNodeMinSizeSlider.value = _saved.selectedNodeMinSize;
-    document.getElementById('selected-node-min-size-value').textContent = _saved.selectedNodeMinSize;
+    $('selected-node-min-size-value').textContent = _saved.selectedNodeMinSize;
   }
   if (_saved.selectedNodeFillOpacity != null) {
     selectedNodeFillOpacitySlider.value = _saved.selectedNodeFillOpacity;
-    document.getElementById('selected-node-fill-opacity-value').textContent = _saved.selectedNodeFillOpacity;
+    $('selected-node-fill-opacity-value').textContent = _saved.selectedNodeFillOpacity;
   }
   if (_saved.selectedNodeStrokeWidth != null) {
     selectedNodeStrokeWidthSlider.value = _saved.selectedNodeStrokeWidth;
-    document.getElementById('selected-node-stroke-width-value').textContent = _saved.selectedNodeStrokeWidth;
+    $('selected-node-stroke-width-value').textContent = _saved.selectedNodeStrokeWidth;
   }
   if (_saved.selectedNodeStrokeOpacity != null) {
     selectedNodeStrokeOpacitySlider.value = _saved.selectedNodeStrokeOpacity;
-    document.getElementById('selected-node-stroke-opacity-value').textContent = _saved.selectedNodeStrokeOpacity;
+    $('selected-node-stroke-opacity-value').textContent = _saved.selectedNodeStrokeOpacity;
   }
   if (_saved.tipHoverStrokeColor)   tipHoverStrokeEl.value = _saved.tipHoverStrokeColor;
   if (_saved.tipHoverGrowthFactor != null) {
     tipHoverGrowthSlider.value = _saved.tipHoverGrowthFactor;
-    document.getElementById('tip-hover-growth-value').textContent = _saved.tipHoverGrowthFactor;
+    $('tip-hover-growth-value').textContent = _saved.tipHoverGrowthFactor;
   }
   if (_saved.tipHoverMinSize != null) {
     tipHoverMinSizeSlider.value = _saved.tipHoverMinSize;
-    document.getElementById('tip-hover-min-size-value').textContent = _saved.tipHoverMinSize;
+    $('tip-hover-min-size-value').textContent = _saved.tipHoverMinSize;
   }
   if (_saved.tipHoverFillOpacity != null) {
     tipHoverFillOpacitySlider.value = _saved.tipHoverFillOpacity;
-    document.getElementById('tip-hover-fill-opacity-value').textContent = _saved.tipHoverFillOpacity;
+    $('tip-hover-fill-opacity-value').textContent = _saved.tipHoverFillOpacity;
   }
   if (_saved.tipHoverStrokeWidth != null) {
     tipHoverStrokeWidthSlider.value = _saved.tipHoverStrokeWidth;
-    document.getElementById('tip-hover-stroke-width-value').textContent = _saved.tipHoverStrokeWidth;
+    $('tip-hover-stroke-width-value').textContent = _saved.tipHoverStrokeWidth;
   }
   if (_saved.tipHoverStrokeOpacity != null) {
     tipHoverStrokeOpacitySlider.value = _saved.tipHoverStrokeOpacity;
-    document.getElementById('tip-hover-stroke-opacity-value').textContent = _saved.tipHoverStrokeOpacity;
+    $('tip-hover-stroke-opacity-value').textContent = _saved.tipHoverStrokeOpacity;
   }
   if (_saved.nodeHoverStrokeColor)  nodeHoverStrokeEl.value = _saved.nodeHoverStrokeColor;
   if (_saved.nodeHoverGrowthFactor != null) {
     nodeHoverGrowthSlider.value = _saved.nodeHoverGrowthFactor;
-    document.getElementById('node-hover-growth-value').textContent = _saved.nodeHoverGrowthFactor;
+    $('node-hover-growth-value').textContent = _saved.nodeHoverGrowthFactor;
   }
   if (_saved.nodeHoverMinSize != null) {
     nodeHoverMinSizeSlider.value = _saved.nodeHoverMinSize;
-    document.getElementById('node-hover-min-size-value').textContent = _saved.nodeHoverMinSize;
+    $('node-hover-min-size-value').textContent = _saved.nodeHoverMinSize;
   }
   if (_saved.nodeHoverFillOpacity != null) {
     nodeHoverFillOpacitySlider.value = _saved.nodeHoverFillOpacity;
-    document.getElementById('node-hover-fill-opacity-value').textContent = _saved.nodeHoverFillOpacity;
+    $('node-hover-fill-opacity-value').textContent = _saved.nodeHoverFillOpacity;
   }
   if (_saved.nodeHoverStrokeWidth != null) {
     nodeHoverStrokeWidthSlider.value = _saved.nodeHoverStrokeWidth;
-    document.getElementById('node-hover-stroke-width-value').textContent = _saved.nodeHoverStrokeWidth;
+    $('node-hover-stroke-width-value').textContent = _saved.nodeHoverStrokeWidth;
   }
   if (_saved.nodeHoverStrokeOpacity != null) {
     nodeHoverStrokeOpacitySlider.value = _saved.nodeHoverStrokeOpacity;
-    document.getElementById('node-hover-stroke-opacity-value').textContent = _saved.nodeHoverStrokeOpacity;
+    $('node-hover-stroke-opacity-value').textContent = _saved.nodeHoverStrokeOpacity;
   }
   if (_saved.tipSize        != null) {
     tipSlider.value = _saved.tipSize;
-    document.getElementById('tip-size-value').textContent = _saved.tipSize;
+    $('tip-size-value').textContent = _saved.tipSize;
   }
   if (_saved.tipHaloSize    != null) {
     tipHaloSlider.value = _saved.tipHaloSize;
-    document.getElementById('tip-halo-value').textContent = _saved.tipHaloSize;
+    $('tip-halo-value').textContent = _saved.tipHaloSize;
   }
   if (_saved.tipShapeColor)        tipShapeColorEl.value    = _saved.tipShapeColor;
   if (_saved.tipShapeBgColor)      tipShapeBgEl.value       = _saved.tipShapeBgColor;
@@ -1616,15 +1619,15 @@ async function _initCore() {
   if (_saved.tipLabelShapeColor)   tipLabelShapeColorEl.value   = _saved.tipLabelShapeColor;
   if (_saved.tipLabelShapeMarginLeft != null) {
     tipLabelShapeMarginLeftSlider.value = _saved.tipLabelShapeMarginLeft;
-    document.getElementById('tip-label-shape-margin-left-value').textContent = _saved.tipLabelShapeMarginLeft;
+    $('tip-label-shape-margin-left-value').textContent = _saved.tipLabelShapeMarginLeft;
   }
   if (_saved.tipLabelShapeMarginRight != null) {
     tipLabelShapeMarginRightSlider.value = _saved.tipLabelShapeMarginRight;
-    document.getElementById('tip-label-shape-margin-right-value').textContent = _saved.tipLabelShapeMarginRight;
+    $('tip-label-shape-margin-right-value').textContent = _saved.tipLabelShapeMarginRight;
   }
   if (_saved.tipLabelShapeSpacing != null) {
     tipLabelShapeSpacingSlider.value = _saved.tipLabelShapeSpacing;
-    document.getElementById('tip-label-shape-spacing-value').textContent = _saved.tipLabelShapeSpacing;
+    $('tip-label-shape-spacing-value').textContent = _saved.tipLabelShapeSpacing;
   }
   // Extra shapes 2–10 — new array format or backward compat for old single tipLabelShape2 key.
   if (Array.isArray(_saved.tipLabelShapesExtra)) {
@@ -1637,15 +1640,15 @@ async function _initCore() {
   }
   if (_saved.tipLabelShapeSize != null) {
     tipLabelShapeSizeSlider.value = _saved.tipLabelShapeSize;
-    document.getElementById('tip-label-shape-size-value').textContent = _saved.tipLabelShapeSize;
+    $('tip-label-shape-size-value').textContent = _saved.tipLabelShapeSize;
   }
   if (_saved.nodeSize       != null) {
     nodeSlider.value = _saved.nodeSize;
-    document.getElementById('node-size-value').textContent = _saved.nodeSize;
+    $('node-size-value').textContent = _saved.nodeSize;
   }
   if (_saved.nodeHaloSize   != null) {
     nodeHaloSlider.value = _saved.nodeHaloSize;
-    document.getElementById('node-halo-value').textContent = _saved.nodeHaloSize;
+    $('node-halo-value').textContent = _saved.nodeHaloSize;
   }
   if (_saved.nodeShapeColor)       nodeShapeColorEl.value   = _saved.nodeShapeColor;
   if (_saved.nodeShapeBgColor)     nodeShapeBgEl.value      = _saved.nodeShapeBgColor;
@@ -1654,21 +1657,21 @@ async function _initCore() {
   { _populateStyleSelect(axisFontFamilyEl?.value || fontFamilyEl.value, axisTypefaceStyleEl, _saved.axisFontStyle, true); }
   if (_saved.axisFontSize != null) {
     axisFontSizeSlider.value = _saved.axisFontSize;
-    document.getElementById('axis-font-size-value').textContent = _saved.axisFontSize;
+    $('axis-font-size-value').textContent = _saved.axisFontSize;
   }
   if (_saved.axisLineWidth != null) {
     axisLineWidthSlider.value = _saved.axisLineWidth;
-    document.getElementById('axis-line-width-value').textContent = _saved.axisLineWidth;
+    $('axis-line-width-value').textContent = _saved.axisLineWidth;
   }
   if (_saved.legendShow)           legendShowEl.value       = _saved.legendShow;
   if (_saved.legendTextColor)      legendTextColorEl.value  = _saved.legendTextColor;
   if (_saved.legendFontSize != null) {
     legendFontSizeSlider.value = _saved.legendFontSize;
-    document.getElementById('legend-font-size-value').textContent = _saved.legendFontSize;
+    $('legend-font-size-value').textContent = _saved.legendFontSize;
   }
   if (_saved.legendHeightPct != null) {
     legendHeightPctSlider.value = _saved.legendHeightPct;
-    document.getElementById('legend-height-pct-value').textContent = _saved.legendHeightPct + '%';
+    $('legend-height-pct-value').textContent = _saved.legendHeightPct + '%';
   }
   if (_saved.legendFontFamily)     legendFontFamilyEl.value = _saved.legendFontFamily;
   { _populateStyleSelect(legendFontFamilyEl?.value || fontFamilyEl.value, legendTypefaceStyleEl, _saved.legendFontStyle, true); }
@@ -1676,16 +1679,16 @@ async function _initCore() {
   if (_saved.nodeLabelPosition)    nodeLabelPositionEl.value = _saved.nodeLabelPosition;
   if (_saved.nodeLabelFontSize != null) {
     nodeLabelFontSizeSlider.value = _saved.nodeLabelFontSize;
-    document.getElementById('node-label-font-size-value').textContent = _saved.nodeLabelFontSize;
+    $('node-label-font-size-value').textContent = _saved.nodeLabelFontSize;
   }
   if (_saved.nodeLabelColor)       nodeLabelColorEl.value   = _saved.nodeLabelColor;
   if (_saved.nodeLabelSpacing != null) {
     nodeLabelSpacingSlider.value = _saved.nodeLabelSpacing;
-    document.getElementById('node-label-spacing-value').textContent = _saved.nodeLabelSpacing;
+    $('node-label-spacing-value').textContent = _saved.nodeLabelSpacing;
   }
   if (_saved.tipLabelSpacing != null) {
     tipLabelSpacingSlider.value = _saved.tipLabelSpacing;
-    document.getElementById('tip-label-spacing-value').textContent = _saved.tipLabelSpacing;
+    $('tip-label-spacing-value').textContent = _saved.tipLabelSpacing;
   }
   // Restore saved theme name (or default to Artic if no saved settings)
   if (themeSelect) themeSelect.value = _saved.theme || 'Artic';
@@ -1699,17 +1702,17 @@ async function _initCore() {
   if (_saved.rttRegressionColor != null) rttRegressionColorEl.value = _saved.rttRegressionColor;
   if (_saved.rttRegressionWidth != null) {
     rttRegressionWidthSlider.value = _saved.rttRegressionWidth;
-    document.getElementById('rtt-regression-width-value').textContent = _saved.rttRegressionWidth;
+    $('rtt-regression-width-value').textContent = _saved.rttRegressionWidth;
   }
   if (_saved.rttAxisFontSize != null) {
     rttAxisFontSizeSlider.value = _saved.rttAxisFontSize;
-    document.getElementById('rtt-axis-font-size-value').textContent = _saved.rttAxisFontSize;
+    $('rtt-axis-font-size-value').textContent = _saved.rttAxisFontSize;
   }
   if (_saved.rttAxisFontFamily)        rttAxisFontFamilyEl.value     = _saved.rttAxisFontFamily;
   { _populateStyleSelect(rttAxisFontFamilyEl?.value || fontFamilyEl.value, rttAxisTypefaceStyleEl, _saved.rttAxisFontStyle, true); }
   if (_saved.rttAxisLineWidth != null) {
     rttAxisLineWidthSlider.value = _saved.rttAxisLineWidth;
-    document.getElementById('rtt-axis-line-width-value').textContent = _saved.rttAxisLineWidth;
+    $('rtt-axis-line-width-value').textContent = _saved.rttAxisLineWidth;
   }
   if (_saved.rttDateFormat)       rttDateFmtEl.value       = _saved.rttDateFormat;
   if (_saved.rttMajorInterval)    rttMajorIntervalEl.value = _saved.rttMajorInterval;
@@ -1730,7 +1733,7 @@ async function _initCore() {
   const renderer = new TreeRenderer(canvas, _buildRendererSettings());
 
   // ── Status-bar transient messages ─────────────────────────────────────────
-  const _statusMsgEl = document.getElementById('status-message');
+  const _statusMsgEl = $('status-message');
   let   _statusMsgTimer = null;
   function statusMessage(msg, duration = 0) {
     if (!_statusMsgEl) return;
@@ -1743,7 +1746,7 @@ async function _initCore() {
   renderer.onHypActivate   = () => statusMessage('Lens mode active \u2013 press Esc to cancel');
   renderer.onHypDeactivate = () => statusMessage('');
 
-  const _statusSelectEl = document.getElementById('status-select');
+  const _statusSelectEl = $('status-select');
   function _updateStatusSelect(count) {
     if (!_statusSelectEl) return;
     if (count > 0) {
@@ -1757,7 +1760,7 @@ async function _initCore() {
   }
 
   renderer._onStatsChange = (stats) => {
-    const el = document.getElementById('status-stats');
+    const el = $('status-stats');
     if (!el) return;
     if (!stats) { el.innerHTML = ''; return; }
     el.innerHTML =
@@ -1914,8 +1917,8 @@ async function _initCore() {
 
   // ── Modal management ──────────────────────────────────────────────────────
 
-  const modal         = document.getElementById('open-tree-modal');
-  const btnModalClose = document.getElementById('btn-modal-close');
+  const modal         = $('open-tree-modal');
+  const btnModalClose = $('btn-modal-close');
 
   function openModal() {
     setModalError(null);
@@ -1927,26 +1930,26 @@ async function _initCore() {
     modal.classList.remove('open');
     // If no tree has been loaded yet, restore the empty-state overlay
     if (!treeLoaded) {
-      const es = document.getElementById('empty-state');
+      const es = $('empty-state');
       if (es) es.classList.remove('hidden');
     }
   }
 
   function setModalError(msg) {
-    const el = document.getElementById('modal-error');
+    const el = $('modal-error');
     if (msg) { el.textContent = msg; el.style.display = 'block'; }
     else      { el.style.display = 'none'; }
   }
 
   /** Show a simple standalone error dialog with an OK button. */
   function showErrorDialog(msg) {
-    const overlay = document.getElementById('error-dialog-overlay');
-    document.getElementById('error-dialog-msg').textContent = msg;
+    const overlay = $('error-dialog-overlay');
+    $('error-dialog-msg').textContent = msg;
     overlay.classList.add('open');
   }
 
-  document.getElementById('error-dialog-ok').addEventListener('click', () => {
-    document.getElementById('error-dialog-overlay').classList.remove('open');
+  $('error-dialog-ok').addEventListener('click', () => {
+    $('error-dialog-overlay').classList.remove('open');
   });
 
   /**
@@ -1956,14 +1959,14 @@ async function _initCore() {
    */
   function showConfirmDialog(title, msg, { okLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
     return new Promise(resolve => {
-      const overlay   = document.getElementById('confirm-dialog-overlay');
-      document.getElementById('confirm-dialog-title').textContent = title;
-      document.getElementById('confirm-dialog-msg').textContent   = msg;
-      document.getElementById('confirm-dialog-ok').textContent     = okLabel;
-      document.getElementById('confirm-dialog-cancel').textContent = cancelLabel;
+      const overlay   = $('confirm-dialog-overlay');
+      $('confirm-dialog-title').textContent = title;
+      $('confirm-dialog-msg').textContent   = msg;
+      $('confirm-dialog-ok').textContent     = okLabel;
+      $('confirm-dialog-cancel').textContent = cancelLabel;
       overlay.classList.add('open');
-      const okBtn     = document.getElementById('confirm-dialog-ok');
-      const cancelBtn = document.getElementById('confirm-dialog-cancel');
+      const okBtn     = $('confirm-dialog-ok');
+      const cancelBtn = $('confirm-dialog-cancel');
       function close(result) {
         overlay.classList.remove('open');
         okBtn.removeEventListener('click', onOk);
@@ -1981,7 +1984,7 @@ async function _initCore() {
   }
 
   function setModalLoading(on) {
-    document.getElementById('modal-loading').style.display = on ? 'block' : 'none';
+    $('modal-loading').style.display = on ? 'block' : 'none';
     modal.querySelectorAll('.pt-modal-body button, .pt-tab-btn').forEach(b => {
       if (b !== btnModalClose) b.disabled = on;
     });
@@ -1993,7 +1996,7 @@ async function _initCore() {
       modal.querySelectorAll('.pt-tab-btn').forEach(b => b.classList.remove('active'));
       modal.querySelectorAll('.pt-tab-panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('tab-panel-' + btn.dataset.tab).classList.add('active');
+      $('tab-panel-' + btn.dataset.tab).classList.add('active');
     });
   });
 
@@ -2010,29 +2013,29 @@ async function _initCore() {
       // Close innermost open overlay first.
       if (exportGraphicOverlay.classList.contains('open')) { _closeGraphicsDialog(); return; }
       if (exportOverlay.classList.contains('open'))        { _closeExportDialog();   return; }
-      if (document.getElementById('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
-      if (document.getElementById('import-annot-overlay')?.classList.contains('open'))  { annotImporter.close(); return; }
-      const nodeInfoOv = document.getElementById('node-info-overlay');
+      if ($('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
+      if ($('import-annot-overlay')?.classList.contains('open'))  { annotImporter.close(); return; }
+      const nodeInfoOv = $('node-info-overlay');
       if (nodeInfoOv && nodeInfoOv.classList.contains('open')) { nodeInfoOv.classList.remove('open'); return; }
       if (modal.classList.contains('open'))  { closeModal();           return; }
     }
 
     if (e.key === 'Enter' && !e.shiftKey && !inTextField) {
       if (exportGraphicOverlay.classList.contains('open')) {
-        document.getElementById('expg-download-btn')?.click(); return;
+        $('expg-download-btn')?.click(); return;
       }
       if (exportOverlay.classList.contains('open')) {
-        document.getElementById('exp-download-btn')?.click(); return;
+        $('exp-download-btn')?.click(); return;
       }
-      if (document.getElementById('import-annot-overlay')?.classList.contains('open')) {
-        const apply = document.getElementById('imp-apply-btn');
+      if ($('import-annot-overlay')?.classList.contains('open')) {
+        const apply = $('imp-apply-btn');
         if (apply) { apply.click(); return; }
-        (document.getElementById('imp-close-btn') ||
-         document.getElementById('imp-close-err-btn') ||
-         document.getElementById('imp-picker-cancel-btn'))?.click();
+        ($('imp-close-btn') ||
+         $('imp-close-err-btn') ||
+         $('imp-picker-cancel-btn'))?.click();
         return;
       }
-      const nodeInfoOv2 = document.getElementById('node-info-overlay');
+      const nodeInfoOv2 = $('node-info-overlay');
       if (nodeInfoOv2 && nodeInfoOv2.classList.contains('open')) { nodeInfoOv2.classList.remove('open'); return; }
       if (modal.classList.contains('open'))  { closeModal(); return; }
     }
@@ -2041,10 +2044,10 @@ async function _initCore() {
 
   // ── File tab ──────────────────────────────────────────────────────────────
 
-  const dropZone  = document.getElementById('tree-drop-zone');
-  const fileInput = document.getElementById('tree-file-input');
+  const dropZone  = $('tree-drop-zone');
+  const fileInput = $('tree-file-input');
 
-  document.getElementById('btn-file-choose').addEventListener('click', () => fileInput.click());
+  $('btn-file-choose').addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
@@ -2085,8 +2088,8 @@ async function _initCore() {
 
   // ── URL tab ───────────────────────────────────────────────────────────────
 
-  document.getElementById('btn-load-url').addEventListener('click', async () => {
-    const url = document.getElementById('tree-url-input').value.trim();
+  $('btn-load-url').addEventListener('click', async () => {
+    const url = $('tree-url-input').value.trim();
     if (!url) { setModalError('Please enter a URL.'); return; }
     setModalLoading(true);
     setModalError(null);
@@ -2112,26 +2115,26 @@ async function _initCore() {
     }
   }
 
-  document.getElementById('btn-load-example').addEventListener('click', () => {
+  $('btn-load-example').addEventListener('click', () => {
     setModalLoading(true);
     setModalError(null);
     loadExampleTree(msg => { setModalError(msg); setModalLoading(false); });
   });
 
   // ── Empty-state overlay (shown until first tree load) ──────────────────
-  const emptyStateEl = document.getElementById('empty-state');
+  const emptyStateEl = $('empty-state');
 
   function hideEmptyState() { emptyStateEl.classList.add('hidden'); }
   function showEmptyState() { if (!treeLoaded) emptyStateEl.classList.remove('hidden'); }
   function showEmptyStateError(msg) {
-    const el = document.getElementById('empty-state-error');
+    const el = $('empty-state-error');
     if (!el) return;
     el.textContent = msg;
     el.style.display = msg ? '' : 'none';
   }
 
-  document.getElementById('empty-state-open-btn').addEventListener('click', () => pickTreeFile());
-  document.getElementById('empty-state-example-btn').addEventListener('click', () => {
+  $('empty-state-open-btn').addEventListener('click', () => pickTreeFile());
+  $('empty-state-example-btn').addEventListener('click', () => {
     hideEmptyState();
     loadExampleTree(msg => { showEmptyState(); showErrorDialog(msg); });
   });
@@ -2211,11 +2214,11 @@ async function _initCore() {
   // ── Data Table Panel ─────────────────────────────────────────────────────
   const dataTableRenderer = createDataTableRenderer({
     getRenderer:  () => renderer,
-    panel:        document.getElementById('data-table-panel'),
-    headerEl:     document.getElementById('dt-header'),
-    bodyEl:       document.getElementById('dt-body'),
-    numHeaderEl:  document.getElementById('dt-num-header'),
-    numBodyEl:    document.getElementById('dt-num-body'),
+    panel:        $('data-table-panel'),
+    headerEl:     $('dt-header'),
+    bodyEl:       $('dt-body'),
+    numHeaderEl:  $('dt-num-header'),
+    numBodyEl:    $('dt-num-body'),
     onClose: () => {
       btnDataTable?.classList.remove('active');
     },
@@ -2298,8 +2301,8 @@ async function _initCore() {
   });
 
   // Wire the resize handle
-  const _dtResizeHandle = document.getElementById('data-table-resize-handle');
-  const _dtPanel        = document.getElementById('data-table-panel');
+  const _dtResizeHandle = $('data-table-resize-handle');
+  const _dtPanel        = $('data-table-panel');
   if (_dtResizeHandle && _dtPanel) {
     let _dtDragging = false;
     let _dtStartX   = 0;
@@ -2342,8 +2345,8 @@ async function _initCore() {
 
   // ── Root-to-Tip Divergence Panel ─────────────────────────────────────────
   rttChart = createRTTChart({
-    panel:           document.getElementById('rtt-panel'),
-    canvas:          document.getElementById('rtt-canvas'),
+    panel:           $('rtt-panel'),
+    canvas:          $('rtt-canvas'),
     getRenderer:     () => renderer,
     getCalibration:  () => calibration,
     getDateAnnotKey: () => {
@@ -2438,7 +2441,7 @@ async function _initCore() {
     }
   });
 
-  document.getElementById('export-tree-close').addEventListener('click', _closeExportDialog);
+  $('export-tree-close').addEventListener('click', _closeExportDialog);
   btnExportTree?.addEventListener('click', _openExportDialog);
 
   // ── Export Tree ────────────────────────────────────────────────────────────────
@@ -2446,10 +2449,10 @@ async function _initCore() {
   // graphToNewick) lives in treeio.js and is imported at the top of this file.
 
   // Export dialog DOM refs
-  const exportOverlay  = document.getElementById('export-tree-overlay');
-  const exportBody     = document.getElementById('export-tree-body');
-  const exportFooter   = document.getElementById('export-tree-footer');
-  const exportTitleEl  = document.getElementById('export-tree-title');
+  const exportOverlay  = $('export-tree-overlay');
+  const exportBody     = $('export-tree-body');
+  const exportFooter   = $('export-tree-footer');
+  const exportTitleEl  = $('export-tree-title');
 
   // Optional save-handler injected by platform adapters (e.g. Tauri).
   // When set, the "Download" button becomes "Save" and calls this function
@@ -2539,24 +2542,24 @@ async function _initCore() {
       <button id="exp-cancel-btn"   class="btn btn-sm btn-secondary">Cancel</button>
       <button id="exp-download-btn" class="btn btn-sm btn-primary"><i class="bi bi-${_exportSaveHandler ? 'folder-check' : 'download'} me-1"></i>${_exportSaveHandler ? 'Export' : 'Download'}</button>`;
 
-    document.getElementById('exp-cancel-btn').addEventListener('click', _closeExportDialog);
-    document.getElementById('exp-download-btn').addEventListener('click', _doExport);
+    $('exp-cancel-btn').addEventListener('click', _closeExportDialog);
+    $('exp-download-btn').addEventListener('click', _doExport);
 
     // Always wire up the format radios to toggle the Store-settings row,
     // regardless of whether annotations are present.
-    document.querySelectorAll('input[name="exp-format"]').forEach(radio =>
+    root.querySelectorAll('input[name="exp-format"]').forEach(radio =>
       radio.addEventListener('change', () => {
-        const fmt         = document.querySelector('input[name="exp-format"]:checked')?.value;
-        const settingsRow = document.getElementById('exp-settings-row');
+        const fmt         = root.querySelector('input[name="exp-format"]:checked')?.value;
+        const settingsRow = $('exp-settings-row');
         if (settingsRow) settingsRow.style.display = fmt === 'nexus' ? '' : 'none';
       }));
 
     if (annotKeys.length > 0) {
-      const treeGrid = document.getElementById('exp-annot-grid-tree');
-      const csvGrid  = document.getElementById('exp-annot-grid-csv');
-      const activeGrid   = () => document.querySelector('input[name="exp-format"]:checked')?.value === 'csv' ? csvGrid : treeGrid;
+      const treeGrid = $('exp-annot-grid-tree');
+      const csvGrid  = $('exp-annot-grid-csv');
+      const activeGrid   = () => root.querySelector('input[name="exp-format"]:checked')?.value === 'csv' ? csvGrid : treeGrid;
       const allCbs       = () => activeGrid()?.querySelectorAll('.exp-annot-cb') ?? [];
-      const isNewick     = () => document.querySelector('input[name="exp-format"]:checked')?.value === 'newick';
+      const isNewick     = () => root.querySelector('input[name="exp-format"]:checked')?.value === 'newick';
 
       const _newickWarning = `
         <div id="exp-newick-warn" style="margin-top:0.5rem;padding:0.4rem 0.6rem;border-radius:4px;background:rgba(203,75,22,0.15);border:1px solid rgba(203,75,22,0.45);font-size:0.8rem;color:#e07040;display:flex;align-items:flex-start;gap:0.4rem">
@@ -2565,9 +2568,9 @@ async function _initCore() {
         </div>`;
 
       const _syncAnnotSection = () => {
-        const fmt = document.querySelector('input[name="exp-format"]:checked')?.value;
-        const settingsRow = document.getElementById('exp-settings-row');
-        document.getElementById('exp-newick-warn')?.remove();
+        const fmt = root.querySelector('input[name="exp-format"]:checked')?.value;
+        const settingsRow = $('exp-settings-row');
+        $('exp-newick-warn')?.remove();
         if (fmt === 'csv') {
           treeGrid.style.display = 'none';
           csvGrid.style.display  = '';
@@ -2587,26 +2590,26 @@ async function _initCore() {
       };
 
       // Format radio change → sync annotations.
-      document.querySelectorAll('input[name="exp-format"]').forEach(radio =>
+      root.querySelectorAll('input[name="exp-format"]').forEach(radio =>
         radio.addEventListener('change', _syncAnnotSection));
 
       // Individual checkbox re-checked while Newick is active → show warning.
       treeGrid.addEventListener('change', e => {
         if (!isNewick() || !e.target.matches('.exp-annot-cb')) return;
-        if (!document.getElementById('exp-newick-warn')) {
+        if (!$('exp-newick-warn')) {
           treeGrid.insertAdjacentHTML('afterend', _newickWarning);
         }
       });
 
-      document.getElementById('exp-all-btn').addEventListener('click', () => {
+      $('exp-all-btn').addEventListener('click', () => {
         allCbs().forEach(cb => { cb.checked = true; });
-        if (isNewick() && !document.getElementById('exp-newick-warn')) {
+        if (isNewick() && !$('exp-newick-warn')) {
           treeGrid.insertAdjacentHTML('afterend', _newickWarning);
         }
       });
-      document.getElementById('exp-none-btn').addEventListener('click', () => {
+      $('exp-none-btn').addEventListener('click', () => {
         allCbs().forEach(cb => { cb.checked = false; });
-        document.getElementById('exp-newick-warn')?.remove();
+        $('exp-newick-warn')?.remove();
       });
     }
   }
@@ -2618,12 +2621,12 @@ async function _initCore() {
   }
 
   function _doExport() {
-    const format      = document.querySelector('input[name="exp-format"]:checked')?.value || 'nexus';
-    const scope       = document.querySelector('input[name="exp-scope"]:checked')?.value  || 'full';
-    const storeSettings = format === 'nexus' && document.getElementById('exp-store-settings')?.checked;
+    const format      = root.querySelector('input[name="exp-format"]:checked')?.value || 'nexus';
+    const scope       = root.querySelector('input[name="exp-scope"]:checked')?.value  || 'full';
+    const storeSettings = format === 'nexus' && $('exp-store-settings')?.checked;
     const subtreeId   = scope === 'subtree' ? renderer._viewSubtreeRootId : null;
     const gridId      = format === 'csv' ? '#exp-annot-grid-csv' : '#exp-annot-grid-tree';
-    const annotKeys   = [...document.querySelectorAll(`${gridId} .exp-annot-cb:checked`)].map(cb => cb.value);
+    const annotKeys   = [...root.querySelectorAll(`${gridId} .exp-annot-cb:checked`)].map(cb => cb.value);
 
     // ── CSV metadata export ───────────────────────────────────────────────────
     if (format === 'csv') {
@@ -2717,12 +2720,12 @@ async function _initCore() {
     _closeExportDialog();
   }
 
-  const btnExportGraphic   = document.getElementById('btn-export-graphic');
-  const exportGraphicOverlay = document.getElementById('export-graphic-overlay');
-  const exportGraphicBody    = document.getElementById('export-graphic-body');
-  const exportGraphicFooter  = document.getElementById('export-graphic-footer');
+  const btnExportGraphic   = $('btn-export-graphic');
+  const exportGraphicOverlay = $('export-graphic-overlay');
+  const exportGraphicBody    = $('export-graphic-body');
+  const exportGraphicFooter  = $('export-graphic-footer');
 
-  document.getElementById('export-graphic-close').addEventListener('click', _closeGraphicsDialog);
+  $('export-graphic-close').addEventListener('click', _closeGraphicsDialog);
   btnExportGraphic?.addEventListener('click', _openGraphicsDialog);
 
   function _openGraphicsDialog() {
@@ -2776,32 +2779,32 @@ async function _initCore() {
 
     const _updateExpgHint = () => {
       const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
-      const isFull = document.querySelector('input[name="expg-view"]:checked')?.value === 'full';
+      const isFull = root.querySelector('input[name="expg-view"]:checked')?.value === 'full';
       const ph = isFull
         ? Math.round((renderer.paddingTop + renderer.paddingBottom +
             (renderer.maxY + 1) * renderer.scaleY + (axVisible ? axH : 0)) * 2)
         : Math.round(totalH * 2);
       const pw = Math.round(totalW * 2);
-      const p = document.querySelector('#expg-png-opts p');
+      const p = root.querySelector('#expg-png-opts p');
       if (p) p.textContent =
         `Output size: ${pw} × ${ph} px (2× ${isFull ? 'full tree height' : 'current viewport'})`;
     };
-    document.querySelectorAll('input[name="expg-fmt"]').forEach(r => r.addEventListener('change', () => {
-      const isPng = document.querySelector('input[name="expg-fmt"]:checked')?.value === 'png';
-      document.getElementById('expg-png-opts').style.display = isPng ? 'block' : 'none';
-      document.getElementById('expg-ext-hint').textContent = isPng ? '.png' : '.svg';
+    root.querySelectorAll('input[name="expg-fmt"]').forEach(r => r.addEventListener('change', () => {
+      const isPng = root.querySelector('input[name="expg-fmt"]:checked')?.value === 'png';
+      $('expg-png-opts').style.display = isPng ? 'block' : 'none';
+      $('expg-ext-hint').textContent = isPng ? '.png' : '.svg';
       if (isPng) _updateExpgHint();
     }));
-    document.querySelectorAll('input[name="expg-view"]').forEach(r => r.addEventListener('change', _updateExpgHint));
-    document.getElementById('expg-cancel-btn').addEventListener('click',   _closeGraphicsDialog);
-    document.getElementById('expg-download-btn').addEventListener('click', _doGraphicsExport);
+    root.querySelectorAll('input[name="expg-view"]').forEach(r => r.addEventListener('change', _updateExpgHint));
+    $('expg-cancel-btn').addEventListener('click',   _closeGraphicsDialog);
+    $('expg-download-btn').addEventListener('click', _doGraphicsExport);
   }
 
   function _doGraphicsExport() {
-    const fmt        = document.querySelector('input[name="expg-fmt"]:checked')?.value || 'svg';
-    const filename   = (document.getElementById('expg-filename')?.value.trim() || 'tree');
-    const fullTree   = document.querySelector('input[name="expg-view"]:checked')?.value === 'full';
-    const transparent = !(document.getElementById('expg-bg')?.checked ?? true);
+    const fmt        = root.querySelector('input[name="expg-fmt"]:checked')?.value || 'svg';
+    const filename   = ($('expg-filename')?.value.trim() || 'tree');
+    const fullTree   = root.querySelector('input[name="expg-view"]:checked')?.value === 'full';
+    const transparent = !($('expg-bg')?.checked ?? true);
 
     if (fmt === 'png') {
       const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
@@ -3175,7 +3178,7 @@ async function _initCore() {
 
       // Show/hide the Select + Reroot toolbar sections based on whether the
       // tree is explicitly rooted. Use a CSS class to avoid WKWebView inline-style issues.
-      document.getElementById('reroot-controls')?.classList.toggle('visible', !isExplicitlyRooted);
+      $('reroot-controls')?.classList.toggle('visible', !isExplicitlyRooted);
 
       commands.setEnabled('tree-midpoint', !isExplicitlyRooted);
       commands.setEnabled('tree-temporal-root', !isExplicitlyRooted);
@@ -3455,12 +3458,12 @@ async function _initCore() {
         if (btnFilterRegexEl) btnFilterRegexEl.disabled = false;
         if (btnColourTrigger) btnColourTrigger.disabled = false;
         // Buttons with no command equivalent
-        const _btnHypUp   = document.getElementById('btn-hyp-up');
-        const _btnHypDown = document.getElementById('btn-hyp-down');
+        const _btnHypUp   = $('btn-hyp-up');
+        const _btnHypDown = $('btn-hyp-down');
         if (_btnHypUp)   _btnHypUp.disabled   = false;
         if (_btnHypDown) _btnHypDown.disabled = false;
-        document.getElementById('btn-mode-nodes')   ?.removeAttribute('disabled');
-        document.getElementById('btn-mode-branches')?.removeAttribute('disabled');
+        $('btn-mode-nodes')   ?.removeAttribute('disabled');
+        $('btn-mode-branches')?.removeAttribute('disabled');
         if (btnDataTable) btnDataTable.disabled = false;
         if (btnRtt)       btnRtt.disabled       = false;
         // Hide the empty-state overlay
@@ -3506,15 +3509,15 @@ async function _initCore() {
       if (renderer._onNodeSelectChange)   renderer._onNodeSelectChange(false);
 
       // Sync button active states with restored settings.
-      document.getElementById('btn-order-asc') ?.classList.toggle('active', currentOrder === 'desc');
-      document.getElementById('btn-order-desc')?.classList.toggle('active', currentOrder === 'asc');
+      $('btn-order-asc') ?.classList.toggle('active', currentOrder === 'desc');
+      $('btn-order-desc')?.classList.toggle('active', currentOrder === 'asc');
       const _restoredMode = renderer._mode;
-      document.getElementById('btn-mode-nodes')   ?.classList.toggle('active', _restoredMode === 'nodes');
-      document.getElementById('btn-mode-branches')?.classList.toggle('active', _restoredMode === 'branches');
+      $('btn-mode-nodes')   ?.classList.toggle('active', _restoredMode === 'nodes');
+      $('btn-mode-branches')?.classList.toggle('active', _restoredMode === 'branches');
 
       _syncControlVisibility();
       // Notify any programmatic callers that a tree is now loaded and ready.
-      window.dispatchEvent(new CustomEvent('peartree-tree-loaded'));
+      root.dispatchEvent(new CustomEvent('peartree-tree-loaded', { bubbles: false }));
       // Re-broadcast to the parent frame (if running inside an iframe) so
       // _buildFrameController.onTreeLoad() can detect it via message event.
       if (window.parent !== window) {
@@ -3563,8 +3566,8 @@ async function _initCore() {
     }
 
     currentOrder = label;
-    document.getElementById('btn-order-asc') ?.classList.toggle('active', !ascending);
-    document.getElementById('btn-order-desc')?.classList.toggle('active', ascending);
+    $('btn-order-asc') ?.classList.toggle('active', !ascending);
+    $('btn-order-desc')?.classList.toggle('active', ascending);
     saveSettings();
   }
 
@@ -3588,7 +3591,7 @@ async function _initCore() {
     renderer._mrcaNodeId          = null;
     if (renderer._onBranchSelectChange) renderer._onBranchSelectChange(false);
     if (renderer._onNodeSelectChange)   renderer._onNodeSelectChange(false);
-    document.getElementById('btn-reroot') && (document.getElementById('btn-reroot').disabled = true);
+    $('btn-reroot') && ($('btn-reroot').disabled = true);
     const layout = computeLayoutFromGraph(graph, null, _layoutOptions());
     renderer.setDataCrossfade(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
     dataTableRenderer?.setTips(layout.nodes.filter(n => n.isTip));
@@ -3607,19 +3610,19 @@ async function _initCore() {
   // ── Control bindings (set up once after the first tree loads) ─────────────
 
   function bindControls() {
-    const btnBack      = document.getElementById('btn-back');
-    const btnForward   = document.getElementById('btn-forward');
-    const btnHome      = document.getElementById('btn-home');
-    const btnDrill     = document.getElementById('btn-drill');
-    const btnClimb     = document.getElementById('btn-climb');
-    const btnOrderAsc  = document.getElementById('btn-order-asc');
-    const btnOrderDesc = document.getElementById('btn-order-desc');
-    const btnReroot       = document.getElementById('btn-reroot');
-    const btnRotate       = document.getElementById('btn-rotate');
-    const btnRotateAll    = document.getElementById('btn-rotate-all');
-    const btnHide         = document.getElementById('btn-hide');
-    const btnShow         = document.getElementById('btn-show');
-    const btnNodeInfo     = document.getElementById('btn-node-info');
+    const btnBack      = $('btn-back');
+    const btnForward   = $('btn-forward');
+    const btnHome      = $('btn-home');
+    const btnDrill     = $('btn-drill');
+    const btnClimb     = $('btn-climb');
+    const btnOrderAsc  = $('btn-order-asc');
+    const btnOrderDesc = $('btn-order-desc');
+    const btnReroot       = $('btn-reroot');
+    const btnRotate       = $('btn-rotate');
+    const btnRotateAll    = $('btn-rotate-all');
+    const btnHide         = $('btn-hide');
+    const btnShow         = $('btn-show');
+    const btnNodeInfo     = $('btn-node-info');
 
     // ── Tip filter ────────────────────────────────────────────────────────────
     let _filterTimer = null;
@@ -3849,10 +3852,10 @@ async function _initCore() {
     // (tree-midpoint is also set per-load in loadTree; this run of bindControls
     //  is a no-op on that path but is kept for safety.)
     // Zoom / fit / lens buttons — driven by commands; direct listener no longer needed.
-    document.getElementById('btn-zoom-in') ?.addEventListener('click', () => commands.execute('view-zoom-in'));
-    document.getElementById('btn-zoom-out')?.addEventListener('click', () => commands.execute('view-zoom-out'));
-    document.getElementById('btn-hyp-up')  ?.addEventListener('click', () => commands.execute('view-hyp-up'));
-    document.getElementById('btn-hyp-down')?.addEventListener('click', () => commands.execute('view-hyp-down'));
+    $('btn-zoom-in') ?.addEventListener('click', () => commands.execute('view-zoom-in'));
+    $('btn-zoom-out')?.addEventListener('click', () => commands.execute('view-zoom-out'));
+    $('btn-hyp-up')  ?.addEventListener('click', () => commands.execute('view-hyp-up'));
+    $('btn-hyp-down')?.addEventListener('click', () => commands.execute('view-hyp-down'));
 
     renderer._onNavChange = (canBack, canFwd) => {
       commands.setEnabled('view-back',    canBack);
@@ -4167,8 +4170,8 @@ async function _initCore() {
     btnShow?.addEventListener('click', () => applyShow());
 
     // ── Collapse / Expand clade triangle ─────────────────────────────────────
-    const btnCollapseClade = document.getElementById('btn-collapse-clade');
-    const btnExpandClade   = document.getElementById('btn-expand-clade');
+    const btnCollapseClade = $('btn-collapse-clade');
+    const btnExpandClade   = $('btn-expand-clade');
 
     function canCollapse() {
       if (!graph) return false;
@@ -4268,7 +4271,7 @@ async function _initCore() {
       collapsedHeightNSlider.max = maxTips;
       const newValue = wasAtMax ? maxTips : Math.min(oldValue, maxTips);
       collapsedHeightNSlider.value = newValue;
-      document.getElementById('collapsed-height-n-value').textContent = newValue;
+      $('collapsed-height-n-value').textContent = newValue;
     }
 
     function applyCollapse() {
@@ -4393,8 +4396,8 @@ async function _initCore() {
     commands.get('tree-expand-clade').exec   = () => applyExpand();
 
     // Mode menu
-    const btnModeNodes    = document.getElementById('btn-mode-nodes');
-    const btnModeBranches = document.getElementById('btn-mode-branches');
+    const btnModeNodes    = $('btn-mode-nodes');
+    const btnModeBranches = $('btn-mode-branches');
     const applyMode = (mode) => {
       renderer.setMode(mode);
       btnModeNodes?.classList.toggle('active',    mode === 'nodes');
@@ -4567,10 +4570,10 @@ async function _initCore() {
           rows.push(['', annotLabels.join(', ')]);
         }
 
-        const titleEl = document.getElementById('node-info-title');
+        const titleEl = $('node-info-title');
         titleEl.textContent = 'Tree';
 
-        const body = document.getElementById('node-info-body');
+        const body = $('node-info-body');
         const tbl  = document.createElement('table');
         tbl.style.cssText = 'width:100%;border-collapse:collapse;';
         for (const [label, value] of rows) {
@@ -4595,7 +4598,7 @@ async function _initCore() {
         body.innerHTML = '';
         body.appendChild(tbl);
 
-        const overlay = document.getElementById('node-info-overlay');
+        const overlay = $('node-info-overlay');
         overlay.classList.add('open');
         return;
       }
@@ -4707,13 +4710,13 @@ async function _initCore() {
       const tipCount2 = ((!node.isTip || node.isCollapsed) && renderer._getDescendantTipIds)
         ? renderer._getDescendantTipIds(node.id).length
         : node.isCollapsed ? (node.collapsedRealTips ?? null) : null;
-      const titleEl = document.getElementById('node-info-title');
+      const titleEl = $('node-info-title');
       titleEl.textContent = (!node.isTip || node.isCollapsed)
         ? `Internal node (${tipCount2 != null ? tipCount2 + ' tips' : 'internal'})`
         : (node.name || 'Tip node');
 
       // Build table
-      const body = document.getElementById('node-info-body');
+      const body = $('node-info-body');
       const tbl  = document.createElement('table');
       tbl.style.cssText = 'width:100%;border-collapse:collapse;';
       for (const [label, value] of rows) {
@@ -4776,7 +4779,7 @@ async function _initCore() {
       body.innerHTML = '';
       body.appendChild(tbl);
 
-      const overlay = document.getElementById('node-info-overlay');
+      const overlay = $('node-info-overlay');
       overlay.classList.add('open');
     }
 
@@ -4864,13 +4867,13 @@ async function _initCore() {
       rttChart?.notifyStyleChange?.();
     });
 
-    document.getElementById('node-info-close').addEventListener('click', () => {
-      document.getElementById('node-info-overlay').classList.remove('open');
+    $('node-info-close').addEventListener('click', () => {
+      $('node-info-overlay').classList.remove('open');
     });
 
-    document.getElementById('node-info-overlay').addEventListener('click', e => {
-      if (e.target === document.getElementById('node-info-overlay')) {
-        document.getElementById('node-info-overlay').classList.remove('open');
+    $('node-info-overlay').addEventListener('click', e => {
+      if (e.target === $('node-info-overlay')) {
+        $('node-info-overlay').classList.remove('open');
       }
     });
 
@@ -4882,7 +4885,7 @@ async function _initCore() {
       if (e.key === ']') { e.preventDefault(); renderer.navigateForward(); }
       if (e.key === '\\')  { e.preventDefault(); renderer.navigateHome(); }
       if (e.shiftKey && e.code === 'Comma')  { e.preventDefault(); renderer.navigateClimb(); }
-      if (e.shiftKey && e.code === 'Period') { e.preventDefault(); document.getElementById('btn-drill')?.click(); }
+      if (e.shiftKey && e.code === 'Period') { e.preventDefault(); $('btn-drill')?.click(); }
       if (e.key === 'a' || e.key === 'A') {
         const inField = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable);
         if (!inField) {
@@ -4925,7 +4928,7 @@ async function _initCore() {
 
   branchWidthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('branch-width-value').textContent = branchWidthSlider.value;
+    $('branch-width-value').textContent = branchWidthSlider.value;
     renderer.setBranchWidth(parseFloat(branchWidthSlider.value));
     saveSettings();
   });
@@ -5066,35 +5069,35 @@ async function _initCore() {
 
   selectedTipGrowthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-tip-growth-value').textContent = selectedTipGrowthSlider.value;
+    $('selected-tip-growth-value').textContent = selectedTipGrowthSlider.value;
     renderer.setSelectedTipGrowthFactor(parseFloat(selectedTipGrowthSlider.value));
     saveSettings();
   });
 
   selectedTipMinSizeSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-tip-min-size-value').textContent = selectedTipMinSizeSlider.value;
+    $('selected-tip-min-size-value').textContent = selectedTipMinSizeSlider.value;
     renderer.setSelectedTipMinSize(parseFloat(selectedTipMinSizeSlider.value));
     saveSettings();
   });
 
   selectedTipFillOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-tip-fill-opacity-value').textContent = selectedTipFillOpacitySlider.value;
+    $('selected-tip-fill-opacity-value').textContent = selectedTipFillOpacitySlider.value;
     renderer.setSelectedTipFillOpacity(parseFloat(selectedTipFillOpacitySlider.value));
     saveSettings();
   });
 
   selectedTipStrokeWidthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-tip-stroke-width-value').textContent = selectedTipStrokeWidthSlider.value;
+    $('selected-tip-stroke-width-value').textContent = selectedTipStrokeWidthSlider.value;
     renderer.setSelectedTipStrokeWidth(parseFloat(selectedTipStrokeWidthSlider.value));
     saveSettings();
   });
 
   selectedTipStrokeOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-tip-stroke-opacity-value').textContent = selectedTipStrokeOpacitySlider.value;
+    $('selected-tip-stroke-opacity-value').textContent = selectedTipStrokeOpacitySlider.value;
     renderer.setSelectedTipStrokeOpacity(parseFloat(selectedTipStrokeOpacitySlider.value));
     saveSettings();
   });
@@ -5107,35 +5110,35 @@ async function _initCore() {
 
   selectedNodeGrowthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-node-growth-value').textContent = selectedNodeGrowthSlider.value;
+    $('selected-node-growth-value').textContent = selectedNodeGrowthSlider.value;
     renderer.setSelectedNodeGrowthFactor(parseFloat(selectedNodeGrowthSlider.value));
     saveSettings();
   });
 
   selectedNodeMinSizeSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-node-min-size-value').textContent = selectedNodeMinSizeSlider.value;
+    $('selected-node-min-size-value').textContent = selectedNodeMinSizeSlider.value;
     renderer.setSelectedNodeMinSize(parseFloat(selectedNodeMinSizeSlider.value));
     saveSettings();
   });
 
   selectedNodeFillOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-node-fill-opacity-value').textContent = selectedNodeFillOpacitySlider.value;
+    $('selected-node-fill-opacity-value').textContent = selectedNodeFillOpacitySlider.value;
     renderer.setSelectedNodeFillOpacity(parseFloat(selectedNodeFillOpacitySlider.value));
     saveSettings();
   });
 
   selectedNodeStrokeWidthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-node-stroke-width-value').textContent = selectedNodeStrokeWidthSlider.value;
+    $('selected-node-stroke-width-value').textContent = selectedNodeStrokeWidthSlider.value;
     renderer.setSelectedNodeStrokeWidth(parseFloat(selectedNodeStrokeWidthSlider.value));
     saveSettings();
   });
 
   selectedNodeStrokeOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('selected-node-stroke-opacity-value').textContent = selectedNodeStrokeOpacitySlider.value;
+    $('selected-node-stroke-opacity-value').textContent = selectedNodeStrokeOpacitySlider.value;
     renderer.setSelectedNodeStrokeOpacity(parseFloat(selectedNodeStrokeOpacitySlider.value));
     saveSettings();
   });
@@ -5148,35 +5151,35 @@ async function _initCore() {
 
   tipHoverGrowthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('tip-hover-growth-value').textContent = tipHoverGrowthSlider.value;
+    $('tip-hover-growth-value').textContent = tipHoverGrowthSlider.value;
     renderer.setTipHoverGrowthFactor(parseFloat(tipHoverGrowthSlider.value));
     saveSettings();
   });
 
   tipHoverMinSizeSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('tip-hover-min-size-value').textContent = tipHoverMinSizeSlider.value;
+    $('tip-hover-min-size-value').textContent = tipHoverMinSizeSlider.value;
     renderer.setTipHoverMinSize(parseFloat(tipHoverMinSizeSlider.value));
     saveSettings();
   });
 
   tipHoverFillOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('tip-hover-fill-opacity-value').textContent = tipHoverFillOpacitySlider.value;
+    $('tip-hover-fill-opacity-value').textContent = tipHoverFillOpacitySlider.value;
     renderer.setTipHoverFillOpacity(parseFloat(tipHoverFillOpacitySlider.value));
     saveSettings();
   });
 
   tipHoverStrokeWidthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('tip-hover-stroke-width-value').textContent = tipHoverStrokeWidthSlider.value;
+    $('tip-hover-stroke-width-value').textContent = tipHoverStrokeWidthSlider.value;
     renderer.setTipHoverStrokeWidth(parseFloat(tipHoverStrokeWidthSlider.value));
     saveSettings();
   });
 
   tipHoverStrokeOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('tip-hover-stroke-opacity-value').textContent = tipHoverStrokeOpacitySlider.value;
+    $('tip-hover-stroke-opacity-value').textContent = tipHoverStrokeOpacitySlider.value;
     renderer.setTipHoverStrokeOpacity(parseFloat(tipHoverStrokeOpacitySlider.value));
     saveSettings();
   });
@@ -5189,35 +5192,35 @@ async function _initCore() {
 
   nodeHoverGrowthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('node-hover-growth-value').textContent = nodeHoverGrowthSlider.value;
+    $('node-hover-growth-value').textContent = nodeHoverGrowthSlider.value;
     renderer.setNodeHoverGrowthFactor(parseFloat(nodeHoverGrowthSlider.value));
     saveSettings();
   });
 
   nodeHoverMinSizeSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('node-hover-min-size-value').textContent = nodeHoverMinSizeSlider.value;
+    $('node-hover-min-size-value').textContent = nodeHoverMinSizeSlider.value;
     renderer.setNodeHoverMinSize(parseFloat(nodeHoverMinSizeSlider.value));
     saveSettings();
   });
 
   nodeHoverFillOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('node-hover-fill-opacity-value').textContent = nodeHoverFillOpacitySlider.value;
+    $('node-hover-fill-opacity-value').textContent = nodeHoverFillOpacitySlider.value;
     renderer.setNodeHoverFillOpacity(parseFloat(nodeHoverFillOpacitySlider.value));
     saveSettings();
   });
 
   nodeHoverStrokeWidthSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('node-hover-stroke-width-value').textContent = nodeHoverStrokeWidthSlider.value;
+    $('node-hover-stroke-width-value').textContent = nodeHoverStrokeWidthSlider.value;
     renderer.setNodeHoverStrokeWidth(parseFloat(nodeHoverStrokeWidthSlider.value));
     saveSettings();
   });
 
   nodeHoverStrokeOpacitySlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('node-hover-stroke-opacity-value').textContent = nodeHoverStrokeOpacitySlider.value;
+    $('node-hover-stroke-opacity-value').textContent = nodeHoverStrokeOpacitySlider.value;
     renderer.setNodeHoverStrokeOpacity(parseFloat(nodeHoverStrokeOpacitySlider.value));
     saveSettings();
   });
@@ -5232,7 +5235,7 @@ async function _initCore() {
 
   tipHaloSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('tip-halo-value').textContent = tipHaloSlider.value;
+    $('tip-halo-value').textContent = tipHaloSlider.value;
     renderer.setTipHaloSize(parseInt(tipHaloSlider.value));
     saveSettings();
     rttChart?.notifyStyleChange?.();
@@ -5247,7 +5250,7 @@ async function _initCore() {
 
   nodeHaloSlider.addEventListener('input', () => {
     _markCustomTheme();
-    document.getElementById('node-halo-value').textContent = nodeHaloSlider.value;
+    $('node-halo-value').textContent = nodeHaloSlider.value;
     renderer.setNodeHaloSize(parseInt(nodeHaloSlider.value));
     saveSettings();
   });
@@ -5337,7 +5340,7 @@ async function _initCore() {
 
   nodeLabelFontSizeSlider.addEventListener('input', () => {
     const v = parseInt(nodeLabelFontSizeSlider.value);
-    document.getElementById('node-label-font-size-value').textContent = v;
+    $('node-label-font-size-value').textContent = v;
     renderer?.setNodeLabelFontSize(v);
     saveSettings(); _markCustomTheme();
   });
@@ -5349,14 +5352,14 @@ async function _initCore() {
 
   nodeLabelSpacingSlider.addEventListener('input', () => {
     const v = parseInt(nodeLabelSpacingSlider.value);
-    document.getElementById('node-label-spacing-value').textContent = v;
+    $('node-label-spacing-value').textContent = v;
     renderer?.setNodeLabelSpacing(v);
     saveSettings(); _markCustomTheme();
   });
 
   tipLabelSpacingSlider.addEventListener('input', () => {
     const v = parseInt(tipLabelSpacingSlider.value);
-    document.getElementById('tip-label-spacing-value').textContent = v;
+    $('tip-label-spacing-value').textContent = v;
     renderer?.setTipLabelSpacing(v);
     saveSettings(); _markCustomTheme();
   });
@@ -5416,21 +5419,21 @@ async function _initCore() {
 
   tipLabelShapeMarginLeftSlider.addEventListener('input', () => {
     const v = parseInt(tipLabelShapeMarginLeftSlider.value);
-    document.getElementById('tip-label-shape-margin-left-value').textContent = v;
+    $('tip-label-shape-margin-left-value').textContent = v;
     renderer.setTipLabelShapeMarginLeft(v);
     saveSettings(); _markCustomTheme();
   });
 
   tipLabelShapeMarginRightSlider.addEventListener('input', () => {
     const v = parseInt(tipLabelShapeMarginRightSlider.value);
-    document.getElementById('tip-label-shape-margin-right-value').textContent = v;
+    $('tip-label-shape-margin-right-value').textContent = v;
     renderer.setTipLabelShapeMarginRight(v);
     saveSettings(); _markCustomTheme();
   });
 
   tipLabelShapeSpacingSlider.addEventListener('input', () => {
     const v = parseInt(tipLabelShapeSpacingSlider.value);
-    document.getElementById('tip-label-shape-spacing-value').textContent = v;
+    $('tip-label-shape-spacing-value').textContent = v;
     renderer.setTipLabelShapeSpacing(v);
     saveSettings(); _markCustomTheme();
   });
@@ -5474,7 +5477,7 @@ async function _initCore() {
 
   tipLabelShapeSizeSlider.addEventListener('input', () => {
     const v = parseInt(tipLabelShapeSizeSlider.value);
-    document.getElementById('tip-label-shape-size-value').textContent = v;
+    $('tip-label-shape-size-value').textContent = v;
     renderer.setTipLabelShapeSize(v);
     saveSettings(); _markCustomTheme();
   });
@@ -5523,7 +5526,7 @@ async function _initCore() {
   legend2AnnotEl.addEventListener('change', applyLegend);
   legend2ShowEl .addEventListener('change', applyLegend);
   legend2HeightPctSlider.addEventListener('input', () => {
-    document.getElementById('legend2-height-pct-value').textContent = legend2HeightPctSlider.value + '%';
+    $('legend2-height-pct-value').textContent = legend2HeightPctSlider.value + '%';
     applyLegend();
   });
 
@@ -5532,11 +5535,11 @@ async function _initCore() {
     saveSettings();
   });
   legendFontSizeSlider.addEventListener('input', () => {
-    document.getElementById('legend-font-size-value').textContent = legendFontSizeSlider.value;
+    $('legend-font-size-value').textContent = legendFontSizeSlider.value;
     applyLegend();
   });
   legendHeightPctSlider.addEventListener('input', () => {
-    document.getElementById('legend-height-pct-value').textContent = legendHeightPctSlider.value + '%';
+    $('legend-height-pct-value').textContent = legendHeightPctSlider.value + '%';
     applyLegend();
   });
 
@@ -5649,11 +5652,11 @@ async function _initCore() {
 
   axisColorEl.addEventListener('input', () => { _markCustomTheme(); applyAxisStyle(); });
   axisFontSizeSlider.addEventListener('input', () => {
-    document.getElementById('axis-font-size-value').textContent = axisFontSizeSlider.value;
+    $('axis-font-size-value').textContent = axisFontSizeSlider.value;
     applyAxisStyle();
   });
   axisLineWidthSlider.addEventListener('input', () => {
-    document.getElementById('axis-line-width-value').textContent = axisLineWidthSlider.value;
+    $('axis-line-width-value').textContent = axisLineWidthSlider.value;
     applyAxisStyle();
   });
 
@@ -5693,12 +5696,12 @@ async function _initCore() {
     saveSettings();
   });
   rttRegressionWidthSlider.addEventListener('input', () => {
-    document.getElementById('rtt-regression-width-value').textContent = rttRegressionWidthSlider.value;
+    $('rtt-regression-width-value').textContent = rttRegressionWidthSlider.value;
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
   rttAxisFontSizeSlider.addEventListener('input', () => {
-    document.getElementById('rtt-axis-font-size-value').textContent = rttAxisFontSizeSlider.value;
+    $('rtt-axis-font-size-value').textContent = rttAxisFontSizeSlider.value;
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
@@ -5714,7 +5717,7 @@ async function _initCore() {
     saveSettings();
   });
   rttAxisLineWidthSlider.addEventListener('input', () => {
-    document.getElementById('rtt-axis-line-width-value').textContent = rttAxisLineWidthSlider.value;
+    $('rtt-axis-line-width-value').textContent = rttAxisLineWidthSlider.value;
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
@@ -5733,19 +5736,19 @@ async function _initCore() {
   nodeBarsShowEl.addEventListener('change', applyNodeBars);
   nodeBarsColorEl.addEventListener('input', applyNodeBars);
   nodeBarsWidthSlider.addEventListener('input', () => {
-    document.getElementById('node-bars-width-value').textContent = nodeBarsWidthSlider.value;
+    $('node-bars-width-value').textContent = nodeBarsWidthSlider.value;
     applyNodeBars();
   });
   nodeBarsMedianEl.addEventListener('change', applyNodeBars);
   nodeBarsRangeEl.addEventListener('change', applyNodeBars);
 
   collapsedOpacitySlider.addEventListener('input', () => {
-    document.getElementById('collapsed-opacity-value').textContent = collapsedOpacitySlider.value;
+    $('collapsed-opacity-value').textContent = collapsedOpacitySlider.value;
     if (renderer) { renderer.setSettings(_buildRendererSettings()); renderer._dirty = true; }
     saveSettings();
   });
   collapsedHeightNSlider.addEventListener('input', () => {
-    document.getElementById('collapsed-height-n-value').textContent = collapsedHeightNSlider.value;
+    $('collapsed-height-n-value').textContent = collapsedHeightNSlider.value;
     if (renderer && graph) {
       renderer.setSettings(_buildRendererSettings());
       const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, _layoutOptions());
@@ -5754,7 +5757,7 @@ async function _initCore() {
     saveSettings();
   });
   collapsedCladeFontSizeSlider.addEventListener('input', () => {
-    document.getElementById('collapsed-clade-font-size-value').textContent = collapsedCladeFontSizeSlider.value;
+    $('collapsed-clade-font-size-value').textContent = collapsedCladeFontSizeSlider.value;
     if (renderer) { renderer.setSettings(_buildRendererSettings()); renderer._dirty = true; }
     saveSettings();
   });
@@ -5768,7 +5771,7 @@ async function _initCore() {
   });
 
   rootStemPctSlider.addEventListener('input', () => {
-    document.getElementById('root-stem-pct-value').textContent = rootStemPctSlider.value + '%';
+    $('root-stem-pct-value').textContent = rootStemPctSlider.value + '%';
     if (!renderer) { saveSettings(); return; }
     renderer.rootStemPct = parseFloat(rootStemPctSlider.value);
     renderer._updateScaleX();
@@ -5852,10 +5855,10 @@ async function _initCore() {
   });
 
   btnFit?.addEventListener('click', () => renderer.fitToWindow());
-  document.getElementById('btn-fit-labels')?.addEventListener('click', () => renderer.fitLabels());
+  $('btn-fit-labels')?.addEventListener('click', () => renderer.fitLabels());
 
   // Open button
-  document.getElementById('btn-open-tree')?.addEventListener('click', () => commands.execute('open-tree'));
+  $('btn-open-tree')?.addEventListener('click', () => commands.execute('open-tree'));
 
   // ── Wire command exec functions ────────────────────────────────────────────
   // Explicitly-wired (no buttonId, or custom behaviour):
@@ -6013,7 +6016,7 @@ async function _initCore() {
   for (const cmd of commands.getAll().values()) {
     if (cmd.buttonId && !cmd.exec) {
       const btnId = cmd.buttonId;
-      cmd.exec = () => document.getElementById(btnId)?.click();
+      cmd.exec = () => $(btnId)?.click();
     }
   }
 
@@ -6073,7 +6076,7 @@ async function _initCore() {
     const _setSlider = (el, labelId, val) => {
       if (val == null || !el) return;
       el.value = val;
-      const lbl = labelId ? document.getElementById(labelId) : null;
+      const lbl = labelId ? $(labelId) : null;
       if (lbl) lbl.textContent = val;
     };
 
@@ -6202,15 +6205,15 @@ async function _initCore() {
      */
     setPanelVisible(panel, visible) {
       if (panel === 'rtt') {
-        document.getElementById('btn-rtt')  ?.classList.toggle('d-none', !visible);
-        document.getElementById('rtt-panel')?.classList.toggle('d-none', !visible);
+        $('btn-rtt')  ?.classList.toggle('d-none', !visible);
+        $('rtt-panel')?.classList.toggle('d-none', !visible);
         if (!visible) rttChart?.close?.();
       } else if (panel === 'dataTable') {
-        document.getElementById('btn-data-table')  ?.classList.toggle('d-none', !visible);
-        document.getElementById('data-table-panel')?.classList.toggle('d-none', !visible);
+        $('btn-data-table')  ?.classList.toggle('d-none', !visible);
+        $('data-table-panel')?.classList.toggle('d-none', !visible);
         if (!visible) dataTableRenderer?.close?.();
       } else if (panel === 'palette') {
-        document.getElementById('btn-palette')?.classList.toggle('d-none', !visible);
+        $('btn-palette')?.classList.toggle('d-none', !visible);
       }
     },
 
@@ -6259,6 +6262,18 @@ async function _initCore() {
      * @param {object} settings  Partial settings keyed by DEFAULT_SETTINGS key names.
      */
     applySettings(settings) { _applySettingsRuntime(settings); },
+
+    /**
+     * Register a callback invoked each time a tree finishes loading.
+     * Scoped to this instance — fires only when THIS instance's tree loads.
+     * Returns an unsubscribe function.
+     * @param {() => void} fn
+     */
+    onTreeLoad(fn) {
+      const handler = () => fn();
+      root.addEventListener('peartree-tree-loaded', handler);
+      return () => root.removeEventListener('peartree-tree-loaded', handler);
+    },
   };
 
   // ── postMessage API (iframe embedding) ────────────────────────────────────
@@ -6354,7 +6369,7 @@ async function _initCore() {
       try { localStorage.setItem(STORE_KEY, JSON.stringify(st)); } catch {}
     }
     function _allSec() {
-      return Array.from(document.querySelectorAll('.pt-palette-section[data-sec-id]'));
+      return Array.from(root.querySelectorAll('.pt-palette-section[data-sec-id]'));
     }
 
     function _openSec(sec) {
@@ -6410,7 +6425,7 @@ async function _initCore() {
     const savedState = _loadSt();
     const noTransitionBodies = [];
 
-    document.querySelectorAll('.pt-palette-section').forEach(sec => {
+    root.querySelectorAll('.pt-palette-section').forEach(sec => {
       const h3 = sec.querySelector(':scope > h3');
       if (!h3) return;
 
@@ -6475,6 +6490,11 @@ async function _initCore() {
   })();
 
   window.dispatchEvent(new CustomEvent('peartree-ready'));
+  // Wire up UI panel behaviours (palette, help, about, keyboard shortcuts,
+  // toolbar height tracking) for this instance.  The function is exposed by
+  // peartree-ui.js; it's a no-op when running without the UI script.
+  window.initPearTreeUIBindings?.(root);
+  return window.peartree;
 
 }
 
@@ -6580,46 +6600,42 @@ export async function app(options = {}) {
 //   appSections:     string | []           — app HTML sections
 //   toolbarSections: string | []           — toolbar sub-sections
 //
-// NOTE: Only one direct (same-page) embed can share the host document, because
-// peartree-ui.js creates a single set of DOM element IDs.  If embed() is called
-// more than once, every call after the first automatically uses embedFrame() so
-// each additional instance lives in an isolated <iframe>.  embedFrame() can
-// still be called explicitly when iframe isolation is always required.
-let _embedDone = false;
+// Each embed() call creates a fully independent instance scoped to the given
+// container.  Multiple embeds can coexist in the same page without collision.
+// Use embedFrame() when full iframe isolation is explicitly required.
 
 /**
  * Build a controller for a direct (same-page) embed.
- * Methods call through to `window.peartree` which is set up by _initCore().
- * Safe to call before a tree is loaded — tree-structural methods are no-ops.
+ * Proxies all methods through the instance returned by _initCore(), ensuring
+ * each embed's controller is bound to its own instance even when multiple
+ * embeds exist in the same page.
+ * @param {object} instance  The object returned by _initCore().
  */
-function _buildDirectController() {
+function _buildDirectController(instance) {
   return {
     /** Sort nodes ascending ('asc') or descending ('desc') by clade size. */
-    sort:          (order)    => window.peartree?.sort(order),
+    sort:          (order)    => instance.sort(order),
     /** Re-root the tree at its midpoint. */
-    midpointRoot:  ()         => window.peartree?.midpointRoot(),
+    midpointRoot:  ()         => instance.midpointRoot(),
     /** Zoom to fit the whole tree in the canvas. */
-    fitToWindow:   ()         => window.peartree?.fitToWindow(),
+    fitToWindow:   ()         => instance.fitToWindow(),
     /** Zoom so all tip labels are visible without clipping. */
-    fitLabels:     ()         => window.peartree?.fitLabels(),
+    fitLabels:     ()         => instance.fitLabels(),
     /** Apply a partial settings object (same keys as window.peartreeConfig.settings). */
-    applySettings: (settings) => window.peartree?.applySettings(settings),
+    applySettings: (settings) => instance.applySettings(settings),
     /** Apply a named built-in or user theme. */
-    applyTheme:    (name)     => window.peartree?.applyTheme(name),
+    applyTheme:    (name)     => instance.applyTheme(name),
     /** Return a snapshot of the current settings (same format as initSettings). */
-    getSettings:   ()         => window.peartree?.getSettings(),
+    getSettings:   ()         => instance.getSettings(),
     /** Load a tree from an inline string. */
-    loadTree:      (text, fn) => window.peartree?.loadTree(text, fn),
+    loadTree:      (text, fn) => instance.loadTree(text, fn),
     /**
-     * Register a callback invoked each time a tree finishes loading.
-     * The callback receives no arguments.  Returns an unsubscribe function.
+     * Register a callback invoked each time this instance's tree finishes loading.
+     * Scoped to this embed — fires only when THIS instance loads a tree.
+     * Returns an unsubscribe function.
      * @param {() => void} fn
      */
-    onTreeLoad(fn) {
-      const handler = () => fn();
-      window.addEventListener('peartree-tree-loaded', handler);
-      return () => window.removeEventListener('peartree-tree-loaded', handler);
-    },
+    onTreeLoad:    (fn)       => instance.onTreeLoad(fn),
   };
 }
 
@@ -6657,10 +6673,6 @@ function _buildFrameController(iframe) {
 }
 
 export async function embed(options = {}) {
-  // After the first same-page embed the DOM is already populated with PearTree's
-  // element IDs, so a second direct inject would collide.  Route to embedFrame().
-  if (_embedDone) return embedFrame(options);
-
   if (!options.container) throw new Error('PearTree.embed: container is required');
 
   const container = typeof options.container === 'string'
@@ -6683,8 +6695,10 @@ export async function embed(options = {}) {
   if (ui.openTree === false) ui.import   = false;
   if (ui.import   === false) ui.openTree = false;
 
-  // Set window.peartreeConfig BEFORE loading peartree-ui.js — the IIFEs in
-  // peartree-ui.js read it while building and injecting the HTML.
+  // Set window.peartreeConfig BEFORE loading or re-using peartree-ui.js.
+  // On the first embed the IIFEs in peartree-ui.js read it to inject HTML.
+  // On subsequent embeds we call window.buildAppHTML() / window.buildPalettePanel()
+  // directly (since the IIFEs won't re-fire for an already-loaded script).
   window.peartreeConfig = {
     ui: {
       palette:   ui.palette,
@@ -6709,10 +6723,10 @@ export async function embed(options = {}) {
   _ensureStylesheet(base + 'css/peartree.css');
   _ensureStylesheet(base + 'css/peartree-embed.css');
 
-  // Create the wrapper with an app-host placeholder.  When peartree-ui.js
-  // loads, its app-host IIFE finds #app-html-host and injects all the HTML —
-  // then every getElementById() call that follows in the script finds real
-  // elements.
+  // Create the wrapper with an app-host placeholder.  On first load,
+  // peartree-ui.js's IIFE finds #app-html-host and replaces it with the full
+  // app HTML.  On 2nd+ embeds the script is already loaded so we call the
+  // exposed builder functions directly on the new wrap's placeholder.
   const height = options.height || '600px';
   const theme  = options.theme  || 'dark';
   const wrap = document.createElement('div');
@@ -6725,32 +6739,50 @@ export async function embed(options = {}) {
   // Load dependencies in order, then initialise.
   await _loadScript(base + 'vendor/marked.min.js', false);
   await _loadScript(base + 'js/peartree-ui.js', false);
-  // peartree-ui.js IIFE has now fired: DOM is fully populated.
 
-  await _initCore();
-
-  // Dispatch the tree once peartree-ready fires.
-  function _dispatchTree() {
-    if (typeof options.tree === 'string') {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: { type: 'pt:loadTree', text: options.tree, filename: options.filename || 'tree.nwk' },
-        origin: window.location.origin,
-      }));
-    } else if (typeof options.treeUrl === 'string') {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: { type: 'pt:loadTree', url: options.treeUrl, filename: options.filename || options.treeUrl.split('/').pop() || 'tree' },
-        origin: window.location.origin,
-      }));
-    }
+  // If peartree-ui.js was already loaded its IIFEs won't re-fire, so the
+  // #app-html-host placeholder is still present.  Inject HTML directly.
+  const _appHost = wrap.querySelector('#app-html-host');
+  if (_appHost && typeof window.buildAppHTML === 'function') {
+    const _appSec = window.peartreeConfig.appSections    || 'all';
+    const _tbSec  = window.peartreeConfig.toolbarSections || 'all';
+    _appHost.outerHTML = window.buildAppHTML(_appSec, _tbSec);
   }
-  if (window.peartree) _dispatchTree();
-  else window.addEventListener('peartree-ready', _dispatchTree, { once: true });
+  const _palHost = wrap.querySelector('#palette-panel-host');
+  if (_palHost && typeof window.buildPalettePanel === 'function') {
+    const _palSec = window.peartreeConfig.paletteSections || 'all';
+    _palHost.outerHTML = window.buildPalettePanel(_palSec);
+  }
+  // When palette is disabled, hide the panel.
+  if (ui.palette === false) {
+    const _panel = wrap.querySelector('#palette-panel');
+    if (_panel) { _panel.style.display = 'none'; _panel.inert = true; }
+  }
 
-  _embedDone = true;
+  // Initialise this instance, scoped to the wrap element.
+  const instance = await _initCore(wrap);
+
+  // Load the initial tree directly on the instance (bypasses the postMessage
+  // routing used by the old single-instance approach).
+  if (typeof options.tree === 'string') {
+    instance.loadTree(options.tree, options.filename || 'tree.nwk');
+  } else if (typeof options.treeUrl === 'string') {
+    (async () => {
+      try {
+        const _resp = await fetch(options.treeUrl);
+        if (!_resp.ok) throw new Error('HTTP ' + _resp.status + ' — could not fetch tree');
+        const _text = await _resp.text();
+        const _name = options.filename || options.treeUrl.split('/').pop() || 'tree';
+        await instance.loadTree(_text, _name);
+      } catch (_err) {
+        console.error('PearTree.embed: failed to fetch treeUrl –', _err.message);
+      }
+    })();
+  }
 
   // Return a controller so the caller can drive the embed programmatically
   // without holding a reference to the window or internal functions.
-  return _buildDirectController();
+  return _buildDirectController(instance);
 }
 
 // ── embedFrame(options) ───────────────────────────────────────────────────

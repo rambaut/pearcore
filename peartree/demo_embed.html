@@ -116,16 +116,16 @@
     <p class="pt-embed-caption">
       Figure 2. Phylogeny of Variola virus (VARV) sequences. Rendered with
       <a href="https://github.com/artic-network/peartree" target="_blank" rel="noopener">PearTree</a>
-      using <code>embed()</code> — automatically isolated as a second instance.
+      using <code>embed()</code> — independent second instance, directly in the page.
     </p>
   </section>
 
 </main>
 
 <script type="module">
-  // embed() handles all instances automatically: the first call injects
-  // PearTree directly into the page; every subsequent call uses an <iframe>
-  // so each extra instance is fully isolated.
+  // Each embed() call creates a fully independent instance scoped to its
+  // container element — no iframes needed.  Multiple instances coexist on
+  // the same page without element-ID or state collisions.
   //
   // Both calls return a controller with the same API surface:
   //   .sort('asc' | 'desc')       — sort nodes by clade size
@@ -135,8 +135,8 @@
   //   .applySettings({ ... })      — change visual/display settings
   //   .applyTheme(name)            — switch named theme
   //   .loadTree(text, filename)    — load an inline tree string
-  //   .getSettings()               — snapshot current settings (direct embed only)
-  //   .iframe                      — the <iframe> element (frame controller only)
+  //   .getSettings()               — snapshot current settings
+  //   .onTreeLoad(fn)              — callback when this instance's tree is ready
   import { embed } from './js/peartree.js';
 
   const _sharedSettings = {
@@ -170,7 +170,18 @@
     filename:        'ebov.tree',
     height:          '620px',
     theme:           'light',
-    settings:        _sharedSettings,
+    settings:        {
+    theme:               'Minimal',
+    introAnimation:      '',
+    tipLabelShow:        'names',
+    tipLabelSize:        '6',
+    axisShow:            'time',
+    axisDateFormat:      'dd MMM yyyy',
+    axisMajorInterval:   'auto',
+    axisMinorInterval:   'auto',
+    axisMajorLabelFormat: 'component',
+    axisMinorLabelFormat: 'component',
+  },
     ui:              _sharedUi,
     toolbarSections: ['navigation', 'zoom'],
   });
@@ -181,8 +192,7 @@
     tree1.sort('desc');
   });
 
-  // Second tree — embed() detects this is a second call and automatically
-  // uses an isolated <iframe>.  Returns a postMessage controller.
+  // Second tree — independent direct embed, fully scoped to its own container.
   const tree2 = await embed({
     container:       'pt-tree-2',
     treeUrl:         'data/VARV.tree',
@@ -190,7 +200,13 @@
     nodeLabelName:   'bootstrap',
     height:          '620px',
     theme:           'light',
-    settings:        _sharedSettings,
+    settings:        {
+    theme:               'BEAST',
+    introAnimation:      'none',
+    tipLabelShow:        'names',
+    tipLabelSize:        '6',
+    axisShow:            'Reverse',
+  },
     ui:              _sharedUi,
     toolbarSections: ['navigation', 'zoom'],
   });
