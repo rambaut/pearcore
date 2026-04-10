@@ -73,7 +73,6 @@ export const DEFAULT_SETTINGS = {
   rttMinorInterval:     'off',
   rttMajorLabelFormat:  'partial',
   rttMinorLabelFormat:  'off',
-  legendShow:         'right',
   legendFontSize:     '11',
   legendFontFamily:   '',
   legendFontStyle:    '',

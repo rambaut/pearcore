@@ -172,7 +172,6 @@ function _sectionLegend() {
       <h3><i class="bi bi-card-list"></i> Legend</h3>
       <div class="pt-palette-row"><span class="pt-palette-label">Show</span><select class="pt-palette-select" id="legend-annotation" disabled><option value="">Off</option></select></div>
       <div id="legend-detail" class="pt-detail pt-sub-controls">
-        <div class="pt-palette-row"><span class="pt-palette-label">Position</span><select class="pt-palette-select" id="legend-show"><option value="right">Right</option><option value="left">Left</option></select></div>
         <div class="pt-palette-row"><i class="bi bi-arrows-expand form-label-sm" title="Height"></i><input type="range" class="form-range" id="legend-height-pct-slider" min="10" max="100" step="5" value="100" /><span class="pt-val" id="legend-height-pct-value">100%</span></div>
         <div class="pt-palette-row"><span class="pt-palette-label">Colour</span><input type="color" class="pt-palette-color" id="legend-text-color" value="#f7eeca" /></div>
         <div class="pt-palette-row"><i class="bi bi-fonts form-label-sm"></i><input type="range" class="form-range" id="legend-font-size-slider" min="6" max="48" value="11" /><span class="pt-val" id="legend-font-size-value">11</span></div>
@@ -569,10 +568,6 @@ function _buildToolbar(tbSections) {
 function _buildCanvasContainer() {
   return `
 <div id="canvas-container">
-  <canvas id="legend4-left-canvas" class="pt-legend-canvas"></canvas>
-  <canvas id="legend3-left-canvas" class="pt-legend-canvas"></canvas>
-  <canvas id="legend2-left-canvas" class="pt-legend-canvas"></canvas>
-  <canvas id="legend-left-canvas" class="pt-legend-canvas"></canvas>
   <div id="canvas-and-axis-wrapper">
     <div id="canvas-wrapper">
       <div id="empty-state">

@@ -498,6 +498,8 @@
   flex-direction: row;
   align-items: stretch;
   overflow: hidden;
+  /* Animate the left indent that makes room for the pinned palette panel */
+  transition: margin-left 0.22s cubic-bezier(.4,0,.2,1);
 }
 #canvas-wrapper {
   flex: 1;
@@ -879,9 +881,8 @@ canvas.grabbing   { cursor: grabbing; }
   gap: 0;
   overflow: hidden;
   min-width: 0;
-  transition: margin-left 0.22s cubic-bezier(.4,0,.2,1);
 }
-body.palette-pinned #canvas-and-axis-wrapper {
+body.palette-pinned #canvas-container {
   margin-left: 240px;
 }
 #selection-hover-section { display: none; }

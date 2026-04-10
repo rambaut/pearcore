@@ -26,26 +26,23 @@ function svgTextEsc(s) {
  * @param {Object} ctx
  * @param {HTMLCanvasElement} ctx.canvas
  * @param {HTMLCanvasElement} ctx.axisCanvas
- * @param {HTMLCanvasElement} ctx.legendLeftCanvas
  * @param {HTMLCanvasElement} ctx.legendRightCanvas
  */
-export function viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas }) {
-  const llVisible = legendLeftCanvas.style.display !== 'none';
+export function viewportDims({ canvas, axisCanvas, legendRightCanvas }) {
   const lrVisible = legendRightCanvas.style.display !== 'none';
   const axVisible = axisCanvas.style.display        !== 'none';
-  const llW = llVisible ? legendLeftCanvas.clientWidth  : 0;
   const lrW = lrVisible ? legendRightCanvas.clientWidth : 0;
   const ttW = canvas.clientWidth;
   const ttH = canvas.clientHeight;
   const axH = axVisible ? axisCanvas.clientHeight : 0;
-  return { totalW: llW + ttW + lrW, totalH: ttH + axH,
-           llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible };
+  return { totalW: ttW + lrW, totalH: ttH + axH,
+           llW: 0, lrW, ttW, ttH, axH, llVisible: false, lrVisible, axVisible };
 }
 
 /**
  * Composite all visible canvases onto an OffscreenCanvas at the given pixel size.
  *
- * @param {Object} ctx  – { renderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, axisRenderer }
+ * @param {Object} ctx  – { renderer, canvas, axisCanvas, legendRightCanvas, axisRenderer }
  * @param {number} targetW
  * @param {number} targetH
  * @param {boolean} [fullTree=false]
@@ -53,8 +50,8 @@ export function viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRight
  * @returns {OffscreenCanvas}
  */
 export function compositeViewPng(ctx, targetW, targetH, fullTree = false, transparent = false) {
-  const { renderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas } = ctx;
-  const { totalW, llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible } = viewportDims(ctx);
+  const { renderer, canvas, axisCanvas, legendRightCanvas } = ctx;
+  const { totalW, lrW, ttW, ttH, axH, lrVisible, axVisible } = viewportDims(ctx);
   // Full tree: panel height is determined by current scaleY over all tips.
   const ttH_eff    = fullTree
     ? (renderer.paddingTop + renderer.paddingBottom + (renderer.maxY + 1) * renderer.scaleY)
@@ -70,27 +67,13 @@ export function compositeViewPng(ctx, targetW, targetH, fullTree = false, transp
     oCtx.fillRect(0, 0, targetW, targetH);
   }
 
-  if (llVisible) {
-    if (transparent) {
-      // Re-render legend without background fill.
-      renderer._skipBg = true;
-      renderer._drawLegend();
-      renderer._skipBg = false;
-    }
-    oCtx.drawImage(legendLeftCanvas, 0, 0,
-      Math.round(llW * sx), Math.round(ttH_eff * sy));
-    if (transparent) {
-      // Restore legend with background for the live view.
-      renderer._drawLegend();
-    }
-  }
   if (fullTree) {
     // Re-render tree panel at current scaleY with full unclipped height.
     const treeW = Math.round(ttW * sx);
     const treeH = Math.round(ttH_eff * sy);
     const toc = new OffscreenCanvas(treeW, treeH);
     renderer.renderFull(toc, treeW, treeH, transparent);
-    oCtx.drawImage(toc, Math.round(llW * sx), 0);
+    oCtx.drawImage(toc, 0, 0);
   } else if (transparent) {
     // Re-render current viewport at screen dimensions without background,
     // then let drawImage scale it to the export target (same as the normal
@@ -98,16 +81,16 @@ export function compositeViewPng(ctx, targetW, targetH, fullTree = false, transp
     const toc = new OffscreenCanvas(Math.round(ttW), Math.round(ttH_eff));
     renderer.renderViewToOffscreen(toc, true);
     oCtx.drawImage(toc,
-      Math.round(llW * sx), 0,
+      0, 0,
       Math.round(ttW * sx), Math.round(ttH_eff * sy));
   } else {
     oCtx.drawImage(canvas,
-      Math.round(llW * sx), 0,
+      0, 0,
       Math.round(ttW * sx), Math.round(ttH_eff * sy));
   }
   if (axVisible) {
     oCtx.drawImage(axisCanvas,
-      Math.round(llW * sx), Math.round(ttH_eff * sy),
+      0, Math.round(ttH_eff * sy),
       Math.round(ttW * sx), Math.round(axH * sy));
   }
   if (lrVisible) {
@@ -117,7 +100,7 @@ export function compositeViewPng(ctx, targetW, targetH, fullTree = false, transp
       renderer._skipBg = false;
     }
     oCtx.drawImage(legendRightCanvas,
-      Math.round((llW + ttW) * sx), 0,
+      Math.round(ttW * sx), 0,
       Math.round(lrW * sx), Math.round(ttH_eff * sy));
     if (transparent) {
       renderer._drawLegend();
@@ -127,37 +110,31 @@ export function compositeViewPng(ctx, targetW, targetH, fullTree = false, transp
 }
 
 /**
- * Build a fully-vector composite SVG: three panels arranged as on screen —
- *   legend (left) | tree | legend (right)   [with axis below the tree panel]
+ * Build a fully-vector composite SVG: tree with optional legend (right) and axis below.
  *
  * No raster embeds — axis ticks and legend entries are SVG elements.
  *
- * @param {Object} ctx  – { renderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, axisRenderer }
+ * @param {Object} ctx  – { renderer, canvas, axisCanvas, legendRightCanvas, axisRenderer }
  * @param {boolean} [fullTree=false]
  * @param {boolean} [transparent=false]
  * @returns {string|null}
  */
 export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   const { renderer, legendRenderer, axisRenderer,
-          legend2LeftCanvas, legend2RightCanvas } = ctx;
+          legend2RightCanvas } = ctx;
   const nm = renderer.nodeMap;
   if (!nm || !nm.size) return null;
 
   const { totalW: baseW, llW, lrW, ttW, ttH, axH, llVisible, lrVisible, axVisible } = viewportDims(ctx);
-  // ── Second-legend beside columns ──────────────────────────────────────
+  // ── Second-legend beside column ──────────────────────────────────────
   const lr2Key    = legendRenderer?._annotation2 ?? null;
   const lr2Pos    = legendRenderer?._position2;   // 'right' (beside own canvas) | 'below'
   const lr2Beside = !!lr2Key && lr2Pos !== 'below';
-  const lr1Pos    = legendRenderer?._position;    // 'left' | 'right' | null
 
-  let ll2W = 0, lr2W = 0;
-  if (lr2Beside) {
-    if (lr1Pos === 'left'  && legend2LeftCanvas?.style.display  !== 'none')
-      ll2W = legend2LeftCanvas?.clientWidth  ?? 0;
-    if (lr1Pos === 'right' && legend2RightCanvas?.style.display !== 'none')
-      lr2W = legend2RightCanvas?.clientWidth ?? 0;
-  }
-  const totalW = ll2W + baseW + lr2W;
+  let lr2W = 0;
+  if (lr2Beside && legend2RightCanvas?.style.display !== 'none')
+    lr2W = legend2RightCanvas?.clientWidth ?? 0;
+  const totalW = baseW + lr2W;
 
   const sx  = renderer.scaleX,  ox = renderer.offsetX;
   // Full tree: keep current scaleY so zoom level is preserved; shift oy so root sits at top.
@@ -176,7 +153,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   const tr  = renderer.tipRadius;
   const nr  = renderer.nodeRadius;
 
-  const toSX = wx => wx * sx + ox + ll2W + llW;
+  const toSX = wx => wx * sx + ox + llW;
   const toSY = wy => wy * sy + oy;
   const f    = n  => n.toFixed(2);
   // When drawing full tree all nodes are in range; use Infinity to skip y-culling.
@@ -184,8 +161,8 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
 
   // ── defs: clip paths, gradients ──────────────────────────────────────
   const defs = [];
-  // Clip for the main tree area (excludes legend panels)
-  defs.push(`<clipPath id="tc"><rect x="${ll2W + llW}" y="0" width="${ttW}" height="${ttH_eff}"/></clipPath>`);
+  // Clip for the main tree area (excludes legend panel)
+  defs.push(`<clipPath id="tc"><rect x="${llW}" y="0" width="${ttW}" height="${ttH_eff}"/></clipPath>`);
 
   // ── Background panels ─────────────────────────────────────────────────
   const bgParts = [];
@@ -279,7 +256,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   };
 
   if (legendPos && legendKey && legendSchema) {
-    const lx = legendPos === 'left' ? ll2W : ll2W + llW + ttW;
+    const lx = llW + ttW;  // legend is always on the right
     // Compute h1/h2 when second legend is stacked below legend 1.
     const below = !!lr2Key && lr2Pos === 'below';
     let h1 = ttH, h2 = 0;
@@ -297,14 +274,13 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     _appendLegendBlock(legendParts, legendKey, lx, h1, 0, 'lgrd');
     if (below && lr2Key && h2 > 0) {
       // Separator line between stacked legends.
-      const panelW = legendPos === 'left' ? llW : lrW;
-      legendParts.push(`<line x1="${lx}" y1="${h1}" x2="${lx + panelW}" y2="${h1}" stroke="${esc(lr.textColor ?? '#ffffff')}44" stroke-width="1"/>`);
+      legendParts.push(`<line x1="${lx}" y1="${h1}" x2="${lx + lrW}" y2="${h1}" stroke="${esc(lr.textColor ?? '#ffffff')}44" stroke-width="1"/>`);
       _appendLegendBlock(legendParts, lr2Key, lx, h2, h1, 'lgrd2');
     }
   }
-  // Second legend — 'beside' mode: drawn in its own outermost-side panel.
+  // Second legend — 'beside' mode: drawn in its own outermost-right panel.
   if (lr2Beside && lr2Key && legendSchema) {
-    const lx2 = lr1Pos === 'left' ? 0 : ll2W + llW + ttW + lrW;
+    const lx2 = llW + ttW + lrW;
     _appendLegendBlock(legendParts, lr2Key, lx2, ttH, 0, 'lgrd2');
   }
 
@@ -581,7 +557,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     const ar        = axisRenderer;
     const plotLeft  = ar._offsetX;
     const plotRight = ar._offsetX + ar._maxX * ar._scaleX;
-    const AX        = ll2W + llW;   // SVG x-offset for the axis canvas origin
+    const AX        = llW;   // SVG x-offset for the axis canvas origin
     const AY        = ttH_eff;      // SVG y-offset for the axis canvas origin
     const Y_BASE    = 3;
     const MAJOR_H   = 9;

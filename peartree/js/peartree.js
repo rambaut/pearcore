@@ -261,19 +261,14 @@ async function _initCore(root = document) {
   const tipLabelShapeExtraPaletteSelects = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-palette-select`));
   const tipLabelShapeExtraSectionEls    = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-section`));
   const tipLabelShapeExtraDetailEls     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-detail`));
-  const legendShowEl          = $('legend-show');
   const legendAnnotEl         = $('legend-annotation');
   const legendTextColorEl     = $('legend-text-color');
   const legendFontSizeSlider   = $('legend-font-size-slider');
   const legendHeightPctSlider  = $('legend-height-pct-slider');
   const legendFontFamilyEl     = $('legend-font-family-select');
-  const legendLeftCanvas   = $('legend-left-canvas');
   const legendRightCanvas  = $('legend-right-canvas');
-  const legend2LeftCanvas  = $('legend2-left-canvas');
   const legend2RightCanvas = $('legend2-right-canvas');
-  const legend3LeftCanvas  = $('legend3-left-canvas');
   const legend3RightCanvas = $('legend3-right-canvas');
-  const legend4LeftCanvas  = $('legend4-left-canvas');
   const legend4RightCanvas = $('legend4-right-canvas');
   const legend2AnnotEl          = $('legend-annotation-2');
   const legend2ShowEl           = $('legend2-show');
@@ -826,7 +821,6 @@ async function _initCore(root = document) {
       nodeColourBy:     nodeColourBy.value,
       labelColourBy:    labelColourBy.value,
       annotationPalettes: Object.fromEntries(annotationPalettes),
-      legendShow:       legendShowEl.value,
       legendAnnotation:  legendAnnotEl.value,
       legendAnnotation2: legend2AnnotEl.value,
       legend2Position:   legend2ShowEl.value,
@@ -1103,7 +1097,6 @@ async function _initCore(root = document) {
     if (axisTypefaceStyleEl) {
       _populateStyleSelect(axisFontFamilyEl?.value || fontFamilyEl.value, axisTypefaceStyleEl, s.axisFontStyle, true);
     }
-    if (s.legendShow)            legendShowEl.value       = s.legendShow;
     if (s.legendTextColor) legendTextColorEl.value = s.legendTextColor;
     if (s.legendFontSize != null) {
       legendFontSizeSlider.value = s.legendFontSize;
@@ -1199,7 +1192,6 @@ async function _initCore(root = document) {
     tipLabelShow.value       = 'names';
     tipLabelControlsEl.style.display = '';
     tipLabelAlignEl.value    = 'off';
-    legendShowEl.value       = DEFAULT_SETTINGS.legendShow;
     legendAnnotEl.value      = '';
     legend2AnnotEl.value     = '';
     legend2ShowEl.value      = DEFAULT_SETTINGS.legend2Position;
@@ -1747,7 +1739,6 @@ async function _initCore(root = document) {
     axisLineWidthSlider.value = _saved.axisLineWidth;
     $('axis-line-width-value').textContent = _saved.axisLineWidth;
   }
-  if (_saved.legendShow)           legendShowEl.value       = _saved.legendShow;
   if (_saved.legendTextColor)      legendTextColorEl.value  = _saved.legendTextColor;
   if (_saved.legendFontSize != null) {
     legendFontSizeSlider.value = _saved.legendFontSize;
@@ -1860,10 +1851,10 @@ async function _initCore(root = document) {
   // ── Legend renderer ────────────────────────────────────────────────────────
   // Must be created before applyTheme() (which calls legendRenderer.setTextColor).
   const legendRenderer = new LegendRenderer(
-    legendLeftCanvas, legendRightCanvas,
-    legend2LeftCanvas, legend2RightCanvas,
-    legend3LeftCanvas, legend3RightCanvas,
-    legend4LeftCanvas, legend4RightCanvas,
+    legendRightCanvas,
+    legend2RightCanvas,
+    legend3RightCanvas,
+    legend4RightCanvas,
     {
       fontSize:    parseInt(legendFontSizeSlider.value),
       textColor:   legendTextColorEl.value,
@@ -2874,7 +2865,7 @@ async function _initCore(root = document) {
   }
 
   function _buildGraphicsDialog() {
-    const { totalW, totalH } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
+    const { totalW, totalH } = viewportDims({ canvas, axisCanvas, legendRightCanvas });
     const defPx = Math.round(totalW * 2);
     const defH  = Math.round(totalH * 2);
 
@@ -2913,7 +2904,7 @@ async function _initCore(root = document) {
       <button id="expg-download-btn" class="btn btn-sm btn-primary"><i class="bi bi-${_graphicsSaveHandler ? 'folder-check' : 'download'} me-1"></i>${_graphicsSaveHandler ? 'Export' : 'Download'}</button>`;
 
     const _updateExpgHint = () => {
-      const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
+      const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendRightCanvas });
       const isFull = root.querySelector('input[name="expg-view"]:checked')?.value === 'full';
       const ph = isFull
         ? Math.round((renderer.paddingTop + renderer.paddingBottom +
@@ -2942,14 +2933,14 @@ async function _initCore(root = document) {
     const transparent = !($('expg-bg')?.checked ?? true);
 
     if (fmt === 'png') {
-      const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendLeftCanvas, legendRightCanvas });
+      const { totalW, totalH, axH, axVisible } = viewportDims({ canvas, axisCanvas, legendRightCanvas });
       const targetW = Math.round(totalW * 2);
       const targetH = fullTree
         ? Math.round((renderer.paddingTop + renderer.paddingBottom +
             (renderer.maxY + 1) * renderer.scaleY + (axVisible ? axH : 0)) * 2)
         : Math.round(totalH * 2);
 
-      compositeViewPng({ renderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, axisRenderer }, targetW, targetH, fullTree, transparent).convertToBlob({ type: 'image/png' }).then(async blob => {
+      compositeViewPng({ renderer, canvas, axisCanvas, legendRightCanvas, axisRenderer }, targetW, targetH, fullTree, transparent).convertToBlob({ type: 'image/png' }).then(async blob => {
         if (_graphicsSaveHandler) {
           const arrayBuf = await blob.arrayBuffer();
           const bytes    = new Uint8Array(arrayBuf);
@@ -2968,7 +2959,7 @@ async function _initCore(root = document) {
         }
       });
     } else {
-      const svgStr = buildGraphicSVG({ renderer, legendRenderer, canvas, axisCanvas, legendLeftCanvas, legendRightCanvas, legend2LeftCanvas, legend2RightCanvas, axisRenderer }, fullTree, transparent);
+      const svgStr = buildGraphicSVG({ renderer, legendRenderer, canvas, axisCanvas, legendRightCanvas, legend2RightCanvas, axisRenderer }, fullTree, transparent);
       if (!svgStr) return;
       if (_graphicsSaveHandler) {
         _graphicsSaveHandler({
@@ -5676,7 +5667,7 @@ async function _initCore(root = document) {
   function applyLegend() {
     const key  = legendAnnotEl.value || null;
     const show = !!key;                        // visible only when an annotation is selected
-    const pos  = legendShowEl.value;           // 'left' | 'right'
+    const pos  = 'right';                      // only right-side legends are supported
     const key2 = legend2AnnotEl.value || null;
     const key3 = legend3AnnotEl.value || null;
     const key4 = legend4AnnotEl.value || null;
@@ -5696,7 +5687,7 @@ async function _initCore(root = document) {
       heightPct3: parseInt(legend3HeightPctSlider.value),
       heightPct4: parseInt(legend4HeightPctSlider.value),
     }, /*redraw*/ false);
-    legendRenderer.setAnnotation(show ? pos : null, key);
+    legendRenderer.setAnnotation(show ? 'right' : null, key);
     legendRenderer.setAnnotation2(key2 ? pos2 : 'right', key2);
     legendRenderer.setAnnotation3(key3 ? pos3 : 'right', key3);
     legendRenderer.setAnnotation4(key4 ? pos4 : 'right', key4);
@@ -5706,32 +5697,23 @@ async function _initCore(root = document) {
     const W3 = beside3 ? legendRenderer.measureWidth3() : 0;
     const W4 = beside4 ? legendRenderer.measureWidth4() : 0;
 
-    legendLeftCanvas.style.display  = (show && pos === 'left')  ? 'block' : 'none';
-    legendLeftCanvas.style.width    = W + 'px';
-    legendRightCanvas.style.display = (show && pos === 'right') ? 'block' : 'none';
+    legendRightCanvas.style.display = show    ? 'block' : 'none';
     legendRightCanvas.style.width   = W + 'px';
 
-    legend2RightCanvas.style.display = (beside2 && pos === 'right') ? 'block' : 'none';
+    legend2RightCanvas.style.display = beside2 ? 'block' : 'none';
     legend2RightCanvas.style.width   = W2 + 'px';
-    legend2LeftCanvas.style.display  = (beside2 && pos === 'left')  ? 'block' : 'none';
-    legend2LeftCanvas.style.width    = W2 + 'px';
 
-    legend3RightCanvas.style.display = (beside3 && pos === 'right') ? 'block' : 'none';
+    legend3RightCanvas.style.display = beside3 ? 'block' : 'none';
     legend3RightCanvas.style.width   = W3 + 'px';
-    legend3LeftCanvas.style.display  = (beside3 && pos === 'left')  ? 'block' : 'none';
-    legend3LeftCanvas.style.width    = W3 + 'px';
 
-    legend4RightCanvas.style.display = (beside4 && pos === 'right') ? 'block' : 'none';
+    legend4RightCanvas.style.display = beside4 ? 'block' : 'none';
     legend4RightCanvas.style.width   = W4 + 'px';
-    legend4LeftCanvas.style.display  = (beside4 && pos === 'left')  ? 'block' : 'none';
-    legend4LeftCanvas.style.width    = W4 + 'px';
 
     renderer._resize();   // recalculates tree canvas width after legend canvases shown/hidden
     saveSettings();
     _syncControlVisibility();
   }
 
-  legendShowEl .addEventListener('change', applyLegend);
   legendAnnotEl.addEventListener('change', () => {
     if (!legendAnnotEl.value) { legend2AnnotEl.value = ''; legend3AnnotEl.value = ''; legend4AnnotEl.value = ''; }
     applyLegend();
@@ -6334,7 +6316,6 @@ async function _initCore(root = document) {
     if (s.axisMinorLabelFormat != null) axisMinorLabelEl.value     = s.axisMinorLabelFormat;
 
     if (s.nodeLabelAnnotation != null && nodeLabelShowEl)  nodeLabelShowEl.value   = s.nodeLabelAnnotation;
-    if (s.legendShow      != null && legendShowEl)          legendShowEl.value     = s.legendShow;
     if (s.legendTextColor != null && legendTextColorEl) {
       legendTextColorEl.value = s.legendTextColor;
       legendRenderer?.setTextColor?.(s.legendTextColor);
