@@ -186,7 +186,7 @@ jobs:
         run: |
           # Assemble the docs/ deploy directory
           mkdir -p docs/data docs/img
-          cp index.html                     docs/index.html
+          cp peartree/index.html               docs/index.html
           cp CNAME                          docs/CNAME
           cp dist/peartree.bundle.min.js    docs/peartree.bundle.min.js
           cp peartree/img/peartree.png      docs/img/peartree.png
