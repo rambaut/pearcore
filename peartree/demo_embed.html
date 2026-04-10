@@ -224,10 +224,9 @@
 
   // onTreeLoad() on the frame controller fires when the tree is ready.
   tree2.onTreeLoad(() => {
-    tree2.midpointRoot();
+    tree2.temporalRoot('global');
     tree2.applySettings({ branchColor: '#2aa198' });
     tree2.sort('desc');
-
   });
 </script>
 

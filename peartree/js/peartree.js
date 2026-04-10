@@ -3677,6 +3677,37 @@ async function _initCore(root = document) {
     applyReroot(childNodeId, distFromParent);
   }
 
+  function _buildTipDates() {
+    const dateKey = axisDateAnnotEl.disabled ? null : (axisDateAnnotEl.value || null);
+    if (!dateKey || !renderer || !renderer.nodes) return null;
+    const tipDates = new Map();
+    for (const node of renderer.nodes) {
+      if (!node.isTip) continue;
+      const raw = renderer._statValue(node, dateKey);
+      if (raw != null) {
+        const dec = TreeCalibration.parseDateToDecYear(String(raw));
+        if (dec != null) tipDates.set(node.id, dec);
+      }
+    }
+    return tipDates.size > 0 ? tipDates : null;
+  }
+
+  function applyTemporalRoot() {
+    if (!graph) return;
+    const dates = _buildTipDates();
+    if (!dates) return;
+    const { childNodeId, distFromParent } = optimiseRootEdge(graph, dates);
+    applyReroot(childNodeId, distFromParent);
+  }
+
+  function applyTemporalRootGlobal() {
+    if (!graph) return;
+    const dates = _buildTipDates();
+    if (!dates) return;
+    const { childNodeId, distFromParent } = temporalRootGraph(graph, dates);
+    applyReroot(childNodeId, distFromParent);
+  }
+
   // ── Control bindings (set up once after the first tree loads) ─────────────
 
   function bindControls() {
@@ -4512,33 +4543,6 @@ async function _initCore(root = document) {
     });
 
     btnMPR?.addEventListener('click', () => applyMidpointRoot());
-
-    function _buildTipDates() {
-      const dateKey = axisDateAnnotEl.disabled ? null : (axisDateAnnotEl.value || null);
-      if (!dateKey || !renderer || !renderer.nodes) return null;
-      const tipDates = new Map();
-      for (const node of renderer.nodes) {
-        if (!node.isTip) continue;
-        const raw = renderer._statValue(node, dateKey);
-        if (raw != null) {
-          const dec = TreeCalibration.parseDateToDecYear(String(raw));
-          if (dec != null) tipDates.set(node.id, dec);
-        }
-      }
-      return tipDates.size > 0 ? tipDates : null;
-    }
-
-    function applyTemporalRoot() {
-      if (btnTemporalRoot?.disabled) return;
-      const { childNodeId, distFromParent } = optimiseRootEdge(graph, _buildTipDates());
-      applyReroot(childNodeId, distFromParent);
-    }
-
-    function applyTemporalRootGlobal() {
-      if (btnTemporalRootGlobal?.disabled) return;
-      const { childNodeId, distFromParent } = temporalRootGraph(graph, _buildTipDates());
-      applyReroot(childNodeId, distFromParent);
-    }
 
     btnTemporalRoot?.addEventListener('click', () => applyTemporalRoot());
     btnTemporalRootGlobal?.addEventListener('click', () => applyTemporalRootGlobal());
@@ -6311,6 +6315,19 @@ async function _initCore(root = document) {
     },
 
     /**
+     * Find and apply the temporal root using a least-squares RTT regression.
+     * 'local'  (default) — optimises only the position along the current root branch.
+     * 'global'           — searches every branch in the tree for the best root position.
+     * No-op when no tip dates are available or before a tree is loaded.
+     * @param {'local'|'global'} [mode='local']
+     */
+    temporalRoot(mode = 'local') {
+      if (!treeLoaded) return;
+      if (mode === 'global') applyTemporalRootGlobal();
+      else                   applyTemporalRoot();
+    },
+
+    /**
      * Zoom the viewport so the whole tree fits the canvas.
      * Equivalent to clicking the fit-to-window toolbar button.
      */
@@ -6379,7 +6396,8 @@ async function _initCore(root = document) {
       } else if (msg.type === 'pt:command' && typeof msg.action === 'string') {
         // Programmatic tree actions — mirror the toolbar buttons.
         if (msg.action === 'sort'         && typeof msg.order === 'string') window.peartree.sort(msg.order);
-        else if (msg.action === 'midpointRoot') window.peartree.midpointRoot();
+        else if (msg.action === 'midpointRoot')  window.peartree.midpointRoot();
+        else if (msg.action === 'temporalRoot')  window.peartree.temporalRoot(typeof msg.mode === 'string' ? msg.mode : 'local');
         else if (msg.action === 'fitToWindow') window.peartree.fitToWindow();
         else if (msg.action === 'fitLabels')   window.peartree.fitLabels();
       } else if (msg.type === 'pt:applySettings' && msg.settings && typeof msg.settings === 'object') {
@@ -6687,6 +6705,8 @@ function _buildDirectController(instance) {
     sort:          (order)    => instance.sort(order),
     /** Re-root the tree at its midpoint. */
     midpointRoot:  ()         => instance.midpointRoot(),
+    /** Find and apply the temporal root. mode: 'local' (default) or 'global'. */
+    temporalRoot:  (mode)     => instance.temporalRoot(mode),
     /** Zoom to fit the whole tree in the canvas. */
     fitToWindow:   ()         => instance.fitToWindow(),
     /** Zoom so all tip labels are visible without clipping. */
@@ -6719,6 +6739,8 @@ function _buildFrameController(iframe) {
   return {
     sort:          (order)    => _send({ type: 'pt:command',       action: 'sort', order }),
     midpointRoot:  ()         => _send({ type: 'pt:command',       action: 'midpointRoot' }),
+    /** Find and apply the temporal root. mode: 'local' (default) or 'global'. */
+    temporalRoot:  (mode)     => _send({ type: 'pt:command',       action: 'temporalRoot', mode: mode ?? 'local' }),
     fitToWindow:   ()         => _send({ type: 'pt:command',       action: 'fitToWindow' }),
     fitLabels:     ()         => _send({ type: 'pt:command',       action: 'fitLabels' }),
     applySettings: (settings) => _send({ type: 'pt:applySettings', settings }),

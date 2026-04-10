@@ -372,6 +372,72 @@ PearTreeEmbed.embed({
 
 ---
 
+## Controller API
+
+Both `embed()` and `embedFrame()` return a **controller object** that lets you interact with the embedded tree programmatically.
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `onTreeLoad(fn)` | Register a callback that fires every time a tree finishes loading. Returns an unsubscribe function — call it to deregister. |
+| `loadTree(text, filename?)` | Load a tree from an inline Newick or NEXUS string. Pass an optional `filename` hint (e.g. `'my.nwk'`) so PearTree picks the correct parser. |
+| `sort(order)` | Sort clades by size. `order` is `'asc'` or `'desc'`. |
+| `midpointRoot()` | Re-root the tree at its midpoint. |
+| `temporalRoot(mode?)` | Find and apply the temporal root using least-squares RTT regression. `mode` is `'local'` (optimises position on the current root branch only, default) or `'global'` (searches every branch). No-op when no tip dates are available. |
+| `fitToWindow()` | Fit the entire tree to the visible canvas. |
+| `fitLabels()` | Fit the view so that all tip labels are visible. |
+| `applySettings(settings)` | Apply a partial settings object (same keys as the `settings` option). Only the supplied keys are changed. |
+| `applyTheme(name)` | Apply a named built-in theme, e.g. `'Artic'`, `'BEAST'`, or `'Minimal'`. |
+| `getSettings()` | Return a snapshot of the current settings as a plain object. |
+| `setPanelVisible(panel, visible)` | Show or hide a panel at runtime. `panel` is `'rtt'`, `'dataTable'`, or `'palette'`; `visible` is a boolean. |
+
+### Examples
+
+```js
+// Load a new tree after the page loads
+const controller = PearTreeEmbed.embed({ container: 'tree', treeUrl: 'initial.tree' });
+
+fetch('updated.tree')
+  .then(r => r.text())
+  .then(text => controller.loadTree(text, 'updated.tree'));
+
+// React to every tree load
+const unsub = controller.onTreeLoad(() => {
+  console.log('tree loaded:', controller.getSettings());
+});
+// Later: unsub() to stop listening
+
+// Sort or reroot programmatically
+controller.sort('asc');
+controller.midpointRoot();
+
+// Find the temporal root (requires tip dates in the tree metadata)
+controller.temporalRoot('global');  // search all branches
+controller.temporalRoot('local');   // optimise current root branch only (default)
+
+// Override settings after load
+controller.applySettings({ tipLabelShow: 'names', colourBy: 'none' });
+
+// Switch theme
+controller.applyTheme('BEAST');
+
+// Toggle a panel
+controller.setPanelVisible('dataTable', false);
+```
+
+### Frame embeds
+
+Controllers returned by `embedFrame()` expose the same methods (messages are forwarded to the iframe via `postMessage`), with one addition:
+
+| Property | Description |
+|----------|-------------|
+| `controller.iframe` | The underlying `<iframe>` DOM element. |
+
+> **Note:** `getSettings()` is not available for frame embeds because the settings object cannot be returned synchronously across frame boundaries.
+
+---
+
 ## Complete Example — Timed Tree in a Report
 
 ```html
