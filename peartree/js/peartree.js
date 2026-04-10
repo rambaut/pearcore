@@ -6591,6 +6591,8 @@ async function _initCore(root = document) {
 // Used by embed() to dynamically inject assets into the host page.
 
 function _ensureStylesheet(href) {
+  // When running from the single-file bundle the CSS is already injected.
+  if (window.__PEARTREE_CSS_BUNDLED__) return;
   const a = document.createElement('a');
   a.href = href;
   const abs = a.href;
@@ -6853,8 +6855,9 @@ export async function embed(options = {}) {
   container.appendChild(wrap);
 
   // Load dependencies in order, then initialise.
-  await _loadScript(base + 'vendor/marked.min.js', false);
-  await _loadScript(base + 'js/peartree-ui.js', false);
+  // Both are skipped when already present (bundled or loaded externally).
+  if (typeof window.marked === 'undefined') await _loadScript(base + 'vendor/marked.min.js', false);
+  if (typeof window.buildAppHTML !== 'function') await _loadScript(base + 'js/peartree-ui.js', false);
 
   // If peartree-ui.js was already loaded its IIFEs won't re-fire, so the
   // #app-html-host placeholder is still present.  Inject HTML directly.

@@ -143,3 +143,39 @@ jobs:
             -H "Content-Type: application/octet-stream" \
             --data-binary @latest_patched.json \
             "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=latest.json"
+
+  bundle-embed:
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Set version from tag
+        run: node scripts/set-version.js ${{ github.ref_name }}
+
+      - name: Build single-file bundle
+        env:
+          PEARTREE_VERSION_TAG: ${{ github.ref_name }}
+        run: npm run bundle
+
+      - name: Upload bundle to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          curl -sSfL \
+            -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @dist/peartree.bundle.min.js \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=peartree.bundle.min.js"
