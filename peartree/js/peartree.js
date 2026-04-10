@@ -271,10 +271,25 @@ async function _initCore(root = document) {
   const legendRightCanvas  = $('legend-right-canvas');
   const legend2LeftCanvas  = $('legend2-left-canvas');
   const legend2RightCanvas = $('legend2-right-canvas');
+  const legend3LeftCanvas  = $('legend3-left-canvas');
+  const legend3RightCanvas = $('legend3-right-canvas');
+  const legend4LeftCanvas  = $('legend4-left-canvas');
+  const legend4RightCanvas = $('legend4-right-canvas');
   const legend2AnnotEl          = $('legend-annotation-2');
   const legend2ShowEl           = $('legend2-show');
   const legend2HeightPctSlider  = $('legend2-height-pct-slider');
   const legend2DetailEl         = $('legend2-detail');
+  const legend2SectionEl        = $('legend2-section');
+  const legend3AnnotEl          = $('legend-annotation-3');
+  const legend3ShowEl           = $('legend3-show');
+  const legend3HeightPctSlider  = $('legend3-height-pct-slider');
+  const legend3DetailEl         = $('legend3-detail');
+  const legend3SectionEl        = $('legend3-section');
+  const legend4AnnotEl          = $('legend-annotation-4');
+  const legend4ShowEl           = $('legend4-show');
+  const legend4HeightPctSlider  = $('legend4-height-pct-slider');
+  const legend4DetailEl         = $('legend4-detail');
+  const legend4SectionEl        = $('legend4-section');
   const axisCanvas             = $('axis-canvas');
   const axisShowEl             = $('axis-show');
   const axisDateAnnotEl        = $('axis-date-annotation');
@@ -816,6 +831,12 @@ async function _initCore(root = document) {
       legendAnnotation2: legend2AnnotEl.value,
       legend2Position:   legend2ShowEl.value,
       legendHeightPct2:  legend2HeightPctSlider.value,
+      legendAnnotation3: legend3AnnotEl.value,
+      legend3Position:   legend3ShowEl.value,
+      legendHeightPct3:  legend3HeightPctSlider.value,
+      legendAnnotation4: legend4AnnotEl.value,
+      legend4Position:   legend4ShowEl.value,
+      legendHeightPct4:  legend4HeightPctSlider.value,
       legendTextColor:  legendTextColorEl.value,
       legendFontSize:    legendFontSizeSlider.value,
       legendHeightPct:   legendHeightPctSlider.value,
@@ -1101,7 +1122,17 @@ async function _initCore(root = document) {
       legend2HeightPctSlider.value = s.legendHeightPct2;
       $('legend2-height-pct-value').textContent = s.legendHeightPct2 + '%';
     }
-    // Note: legendAnnotation2 is annotation-dependent and restored later in loadTree.
+    if (s.legend3Position)        legend3ShowEl.value      = s.legend3Position;
+    if (s.legendHeightPct3 != null) {
+      legend3HeightPctSlider.value = s.legendHeightPct3;
+      $('legend3-height-pct-value').textContent = s.legendHeightPct3 + '%';
+    }
+    if (s.legend4Position)        legend4ShowEl.value      = s.legend4Position;
+    if (s.legendHeightPct4 != null) {
+      legend4HeightPctSlider.value = s.legendHeightPct4;
+      $('legend4-height-pct-value').textContent = s.legendHeightPct4 + '%';
+    }
+    // Note: legendAnnotation2/3/4 are annotation-dependent and restored later in loadTree.
     // Node bars settings
     if (s.nodeBarsEnabled)  nodeBarsShowEl.value  = s.nodeBarsEnabled;
     if (s.nodeBarsColor)    nodeBarsColorEl.value = s.nodeBarsColor;
@@ -1174,6 +1205,14 @@ async function _initCore(root = document) {
     legend2ShowEl.value      = DEFAULT_SETTINGS.legend2Position;
     legend2HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct2;
     $('legend2-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct2 + '%';
+    legend3AnnotEl.value     = '';
+    legend3ShowEl.value      = DEFAULT_SETTINGS.legend3Position;
+    legend3HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct3;
+    $('legend3-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct3 + '%';
+    legend4AnnotEl.value     = '';
+    legend4ShowEl.value      = DEFAULT_SETTINGS.legend4Position;
+    legend4HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct4;
+    $('legend4-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct4 + '%';
     legendTextColorEl.value  = DEFAULT_SETTINGS.legendTextColor;
     legendFontSizeSlider.value = DEFAULT_SETTINGS.legendFontSize;
     $('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
@@ -1417,7 +1456,12 @@ async function _initCore(root = document) {
     _vis(nodeLabelDetailEl,     nodeLabelShowEl.value       !== '');
     _vis(nodeBarsDetailEl,      nodeBarsShowEl.value        === 'on');
     _vis(legendDetailEl,        legendAnnotEl.value         !== '');
-    _vis(legend2DetailEl,       legendAnnotEl.value !== '' && legend2AnnotEl.value !== '');
+    _vis(legend2SectionEl,      legendAnnotEl.value         !== '');
+    _vis(legend2DetailEl,       legend2AnnotEl.value        !== '');
+    _vis(legend3SectionEl,      legend2AnnotEl.value        !== '');
+    _vis(legend3DetailEl,       legend3AnnotEl.value        !== '');
+    _vis(legend4SectionEl,      legend3AnnotEl.value        !== '');
+    _vis(legend4DetailEl,       legend4AnnotEl.value        !== '');
     _vis(axisDetailEl,          axisShowEl.value            !== 'off');
   }
 
@@ -1818,6 +1862,8 @@ async function _initCore(root = document) {
   const legendRenderer = new LegendRenderer(
     legendLeftCanvas, legendRightCanvas,
     legend2LeftCanvas, legend2RightCanvas,
+    legend3LeftCanvas, legend3RightCanvas,
+    legend4LeftCanvas, legend4RightCanvas,
     {
       fontSize:    parseInt(legendFontSizeSlider.value),
       textColor:   legendTextColorEl.value,
@@ -1825,6 +1871,8 @@ async function _initCore(root = document) {
       padding:     parseInt(DEFAULT_SETTINGS.legendPadding),
       heightPct:   parseInt(DEFAULT_SETTINGS.legendHeightPct),
       heightPct2:  parseInt(DEFAULT_SETTINGS.legendHeightPct2),
+      heightPct3:  parseInt(DEFAULT_SETTINGS.legendHeightPct3),
+      heightPct4:  parseInt(DEFAULT_SETTINGS.legendHeightPct4),
     },
   );
   renderer.setLegendRenderer(legendRenderer);
@@ -1853,6 +1901,34 @@ async function _initCore(root = document) {
     for (const [id, n] of renderer.nodeMap) {
       if (!n.isTip) continue;
       if (n.annotations?.[key2] === value) ids.push(id);
+    }
+    renderer._selectedTipIds = new Set(ids);
+    renderer._mrcaNodeId = null;
+    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(ids.length > 0);
+    renderer._dirty = true;
+  };
+  legendRenderer.onCategoryClick3 = (value) => {
+    if (!renderer.nodeMap) return;
+    const key3 = legendRenderer._annotation3;
+    if (!key3) return;
+    const ids = [];
+    for (const [id, n] of renderer.nodeMap) {
+      if (!n.isTip) continue;
+      if (n.annotations?.[key3] === value) ids.push(id);
+    }
+    renderer._selectedTipIds = new Set(ids);
+    renderer._mrcaNodeId = null;
+    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(ids.length > 0);
+    renderer._dirty = true;
+  };
+  legendRenderer.onCategoryClick4 = (value) => {
+    if (!renderer.nodeMap) return;
+    const key4 = legendRenderer._annotation4;
+    if (!key4) return;
+    const ids = [];
+    for (const [id, n] of renderer.nodeMap) {
+      if (!n.isTip) continue;
+      if (n.annotations?.[key4] === value) ids.push(id);
     }
     renderer._selectedTipIds = new Set(ids);
     renderer._mrcaNodeId = null;
@@ -2983,6 +3059,8 @@ async function _initCore(root = document) {
     }
     repopulate(legendAnnotEl,        { isLegend: true  });
     repopulate(legend2AnnotEl,       { isLegend: true  });
+    repopulate(legend3AnnotEl,       { isLegend: true  });
+    repopulate(legend4AnnotEl,       { isLegend: true  });
     // Tip label show: option[0]='off', option[1]='names', then dynamic annotations.
     {
       const prev = tipLabelShow.value;
@@ -3336,6 +3414,32 @@ async function _initCore(root = document) {
       }
       legend2AnnotEl.value    = '';
       legend2AnnotEl.disabled = schema.size === 0;
+
+      // Legend 3 select: same population.
+      while (legend3AnnotEl.options.length > 1) legend3AnnotEl.remove(1);
+      for (const [name, def] of schema) {
+        if (name === 'user_colour') continue;
+        if (def.dataType !== 'list') {
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = def.label ?? name;
+          legend3AnnotEl.appendChild(opt);
+        }
+      }
+      legend3AnnotEl.value    = '';
+      legend3AnnotEl.disabled = schema.size === 0;
+
+      // Legend 4 select: same population.
+      while (legend4AnnotEl.options.length > 1) legend4AnnotEl.remove(1);
+      for (const [name, def] of schema) {
+        if (name === 'user_colour') continue;
+        if (def.dataType !== 'list') {
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = def.label ?? name;
+          legend4AnnotEl.appendChild(opt);
+        }
+      }
+      legend4AnnotEl.value    = '';
+      legend4AnnotEl.disabled = schema.size === 0;
       if (btnClearUserColour) {
         commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
       }
@@ -3358,6 +3462,8 @@ async function _initCore(root = document) {
       }
       legendAnnotEl.value        = _hasOpt(legendAnnotEl,        _eff.legendAnnotation)      ? _eff.legendAnnotation      : '';
       legend2AnnotEl.value       = _hasOpt(legend2AnnotEl,       _eff.legendAnnotation2)     ? _eff.legendAnnotation2     : '';
+      legend3AnnotEl.value       = _hasOpt(legend3AnnotEl,       _eff.legendAnnotation3)     ? _eff.legendAnnotation3     : '';
+      legend4AnnotEl.value       = _hasOpt(legend4AnnotEl,       _eff.legendAnnotation4)     ? _eff.legendAnnotation4     : '';
       tipLabelShow.value  = _hasOpt(tipLabelShow,  _eff.tipLabelShow)     ? _eff.tipLabelShow     : 'names';
       tipLabelControlsEl.style.display = tipLabelShow.value === 'off' ? 'none' : '';
       nodeLabelShowEl.value = _hasOpt(nodeLabelShowEl, _eff.nodeLabelAnnotation) ? _eff.nodeLabelAnnotation : '';
@@ -5569,9 +5675,15 @@ async function _initCore(root = document) {
     const key  = legendAnnotEl.value || null;
     const show = !!key;                        // visible only when an annotation is selected
     const pos  = legendShowEl.value;           // 'left' | 'right'
-    const key2    = legend2AnnotEl.value || null;
-    const pos2    = legend2ShowEl.value;        // 'right' | 'below'
+    const key2 = legend2AnnotEl.value || null;
+    const key3 = legend3AnnotEl.value || null;
+    const key4 = legend4AnnotEl.value || null;
+    const pos2 = legend2ShowEl.value;           // 'right' | 'below'
+    const pos3 = legend3ShowEl.value;           // 'right' | 'below'
+    const pos4 = legend4ShowEl.value;           // 'right' | 'below'
     const beside2 = show && !!key2 && pos2 === 'right';
+    const beside3 = show && !!key3 && pos3 === 'right';
+    const beside4 = show && !!key4 && pos4 === 'right';
 
     // Set annotation + font first so measureWidth() has the right state.
     legendRenderer.setFontSize(parseInt(legendFontSizeSlider.value));
@@ -5579,23 +5691,38 @@ async function _initCore(root = document) {
     legendRenderer.setSettings({
       heightPct:  parseInt(legendHeightPctSlider.value),
       heightPct2: parseInt(legend2HeightPctSlider.value),
+      heightPct3: parseInt(legend3HeightPctSlider.value),
+      heightPct4: parseInt(legend4HeightPctSlider.value),
     }, /*redraw*/ false);
     legendRenderer.setAnnotation(show ? pos : null, key);
     legendRenderer.setAnnotation2(key2 ? pos2 : 'right', key2);
+    legendRenderer.setAnnotation3(key3 ? pos3 : 'right', key3);
+    legendRenderer.setAnnotation4(key4 ? pos4 : 'right', key4);
 
     const W  = show    ? legendRenderer.measureWidth()  : 0;
     const W2 = beside2 ? legendRenderer.measureWidth2() : 0;
+    const W3 = beside3 ? legendRenderer.measureWidth3() : 0;
+    const W4 = beside4 ? legendRenderer.measureWidth4() : 0;
 
     legendLeftCanvas.style.display  = (show && pos === 'left')  ? 'block' : 'none';
     legendLeftCanvas.style.width    = W + 'px';
     legendRightCanvas.style.display = (show && pos === 'right') ? 'block' : 'none';
     legendRightCanvas.style.width   = W + 'px';
 
-    // Legend 2 side canvases — only visible in 'right' (beside) mode.
     legend2RightCanvas.style.display = (beside2 && pos === 'right') ? 'block' : 'none';
     legend2RightCanvas.style.width   = W2 + 'px';
     legend2LeftCanvas.style.display  = (beside2 && pos === 'left')  ? 'block' : 'none';
     legend2LeftCanvas.style.width    = W2 + 'px';
+
+    legend3RightCanvas.style.display = (beside3 && pos === 'right') ? 'block' : 'none';
+    legend3RightCanvas.style.width   = W3 + 'px';
+    legend3LeftCanvas.style.display  = (beside3 && pos === 'left')  ? 'block' : 'none';
+    legend3LeftCanvas.style.width    = W3 + 'px';
+
+    legend4RightCanvas.style.display = (beside4 && pos === 'right') ? 'block' : 'none';
+    legend4RightCanvas.style.width   = W4 + 'px';
+    legend4LeftCanvas.style.display  = (beside4 && pos === 'left')  ? 'block' : 'none';
+    legend4LeftCanvas.style.width    = W4 + 'px';
 
     renderer._resize();   // recalculates tree canvas width after legend canvases shown/hidden
     saveSettings();
@@ -5603,11 +5730,32 @@ async function _initCore(root = document) {
   }
 
   legendShowEl .addEventListener('change', applyLegend);
-  legendAnnotEl.addEventListener('change', applyLegend);
-  legend2AnnotEl.addEventListener('change', applyLegend);
+  legendAnnotEl.addEventListener('change', () => {
+    if (!legendAnnotEl.value) { legend2AnnotEl.value = ''; legend3AnnotEl.value = ''; legend4AnnotEl.value = ''; }
+    applyLegend();
+  });
+  legend2AnnotEl.addEventListener('change', () => {
+    if (!legend2AnnotEl.value) { legend3AnnotEl.value = ''; legend4AnnotEl.value = ''; }
+    applyLegend();
+  });
   legend2ShowEl .addEventListener('change', applyLegend);
   legend2HeightPctSlider.addEventListener('input', () => {
     $('legend2-height-pct-value').textContent = legend2HeightPctSlider.value + '%';
+    applyLegend();
+  });
+  legend3AnnotEl.addEventListener('change', () => {
+    if (!legend3AnnotEl.value) legend4AnnotEl.value = '';
+    applyLegend();
+  });
+  legend3ShowEl .addEventListener('change', applyLegend);
+  legend3HeightPctSlider.addEventListener('input', () => {
+    $('legend3-height-pct-value').textContent = legend3HeightPctSlider.value + '%';
+    applyLegend();
+  });
+  legend4AnnotEl.addEventListener('change', applyLegend);
+  legend4ShowEl .addEventListener('change', applyLegend);
+  legend4HeightPctSlider.addEventListener('input', () => {
+    $('legend4-height-pct-value').textContent = legend4HeightPctSlider.value + '%';
     applyLegend();
   });
 

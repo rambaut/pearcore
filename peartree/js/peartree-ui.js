@@ -178,11 +178,26 @@ function _sectionLegend() {
         <div class="pt-palette-row"><i class="bi bi-fonts form-label-sm"></i><input type="range" class="form-range" id="legend-font-size-slider" min="6" max="48" value="11" /><span class="pt-val" id="legend-font-size-value">11</span></div>
         <div class="pt-palette-row"><span class="pt-palette-label">Typeface</span><select class="pt-palette-select" id="legend-font-family-select">${_TYPEFACES}</select></div>
         <div class="pt-palette-row"><span class="pt-palette-label">Style</span><select class="pt-palette-select" id="legend-typeface-style-select"><option value="">Theme</option></select></div>
-        <p class="pt-palette-subhead">Legend 2</p>
-        <div class="pt-palette-row"><span class="pt-palette-label">Show</span><select class="pt-palette-select" id="legend-annotation-2"><option value="">Off</option></select></div>
+      </div>
+      <div id="legend2-section" class="pt-detail pt-sub-controls">
+        <div class="pt-palette-row"><span class="pt-palette-label">Show 2</span><select class="pt-palette-select" id="legend-annotation-2"><option value="">Off</option></select></div>
         <div id="legend2-detail" class="pt-detail pt-sub-controls">
           <div class="pt-palette-row"><span class="pt-palette-label">Position</span><select class="pt-palette-select" id="legend2-show"><option value="right">Right</option><option value="below">Below</option></select></div>
           <div class="pt-palette-row"><i class="bi bi-arrows-expand form-label-sm" title="Height"></i><input type="range" class="form-range" id="legend2-height-pct-slider" min="10" max="100" step="5" value="50" /><span class="pt-val" id="legend2-height-pct-value">50%</span></div>
+        </div>
+      </div>
+      <div id="legend3-section" class="pt-detail pt-sub-controls">
+        <div class="pt-palette-row"><span class="pt-palette-label">Show 3</span><select class="pt-palette-select" id="legend-annotation-3"><option value="">Off</option></select></div>
+        <div id="legend3-detail" class="pt-detail pt-sub-controls">
+          <div class="pt-palette-row"><span class="pt-palette-label">Position</span><select class="pt-palette-select" id="legend3-show"><option value="right">Right</option><option value="below">Below</option></select></div>
+          <div class="pt-palette-row"><i class="bi bi-arrows-expand form-label-sm" title="Height"></i><input type="range" class="form-range" id="legend3-height-pct-slider" min="10" max="100" step="5" value="50" /><span class="pt-val" id="legend3-height-pct-value">50%</span></div>
+        </div>
+      </div>
+      <div id="legend4-section" class="pt-detail pt-sub-controls">
+        <div class="pt-palette-row"><span class="pt-palette-label">Show 4</span><select class="pt-palette-select" id="legend-annotation-4"><option value="">Off</option></select></div>
+        <div id="legend4-detail" class="pt-detail pt-sub-controls">
+          <div class="pt-palette-row"><span class="pt-palette-label">Position</span><select class="pt-palette-select" id="legend4-show"><option value="right">Right</option><option value="below">Below</option></select></div>
+          <div class="pt-palette-row"><i class="bi bi-arrows-expand form-label-sm" title="Height"></i><input type="range" class="form-range" id="legend4-height-pct-slider" min="10" max="100" step="5" value="50" /><span class="pt-val" id="legend4-height-pct-value">50%</span></div>
         </div>
       </div>
     </div>`;
@@ -554,6 +569,8 @@ function _buildToolbar(tbSections) {
 function _buildCanvasContainer() {
   return `
 <div id="canvas-container">
+  <canvas id="legend4-left-canvas" class="pt-legend-canvas"></canvas>
+  <canvas id="legend3-left-canvas" class="pt-legend-canvas"></canvas>
   <canvas id="legend2-left-canvas" class="pt-legend-canvas"></canvas>
   <canvas id="legend-left-canvas" class="pt-legend-canvas"></canvas>
   <div id="canvas-and-axis-wrapper">
@@ -577,6 +594,8 @@ function _buildCanvasContainer() {
   </div>
   <canvas id="legend-right-canvas" class="pt-legend-canvas right"></canvas>
   <canvas id="legend2-right-canvas" class="pt-legend-canvas right"></canvas>
+  <canvas id="legend3-right-canvas" class="pt-legend-canvas right"></canvas>
+  <canvas id="legend4-right-canvas" class="pt-legend-canvas right"></canvas>
   <div id="data-table-panel">
     <div id="data-table-resize-handle"></div>
     <div id="dt-num-col">

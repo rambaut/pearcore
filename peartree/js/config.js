@@ -97,6 +97,14 @@ export const DEFAULT_SETTINGS = {
   legendAnnotation2: '',
   legend2Position:   'right',   // 'right' (beside L1) | 'below' (stacked under L1)
   legendHeightPct2:  '50',
+  // Third legend
+  legendAnnotation3: '',
+  legend3Position:   'right',
+  legendHeightPct3:  '50',
+  // Fourth legend
+  legendAnnotation4: '',
+  legend4Position:   'right',
+  legendHeightPct4:  '50',
   // Axis canvas vertical padding (px) — gap above the baseline line
   axisPaddingTop: '3',
   elbowRadius:    '2',

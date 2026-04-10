@@ -29,13 +29,23 @@ export class LegendRenderer {
    * @param {HTMLCanvasElement} rightCanvas
    * @param {HTMLCanvasElement} leftCanvas2  Secondary legend canvas (far-left side).
    * @param {HTMLCanvasElement} rightCanvas2 Secondary legend canvas (far-right side).
+   * @param {HTMLCanvasElement} leftCanvas3  Third legend canvas (far-left side).
+   * @param {HTMLCanvasElement} rightCanvas3 Third legend canvas (far-right side).
+   * @param {HTMLCanvasElement} leftCanvas4  Fourth legend canvas (far-left side).
+   * @param {HTMLCanvasElement} rightCanvas4 Fourth legend canvas (far-right side).
    * @param {object}            settings  Must include fontSize, textColor, bgColor.
    */
-  constructor(leftCanvas, rightCanvas, leftCanvas2, rightCanvas2, settings) {
+  constructor(leftCanvas, rightCanvas, leftCanvas2, rightCanvas2,
+              leftCanvas3, rightCanvas3, leftCanvas4, rightCanvas4,
+              settings) {
     this._leftCanvas   = leftCanvas;
     this._rightCanvas  = rightCanvas;
     this._leftCanvas2  = leftCanvas2  ?? null;
     this._rightCanvas2 = rightCanvas2 ?? null;
+    this._leftCanvas3  = leftCanvas3  ?? null;
+    this._rightCanvas3 = rightCanvas3 ?? null;
+    this._leftCanvas4  = leftCanvas4  ?? null;
+    this._rightCanvas4 = rightCanvas4 ?? null;
 
     this._position   = null;   // 'left' | 'right' | null
     this._annotation = null;   // annotation key string | null
@@ -45,6 +55,12 @@ export class LegendRenderer {
     this._annotation2  = null;    // second legend annotation key | null
     this._position2    = 'right'; // 'right' (beside L1) | 'below' (stacked under L1)
     this._heightPct2   = 50;      // legend 2 height as % of canvas-container
+    this._annotation3  = null;    // third legend annotation key | null
+    this._position3    = 'right'; // 'right' (beside) | 'below' (stacked)
+    this._heightPct3   = 50;      // legend 3 height as % of canvas-container
+    this._annotation4  = null;    // fourth legend annotation key | null
+    this._position4    = 'right'; // 'right' (beside) | 'below' (stacked)
+    this._heightPct4   = 50;      // legend 4 height as % of canvas-container
 
     this.skipBg = false;
     this._dpr   = window.devicePixelRatio || 1;
@@ -52,26 +68,41 @@ export class LegendRenderer {
     this._typefaceKey   = null;
     this._typefaceStyle = null;
 
-    // Hit regions for categorical entries: [{value, y0, y1, isLegend2?}]
-    this._hitRegions  = [];   // primary canvas (legend1 + legend2-below)
+    // Hit regions for categorical entries: [{value, y0, y1, isLegend2?, isLegend3?, isLegend4?}]
+    this._hitRegions  = [];   // primary canvas (legend1 + any stacked-below legends)
     this._hitRegions2 = [];   // legend2 own canvas ('right' mode)
+    this._hitRegions3 = [];   // legend3 own canvas ('right' mode)
+    this._hitRegions4 = [];   // legend4 own canvas ('right' mode)
     /** Callback for legend-1 categorical click: (value) => void */
     this.onCategoryClick  = null;
     /** Callback for legend-2 categorical click: (value) => void */
     this.onCategoryClick2 = null;
+    /** Callback for legend-3 categorical click: (value) => void */
+    this.onCategoryClick3 = null;
+    /** Callback for legend-4 categorical click: (value) => void */
+    this.onCategoryClick4 = null;
 
-    // Wire click + hover listeners on all four canvases.
-    for (const [lc, isL2canvas] of [
-      [this._leftCanvas,   false], [this._rightCanvas,  false],
-      [this._leftCanvas2,  true],  [this._rightCanvas2, true],
+    // Wire click + hover listeners on all eight canvases.
+    // sideN=0 means main canvas (legend1 + stacked), sideN=2/3/4 means that legend's own canvas.
+    for (const [lc, sideN] of [
+      [this._leftCanvas,   0], [this._rightCanvas,  0],
+      [this._leftCanvas2,  2], [this._rightCanvas2, 2],
+      [this._leftCanvas3,  3], [this._rightCanvas3, 3],
+      [this._leftCanvas4,  4], [this._rightCanvas4, 4],
     ]) {
       if (!lc) continue;
       lc.addEventListener('click', (e) => {
-        const cssY   = e.offsetY;
-        const regions = isL2canvas ? this._hitRegions2 : this._hitRegions;
+        const cssY    = e.offsetY;
+        const regions = sideN === 4 ? this._hitRegions4
+                      : sideN === 3 ? this._hitRegions3
+                      : sideN === 2 ? this._hitRegions2
+                      : this._hitRegions;
         for (const r of regions) {
           if (cssY >= r.y0 && cssY < r.y1) {
-            const cb = r.isLegend2 ? this.onCategoryClick2 : this.onCategoryClick;
+            const cb = r.isLegend4 ? this.onCategoryClick4
+                     : r.isLegend3 ? this.onCategoryClick3
+                     : r.isLegend2 ? this.onCategoryClick2
+                     : this.onCategoryClick;
             if (cb) cb(r.value);
             return;
           }
@@ -79,10 +110,18 @@ export class LegendRenderer {
       });
       lc.style.cursor = 'default';
       lc.addEventListener('mousemove', (e) => {
-        const cssY   = e.offsetY;
-        const regions = isL2canvas ? this._hitRegions2 : this._hitRegions;
-        const hit    = regions.find(r => cssY >= r.y0 && cssY < r.y1);
-        const hasCb  = hit ? (hit.isLegend2 ? !!this.onCategoryClick2 : !!this.onCategoryClick) : false;
+        const cssY    = e.offsetY;
+        const regions = sideN === 4 ? this._hitRegions4
+                      : sideN === 3 ? this._hitRegions3
+                      : sideN === 2 ? this._hitRegions2
+                      : this._hitRegions;
+        const hit   = regions.find(r => cssY >= r.y0 && cssY < r.y1);
+        const hasCb = hit ? (
+          hit.isLegend4 ? !!this.onCategoryClick4
+        : hit.isLegend3 ? !!this.onCategoryClick3
+        : hit.isLegend2 ? !!this.onCategoryClick2
+        : !!this.onCategoryClick
+        ) : false;
         lc.style.cursor = (hit && hasCb) ? 'pointer' : 'default';
       });
       lc.addEventListener('mouseleave', () => { lc.style.cursor = 'default'; });
@@ -108,7 +147,9 @@ export class LegendRenderer {
     if (s.bgColor    != null) {
       this.bgColor = s.bgColor;
       for (const lc of [this._leftCanvas, this._rightCanvas,
-                        this._leftCanvas2, this._rightCanvas2]) {
+                        this._leftCanvas2, this._rightCanvas2,
+                        this._leftCanvas3, this._rightCanvas3,
+                        this._leftCanvas4, this._rightCanvas4]) {
         if (lc) lc.style.backgroundColor = s.bgColor;
       }
     }
@@ -116,6 +157,8 @@ export class LegendRenderer {
     if (s.padding   != null) this._padding   = s.padding;
     if (s.heightPct  != null) this._heightPct  = s.heightPct;
     if (s.heightPct2 != null) this._heightPct2 = s.heightPct2;
+    if (s.heightPct3 != null) this._heightPct3 = s.heightPct3;
+    if (s.heightPct4 != null) this._heightPct4 = s.heightPct4;
     if (redraw) this.draw();
   }
 
@@ -161,6 +204,26 @@ export class LegendRenderer {
   setAnnotation2(relPos, key) {
     this._position2   = relPos || 'right';
     this._annotation2 = key    || null;
+  }
+
+  /**
+   * Set the third legend's annotation and position.
+   * @param {'right'|'below'|null} relPos
+   * @param {string|null}          key
+   */
+  setAnnotation3(relPos, key) {
+    this._position3   = relPos || 'right';
+    this._annotation3 = key    || null;
+  }
+
+  /**
+   * Set the fourth legend's annotation and position.
+   * @param {'right'|'below'|null} relPos
+   * @param {string|null}          key
+   */
+  setAnnotation4(relPos, key) {
+    this._position4   = relPos || 'right';
+    this._annotation4 = key    || null;
   }
 
   /** @param {number} n — font size in CSS pixels */
@@ -212,7 +275,9 @@ export class LegendRenderer {
     this.bgColor = color;
     this.skipBg  = skipBg;
     for (const lc of [this._leftCanvas, this._rightCanvas,
-                      this._leftCanvas2, this._rightCanvas2]) {
+                      this._leftCanvas2, this._rightCanvas2,
+                      this._leftCanvas3, this._rightCanvas3,
+                      this._leftCanvas4, this._rightCanvas4]) {
       if (lc) lc.style.backgroundColor = color;
     }
     this.draw();
@@ -225,14 +290,16 @@ export class LegendRenderer {
   resize() {
     this._dpr = window.devicePixelRatio || 1;
     const pos    = this._position;
-    const hasL2  = !!this._annotation2;
-    const below  = hasL2 && this._position2 === 'below';
+    const below2 = !!this._annotation2 && this._position2 === 'below';
+    const below3 = !!this._annotation3 && this._position3 === 'below';
+    const below4 = !!this._annotation4 && this._position4 === 'below';
+    const hasAnyBelow = below2 || below3 || below4;
     const active = pos === 'left' ? this._leftCanvas : pos === 'right' ? this._rightCanvas : null;
 
     for (const lc of [this._leftCanvas, this._rightCanvas]) {
       if (!lc || lc.style.display === 'none') continue;
       const LW = lc.clientWidth;
-      const LH = (lc === active && below)
+      const LH = (lc === active && hasAnyBelow)
         ? this._computeStackedHeights(lc).total
         : this._computeHeight(lc);
       lc.style.height = LH + 'px';
@@ -241,16 +308,22 @@ export class LegendRenderer {
       lc.getContext('2d').setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
     }
 
-    // Legend-2 side canvases — only used in 'right' (beside) mode.
-    if (hasL2 && !below) {
-      for (const lc of [this._leftCanvas2, this._rightCanvas2]) {
-        if (!lc || lc.style.display === 'none') continue;
-        const LW = lc.clientWidth;
-        const LH = this._computeHeight2(lc);
-        lc.style.height = LH + 'px';
-        lc.width  = LW * this._dpr;
-        lc.height = LH * this._dpr;
-        lc.getContext('2d').setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
+    // Side canvases for legends 2, 3, 4 — only used in 'right' (beside) mode.
+    for (const [hasL, notBelow, lcs, computeH] of [
+      [!!this._annotation2, !below2, [this._leftCanvas2, this._rightCanvas2], lc => this._computeHeight2(lc)],
+      [!!this._annotation3, !below3, [this._leftCanvas3, this._rightCanvas3], lc => this._computeHeight3(lc)],
+      [!!this._annotation4, !below4, [this._leftCanvas4, this._rightCanvas4], lc => this._computeHeight4(lc)],
+    ]) {
+      if (hasL && notBelow) {
+        for (const lc of lcs) {
+          if (!lc || lc.style.display === 'none') continue;
+          const LW = lc.clientWidth;
+          const LH = computeH(lc);
+          lc.style.height = LH + 'px';
+          lc.width  = LW * this._dpr;
+          lc.height = LH * this._dpr;
+          lc.getContext('2d').setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
+        }
       }
     }
     this.draw();
@@ -270,23 +343,48 @@ export class LegendRenderer {
     return Math.round(containerH * Math.min(this._heightPct2, 100) / 100);
   }
 
+  /** Legend-3 side-canvas height in CSS px. */
+  _computeHeight3(lc) {
+    const containerH = lc.parentElement?.clientHeight ?? lc.clientHeight ?? 0;
+    if (!containerH) return lc.clientHeight || 0;
+    return Math.round(containerH * Math.min(this._heightPct3, 100) / 100);
+  }
+
+  /** Legend-4 side-canvas height in CSS px. */
+  _computeHeight4(lc) {
+    const containerH = lc.parentElement?.clientHeight ?? lc.clientHeight ?? 0;
+    if (!containerH) return lc.clientHeight || 0;
+    return Math.round(containerH * Math.min(this._heightPct4, 100) / 100);
+  }
+
   /**
-   * For the 'below' stacked layout: compute h1, h2, and total canvas height.
-   * • pct1 + pct2 < 100 → independent percentages; total = h1 + h2.
-   * • pct1 + pct2 ≥ 100 → proportional share of full height; total = containerH.
+   * For the 'below' stacked layout: compute heights for all stacked legends.
+   * Legends whose position is not 'below' contribute 0.
+   * • sum of active pcts < 100 → independent percentages.
+   * • sum of active pcts ≥ 100 → proportional share of full height.
+   * Returns {total, h1, h2, h3, h4}.
    */
   _computeStackedHeights(lc) {
     const containerH = lc.parentElement?.clientHeight ?? lc.clientHeight ?? 0;
-    if (!containerH) return { total: lc.clientHeight || 0, h1: lc.clientHeight || 0, h2: 0 };
+    if (!containerH) return { total: lc.clientHeight || 0, h1: lc.clientHeight || 0, h2: 0, h3: 0, h4: 0 };
     const pct1 = Math.max(1, this._heightPct);
-    const pct2 = Math.max(1, this._heightPct2);
-    if (pct1 + pct2 < 100) {
-      const h1 = Math.round(containerH * pct1 / 100);
-      const h2 = Math.round(containerH * pct2 / 100);
-      return { total: h1 + h2, h1, h2 };
+    const pct2 = (!!this._annotation2 && this._position2 === 'below') ? Math.max(1, this._heightPct2) : 0;
+    const pct3 = (!!this._annotation3 && this._position3 === 'below') ? Math.max(1, this._heightPct3) : 0;
+    const pct4 = (!!this._annotation4 && this._position4 === 'below') ? Math.max(1, this._heightPct4) : 0;
+    const sumPct = pct1 + pct2 + pct3 + pct4;
+    let h1, h2, h3, h4;
+    if (sumPct < 100) {
+      h1 = Math.round(containerH * pct1 / 100);
+      h2 = Math.round(containerH * pct2 / 100);
+      h3 = Math.round(containerH * pct3 / 100);
+      h4 = Math.round(containerH * pct4 / 100);
+      return { total: h1 + h2 + h3 + h4, h1, h2, h3, h4 };
     }
-    const h1 = Math.round(containerH * pct1 / (pct1 + pct2));
-    return { total: containerH, h1, h2: containerH - h1 };
+    h1 = Math.round(containerH * pct1 / sumPct);
+    h2 = Math.round(containerH * pct2 / sumPct);
+    h3 = Math.round(containerH * pct3 / sumPct);
+    h4 = containerH - h1 - h2 - h3;  // absorb rounding remainder
+    return { total: containerH, h1, h2, h3, h4 };
   }
 
   /**
@@ -340,6 +438,12 @@ export class LegendRenderer {
   /** Minimum canvas width for legend 2. */
   measureWidth2() { return this._measureWidthForKey(this._annotation2); }
 
+  /** Minimum canvas width for legend 3. */
+  measureWidth3() { return this._measureWidthForKey(this._annotation3); }
+
+  /** Minimum canvas width for legend 4. */
+  measureWidth4() { return this._measureWidthForKey(this._annotation4); }
+
   /**
    * Paint the colour legend(s) onto the canvas(es).
    * Safe to call at any time; exits early when nothing is configured.
@@ -348,11 +452,16 @@ export class LegendRenderer {
     const pos  = this._position;
     const key  = this._annotation;
     const key2 = this._annotation2;
+    const key3 = this._annotation3;
+    const key4 = this._annotation4;
     const lcL  = this._leftCanvas;
     const lcR  = this._rightCanvas;
 
     // Clear all visible canvases.
-    for (const lc of [lcL, lcR, this._leftCanvas2, this._rightCanvas2]) {
+    for (const lc of [lcL, lcR,
+                      this._leftCanvas2, this._rightCanvas2,
+                      this._leftCanvas3, this._rightCanvas3,
+                      this._leftCanvas4, this._rightCanvas4]) {
       if (!lc || lc.style.display === 'none') continue;
       lc.getContext('2d').clearRect(0, 0, lc.width, lc.height);
     }
@@ -366,12 +475,15 @@ export class LegendRenderer {
     const ctx = activeCanvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const below = !!key2 && this._position2 === 'below';
+    const below2 = !!key2 && this._position2 === 'below';
+    const below3 = !!key3 && this._position3 === 'below';
+    const below4 = !!key4 && this._position4 === 'below';
+    const hasAnyBelow = below2 || below3 || below4;
     let h1 = activeCanvas.height / dpr;
-    let h2 = 0;
-    if (below && key2) {
+    let h2 = 0, h3 = 0, h4 = 0;
+    if (hasAnyBelow) {
       const s = this._computeStackedHeights(activeCanvas);
-      h1 = s.h1;  h2 = s.h2;
+      h1 = s.h1; h2 = s.h2; h3 = s.h3; h4 = s.h4;
     }
 
     // Draw legend 1.
@@ -379,24 +491,50 @@ export class LegendRenderer {
 
     // Draw legend 2 — stacked below (shared canvas).
     this._hitRegions2 = [];
-    if (below && key2 && h2 > 0) {
-      // Thin separator line.
+    if (below2 && key2 && h2 > 0) {
       ctx.fillStyle = (this.textColor ?? '#ffffff') + '44';
       ctx.fillRect(0, h1, W, 1);
       const regs2 = this._drawContent(ctx, W, h2, key2, h1);
       this._hitRegions2 = regs2.map(r => ({ ...r, isLegend2: true }));
-      // Merge into primary so the single click handler on the main canvas works.
       for (const r of this._hitRegions2) this._hitRegions.push(r);
     }
 
-    // Draw legend 2 — beside (own canvas).
-    if (!below && key2) {
-      const lc2 = pos === 'left' ? this._leftCanvas2 : this._rightCanvas2;
-      if (lc2 && lc2.style.display !== 'none') {
-        const ctx2 = lc2.getContext('2d');
-        ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-        this._hitRegions2 = this._drawContent(ctx2, lc2.width / dpr, lc2.height / dpr, key2, 0)
-                                .map(r => ({ ...r, isLegend2: true }));
+    // Draw legend 3 — stacked below (shared canvas).
+    this._hitRegions3 = [];
+    if (below3 && key3 && h3 > 0) {
+      const offset3 = h1 + h2;
+      ctx.fillStyle = (this.textColor ?? '#ffffff') + '44';
+      ctx.fillRect(0, offset3, W, 1);
+      const regs3 = this._drawContent(ctx, W, h3, key3, offset3);
+      this._hitRegions3 = regs3.map(r => ({ ...r, isLegend3: true }));
+      for (const r of this._hitRegions3) this._hitRegions.push(r);
+    }
+
+    // Draw legend 4 — stacked below (shared canvas).
+    this._hitRegions4 = [];
+    if (below4 && key4 && h4 > 0) {
+      const offset4 = h1 + h2 + h3;
+      ctx.fillStyle = (this.textColor ?? '#ffffff') + '44';
+      ctx.fillRect(0, offset4, W, 1);
+      const regs4 = this._drawContent(ctx, W, h4, key4, offset4);
+      this._hitRegions4 = regs4.map(r => ({ ...r, isLegend4: true }));
+      for (const r of this._hitRegions4) this._hitRegions.push(r);
+    }
+
+    // Draw legends 2, 3, 4 — beside (own canvases).
+    for (const [notBelow, k, lc3L, lc3R, regsProp, flag] of [
+      [!below2, key2, this._leftCanvas2, this._rightCanvas2, '_hitRegions2', 'isLegend2'],
+      [!below3, key3, this._leftCanvas3, this._rightCanvas3, '_hitRegions3', 'isLegend3'],
+      [!below4, key4, this._leftCanvas4, this._rightCanvas4, '_hitRegions4', 'isLegend4'],
+    ]) {
+      if (notBelow && k) {
+        const lc = pos === 'left' ? lc3L : lc3R;
+        if (lc && lc.style.display !== 'none') {
+          const ctx2 = lc.getContext('2d');
+          ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+          this[regsProp] = this._drawContent(ctx2, lc.width / dpr, lc.height / dpr, k, 0)
+                               .map(r => ({ ...r, [flag]: true }));
+        }
       }
     }
   }
