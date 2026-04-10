@@ -3622,6 +3622,8 @@ async function _initCore(root = document) {
 
       if (!treeLoaded) {
         treeLoaded = true;
+        // Unlock palette sections and restore pinned state (or open TREE section by default).
+        _sectionAccordionUnlock?.();
         // Now that a tree is loaded, stamp the theme background onto the canvas wrappers.
         _syncCanvasWrapperBg(canvasBgColorEl.value);
         if (tipFilterEl)     tipFilterEl.disabled      = false;
@@ -6593,8 +6595,11 @@ async function _initCore(root = document) {
   // A section can be "pinned" open — pinned sections are unaffected by the
   // one-open-at-a-time rule.  Only one non-pinned section may be open at once.
   // State is persisted to localStorage.
+  // Sections are locked (closed, non-interactive) until the first tree is loaded.
+  let _sectionAccordionUnlock = null;
   (function _initSectionAccordion() {
     const STORE_KEY = 'peartree-section-state';
+    let _sectionsUnlocked = false;
 
     function _loadSt() {
       try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
@@ -6620,6 +6625,7 @@ async function _initCore(root = document) {
     }
 
     function _toggleSec(sec) {
+      if (!_sectionsUnlocked) return;
       if (sec.classList.contains('pt-palette-section--pinned')) return;
       if (sec.classList.contains('pt-palette-section--open')) {
         _closeSec(sec);
@@ -6634,6 +6640,7 @@ async function _initCore(root = document) {
     }
 
     function _togglePin(sec) {
+      if (!_sectionsUnlocked) return;
       const isPinned = sec.classList.contains('pt-palette-section--pinned');
       const pinIcon  = sec.querySelector(':scope > h3 .pt-sec-pin i');
       const st       = _loadSt();
@@ -6657,7 +6664,7 @@ async function _initCore(root = document) {
     }
 
     const savedState = _loadSt();
-    const noTransitionBodies = [];
+    const palBody = root.querySelector('#palette-panel-body');
 
     root.querySelectorAll('.pt-palette-section').forEach(sec => {
       const h3 = sec.querySelector(':scope > h3');
@@ -6683,20 +6690,8 @@ async function _initCore(root = document) {
       body.appendChild(inner);
       sec.appendChild(body);
 
-      // Restore saved state without animation
-      const saved = savedState[secId] || {};
-      if (saved.pinned || saved.open) {
-        // Suppress transition for this initial restore
-        body.style.transition = 'none';
-        noTransitionBodies.push(body);
-        if (saved.pinned) {
-          sec.classList.add('pt-palette-section--open', 'pt-palette-section--pinned');
-          const pi = h3.querySelector('.pt-sec-pin i');
-          if (pi) pi.className = 'bi bi-pin-fill';
-        } else {
-          sec.classList.add('pt-palette-section--open');
-        }
-      }
+      // Sections start closed and locked until the first tree is loaded.
+      // (pinned/open state from savedState is restored by _sectionAccordionUnlock)
 
       // Event: click h3 to toggle (not when clicking the pin button)
       h3.addEventListener('click', e => { if (!e.target.closest('.pt-sec-pin')) _toggleSec(sec); });
@@ -6713,14 +6708,44 @@ async function _initCore(root = document) {
       });
     });
 
-    // Re-enable transitions after the initial paint (otherwise restoring state animates)
-    if (noTransitionBodies.length) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          noTransitionBodies.forEach(b => { b.style.transition = ''; });
-        });
+    // Mark sections as locked until the first tree loads.
+    if (palBody) palBody.classList.add('pt-sections-locked');
+
+    // Called once when the first tree is loaded.  Unlocks interactions, then
+    // restores pinned sections from saved state (or opens the TREE section as default).
+    _sectionAccordionUnlock = function () {
+      if (_sectionsUnlocked) return;
+      _sectionsUnlocked = true;
+      if (palBody) palBody.classList.remove('pt-sections-locked');
+
+      const noTrans = [];
+      let anyPinned = false;
+      _allSec().forEach(sec => {
+        const saved = savedState[sec.dataset.secId] || {};
+        if (saved.pinned) {
+          anyPinned = true;
+          const body = sec.querySelector(':scope > .pt-section-body');
+          if (body) { body.style.transition = 'none'; noTrans.push(body); }
+          sec.classList.add('pt-palette-section--open', 'pt-palette-section--pinned');
+          const pi = sec.querySelector(':scope > h3 .pt-sec-pin i');
+          if (pi) pi.className = 'bi bi-pin-fill';
+        }
       });
-    }
+
+      if (!anyPinned) {
+        // Default: open the TREE section
+        const treeSec = root.querySelector('.pt-palette-section[data-sec-id="tree"]');
+        if (treeSec) {
+          const body = treeSec.querySelector(':scope > .pt-section-body');
+          if (body) { body.style.transition = 'none'; noTrans.push(body); }
+          treeSec.classList.add('pt-palette-section--open');
+        }
+      }
+
+      if (noTrans.length) {
+        requestAnimationFrame(() => requestAnimationFrame(() => noTrans.forEach(b => { b.style.transition = ''; })));
+      }
+    };
   })();
 
   window.dispatchEvent(new CustomEvent('peartree-ready'));

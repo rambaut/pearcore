@@ -1008,6 +1008,12 @@ body.palette-pinned #canvas-and-axis-wrapper {
   transition: color 0.15s;
 }
 .pt-palette-section h3:hover { color: var(--pt-teal); }
+/* Locked state: no tree loaded — sections cannot be opened */
+#palette-panel-body.pt-sections-locked .pt-palette-section > h3 {
+  cursor: default;
+  opacity: 0.45;
+}
+#palette-panel-body.pt-sections-locked .pt-palette-section > h3:hover { opacity: 0.45; }
 /* Section accordion — chevron + pin button */
 .pt-sec-actions {
   display: flex;
