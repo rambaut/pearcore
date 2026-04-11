@@ -1,4 +1,4 @@
-Is # PearTree Help
+# PearTree Help
 
 PearTree is a phylogenetic tree viewer that runs entirely in the browser. No data is ever uploaded to any server — all processing is local.
 
