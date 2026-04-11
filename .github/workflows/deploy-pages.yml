@@ -1,17 +1,21 @@
 name: Deploy Pages
 
-# Triggered when a release is published (not just created as a draft).
-# This runs in the context of the default branch (main), which passes
-# the github-pages environment protection rules that block tag-triggered
-# workflows.
+# Triggered when the Release workflow completes successfully.
+# workflow_run ALWAYS executes on the default branch (main), so
+# GITHUB_REF is refs/heads/main — this passes the github-pages
+# environment protection rules that block tag/release-triggered workflows.
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
   group: pages
@@ -19,6 +23,7 @@ concurrency:
 
 jobs:
   deploy-pages:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -38,11 +43,11 @@ jobs:
         run: npm install
 
       - name: Set version from release tag
-        run: node scripts/set-version.js ${{ github.event.release.tag_name }}
+        run: node scripts/set-version.js ${{ github.event.workflow_run.head_branch }}
 
       - name: Build single-file bundle
         env:
-          PEARTREE_VERSION_TAG: ${{ github.event.release.tag_name }}
+          PEARTREE_VERSION_TAG: ${{ github.event.workflow_run.head_branch }}
         run: npm run bundle
 
       - name: Assemble site
