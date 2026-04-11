@@ -1533,7 +1533,7 @@ export class TreeRenderer {
     const W = this.canvas.clientWidth;
     // Only reserve space for tip labels when they're actually visible at this zoom level.
     const labelsVisible = this.scaleY >= this.fontSize * 0.5;
-    const plotW = W - this.paddingLeft - (labelsVisible ? this.labelRightPad : 0);
+    const plotW = W - this.paddingLeft - (labelsVisible ? this.labelRightPad : (this.paddingRight ?? 10));
     // Extra world-units needed to the left of the root for node bars / whiskers.
     const barPad = this.nodeBarsEnabled ? this._nodeBarsLeftPad() : 0;
     // Root stem: only applied to the whole-tree view (not subtree navigation).
