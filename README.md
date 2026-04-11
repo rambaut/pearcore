@@ -69,7 +69,6 @@ See **[tauri-build.md](tauri-build.md)** for instructions on building the Tauri 
 
 | Document | Description |
 |----------|-------------|
-| [tutorial.md](tutorial.md) | Step-by-step walkthrough of PearTree's main features using the built-in EBOV example |
 | [embedded-api.md](embedded-api.md) | Full API reference for embedding PearTree in reports and dashboards |
 | [tauri-build.md](tauri-build.md) | Instructions for building the native desktop app from source |
 
