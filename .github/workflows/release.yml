@@ -185,3 +185,33 @@ jobs:
             -H "Content-Type: application/octet-stream" \
             --data-binary @dist/peartree.bundle.min.js \
             "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=peartree.bundle.min.js"
+
+      - name: Assemble webapp
+        run: |
+          mkdir -p webapp/data webapp/img webapp/logo
+          cp peartree/index.html                webapp/index.html
+          cp dist/peartree.bundle.min.js        webapp/peartree.bundle.min.js
+          cp peartree/img/peartree.svg          webapp/img/peartree.svg
+          cp peartree/img/peartree.png          webapp/img/peartree.png
+          cp logo/peartree.svg                  webapp/logo/peartree.svg
+          cp logo/peartree.png                  webapp/logo/peartree.png
+          cp peartree/data/ebov.tree            webapp/data/ebov.tree
+          cp peartree/data/VARV.tree            webapp/data/VARV.tree
+          cp peartree/data/large_tree.tree      webapp/data/large_tree.tree
+          cp peartree/data/SARS-CoV-2_15K.tree  webapp/data/SARS-CoV-2_15K.tree
+          cp peartree/data/ebov.csv             webapp/data/ebov.csv
+          cp peartree/about.md                  webapp/about.md
+          cp peartree/help.md                   webapp/help.md
+          tar -czf peartree-webapp.tgz -C webapp .
+
+      - name: Upload webapp tgz to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          curl -sSfL \
+            -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary @peartree-webapp.tgz \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=peartree-webapp.tgz"

@@ -63,9 +63,8 @@ jobs:
           cp peartree/data/ebov.tree                 _site/data/ebov.tree
           cp peartree/data/VARV.tree                 _site/data/VARV.tree
           cp peartree/data/large_tree.tree           _site/data/large_tree.tree
-          cp peartree/data/SARS-CoV-2_15K.tree      _site/data/SARS-CoV-2_15K.tree
-          cp data/ebov.csv                           _site/data/ebov.csv
-          cp data/measles_genome_tree.nexus          _site/data/measles_genome_tree.nexus
+          cp peartree/data/SARS-CoV-2_15K.tree       _site/data/SARS-CoV-2_15K.tree
+          cp peartree/data/ebov.csv                  _site/data/ebov.csv
           cp peartree/about.md                       _site/about.md
           cp peartree/help.md                        _site/help.md
           cp peartree/manual/manual.md               _site/manual/manual.md
