@@ -63,6 +63,16 @@ export class LegendRenderer {
     this._hitRegions2 = [];   // legend2 own canvas
     this._hitRegions3 = [];   // legend3 own canvas
     this._hitRegions4 = [];   // legend4 own canvas
+
+    // Currently-selected category values per legend (Set<any> | null).
+    this._selectedValues1 = null;
+    this._selectedValues2 = null;
+    this._selectedValues3 = null;
+    this._selectedValues4 = null;
+    // Colours used to highlight selected rows — updated from tree renderer selection colours.
+    this._selStrokeColor  = '#E06961';
+    this._selFillColor    = '#E06961';
+
     /** Callback for legend-1 categorical click: (value) => void */
     this.onCategoryClick  = null;
     /** Callback for legend-2 categorical click: (value) => void */
@@ -214,6 +224,30 @@ export class LegendRenderer {
   setAnnotation4(relPos, key) {
     this._position4   = relPos || 'right';
     this._annotation4 = key    || null;
+  }
+
+  /**
+   * Set which category values are "selected" for legend N (1–4).
+   * Pass null to clear the selection highlight.
+   * @param {number}      legendN  1 | 2 | 3 | 4
+   * @param {Set|null}    values
+   */
+  setSelectedValues(legendN, values) {
+    if      (legendN === 2) this._selectedValues2 = values;
+    else if (legendN === 3) this._selectedValues3 = values;
+    else if (legendN === 4) this._selectedValues4 = values;
+    else                    this._selectedValues1 = values;
+    this.draw();
+  }
+
+  /**
+   * Update the colours used to render highlighted (selected) category rows.
+   * @param {string} strokeColor
+   * @param {string} fillColor
+   */
+  setSelectedColors(strokeColor, fillColor) {
+    if (strokeColor) this._selStrokeColor = strokeColor;
+    if (fillColor)   this._selFillColor   = fillColor;
   }
 
   /** @param {number} n — font size in CSS pixels */
@@ -472,14 +506,14 @@ export class LegendRenderer {
     }
 
     // Draw legend 1.
-    this._hitRegions = this._drawContent(ctx, W, h1, key, 0);
+    this._hitRegions = this._drawContent(ctx, W, h1, key, 0, this._selectedValues1);
 
     // Draw legend 2 — stacked below (shared canvas).
     this._hitRegions2 = [];
     if (below2 && key2 && h2 > 0) {
       ctx.fillStyle = (this.textColor ?? '#ffffff') + '44';
       ctx.fillRect(0, h1, W, 1);
-      const regs2 = this._drawContent(ctx, W, h2, key2, h1);
+      const regs2 = this._drawContent(ctx, W, h2, key2, h1, this._selectedValues2);
       this._hitRegions2 = regs2.map(r => ({ ...r, isLegend2: true }));
       for (const r of this._hitRegions2) this._hitRegions.push(r);
     }
@@ -490,7 +524,7 @@ export class LegendRenderer {
       const offset3 = h1 + h2;
       ctx.fillStyle = (this.textColor ?? '#ffffff') + '44';
       ctx.fillRect(0, offset3, W, 1);
-      const regs3 = this._drawContent(ctx, W, h3, key3, offset3);
+      const regs3 = this._drawContent(ctx, W, h3, key3, offset3, this._selectedValues3);
       this._hitRegions3 = regs3.map(r => ({ ...r, isLegend3: true }));
       for (const r of this._hitRegions3) this._hitRegions.push(r);
     }
@@ -501,22 +535,22 @@ export class LegendRenderer {
       const offset4 = h1 + h2 + h3;
       ctx.fillStyle = (this.textColor ?? '#ffffff') + '44';
       ctx.fillRect(0, offset4, W, 1);
-      const regs4 = this._drawContent(ctx, W, h4, key4, offset4);
+      const regs4 = this._drawContent(ctx, W, h4, key4, offset4, this._selectedValues4);
       this._hitRegions4 = regs4.map(r => ({ ...r, isLegend4: true }));
       for (const r of this._hitRegions4) this._hitRegions.push(r);
     }
 
     // Draw legends 2, 3, 4 — beside (own canvases).
-    for (const [notBelow, k, rc, regsProp, flag] of [
-      [!below2, key2, this._rightCanvas2, '_hitRegions2', 'isLegend2'],
-      [!below3, key3, this._rightCanvas3, '_hitRegions3', 'isLegend3'],
-      [!below4, key4, this._rightCanvas4, '_hitRegions4', 'isLegend4'],
+    for (const [notBelow, k, rc, regsProp, flag, selVals] of [
+      [!below2, key2, this._rightCanvas2, '_hitRegions2', 'isLegend2', this._selectedValues2],
+      [!below3, key3, this._rightCanvas3, '_hitRegions3', 'isLegend3', this._selectedValues3],
+      [!below4, key4, this._rightCanvas4, '_hitRegions4', 'isLegend4', this._selectedValues4],
     ]) {
       if (notBelow && k) {
         if (rc && rc.style.display !== 'none') {
           const ctx2 = rc.getContext('2d');
           ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-          this[regsProp] = this._drawContent(ctx2, rc.width / dpr, rc.height / dpr, k, 0)
+          this[regsProp] = this._drawContent(ctx2, rc.width / dpr, rc.height / dpr, k, 0, selVals)
                                .map(r => ({ ...r, [flag]: true }));
         }
       }
@@ -529,7 +563,7 @@ export class LegendRenderer {
    * relative to the canvas origin (already include offsetY).
    * @private
    */
-  _drawContent(ctx, W, H, key, offsetY) {
+  _drawContent(ctx, W, H, key, offsetY, selectedValues = null) {
     const hitRegions = [];
     if (!key || !this._schema) return hitRegions;
     const def = this._schema.get(key);
@@ -568,15 +602,41 @@ export class LegendRenderer {
         : ROW_H;
       const effectiveSwatch = Math.min(SWATCH, effectiveRowH - 2);
       ctx.font = this._font(lfs); ctx.textBaseline = 'middle';
+      let clipped = false;
       vals.forEach((val) => {
-        if (y + effectiveSwatch > maxY) return;
+        if (y + effectiveSwatch > maxY) { clipped = true; return; }
+        const isSelected = selectedValues != null && selectedValues.has(val);
+        // Highlight row background for selected categories.
+        if (isSelected) {
+          ctx.fillStyle = this._selStrokeColor + '26'; // ~15 % opacity tint
+          ctx.fillRect(0, y - 2, W, effectiveRowH);
+        }
         ctx.fillStyle = colourMap.get(val) ?? MISSING_DATA_COLOUR;
         ctx.fillRect(PAD, y, effectiveSwatch, effectiveSwatch);
-        ctx.fillStyle = ltc; ctx.textAlign = 'left';
+        // Border on swatch for selected rows.
+        if (isSelected) {
+          ctx.save();
+          ctx.strokeStyle = this._selStrokeColor;
+          ctx.lineWidth   = 2;
+          ctx.strokeRect(PAD + 1, y + 1, effectiveSwatch - 2, effectiveSwatch - 2);
+          ctx.restore();
+        }
+        ctx.fillStyle = isSelected ? this._selStrokeColor : ltc;
+        ctx.textAlign = 'left';
         ctx.fillText(String(val), PAD + effectiveSwatch + 6, y + effectiveSwatch / 2, W - PAD * 2 - effectiveSwatch - 6);
         hitRegions.push({ value: val, y0: y, y1: y + effectiveRowH });
         y += effectiveRowH;
       });
+      if (clipped) {
+        ctx.save();
+        ctx.font      = this._font(lfs);
+        ctx.fillStyle = ltc;
+        ctx.globalAlpha = 0.6;
+        ctx.textAlign    = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('…', PAD, maxY + PAD);
+        ctx.restore();
+      }
     } else if (def.dataType === 'date') {
       const BAR_W = 14;
       const BAR_Y = y;

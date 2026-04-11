@@ -2009,6 +2009,40 @@ async function _initCore(root = document) {
     renderer._dirty = true;
   };
 
+  /**
+   * For each visible categorical legend, compute which category values the
+   * currently-selected tips have, and update LegendRenderer so those rows
+   * are highlighted.
+   */
+  function _syncLegendSelection() {
+    if (!legendRenderer || !renderer.nodeMap) return;
+    legendRenderer.setSelectedColors(
+      selectedTipStrokeEl.value,
+      selectedTipFillEl.value,
+    );
+    const selIds = renderer._selectedTipIds;
+    const hasSelection = selIds?.size > 0;
+    const legends = [
+      { n: 1, key: legendRenderer._annotation },
+      { n: 2, key: legendRenderer._annotation2 },
+      { n: 3, key: legendRenderer._annotation3 },
+      { n: 4, key: legendRenderer._annotation4 },
+    ];
+    for (const { n, key } of legends) {
+      if (!key || !hasSelection) {
+        legendRenderer.setSelectedValues(n, null);
+        continue;
+      }
+      const values = new Set();
+      for (const [id, node] of renderer.nodeMap) {
+        if (!node.isTip || !selIds.has(id)) continue;
+        const v = node.annotations?.[key];
+        if (v != null) values.add(v);
+      }
+      legendRenderer.setSelectedValues(n, values.size > 0 ? values : null);
+    }
+  }
+
   // ── Axis renderer ─────────────────────────────────────────────────────────
   // Must be created before applyTheme() is called below (applyTheme references
   // axisRenderer, and const bindings have TDZ — calling the function before this
@@ -4191,6 +4225,7 @@ async function _initCore(root = document) {
       // Keep the data table in sync with the canvas selection
       dataTableRenderer.syncSelection(renderer._selectedTipIds);
       rttChart?.notifySelectionChange?.();
+      _syncLegendSelection();
     };
 
     btnBack?.addEventListener('click',    () => renderer.navigateBack());
