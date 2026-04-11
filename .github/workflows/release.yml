@@ -149,6 +149,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -183,25 +188,33 @@ jobs:
             --data-binary @dist/peartree.bundle.min.js \
             "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=peartree.bundle.min.js"
 
-      - name: Deploy site to docs/ for GitHub Pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Assemble site
         run: |
-          # Assemble the docs/ deploy directory
-          mkdir -p docs/data docs/img
-          cp peartree/index.html               docs/index.html
-          cp CNAME                          docs/CNAME
-          cp dist/peartree.bundle.min.js    docs/peartree.bundle.min.js
-          cp peartree/img/peartree.png      docs/img/peartree.png
-          cp peartree/data/ebov.tree        docs/data/ebov.tree
-          cp peartree/data/VARV.tree        docs/data/VARV.tree
-          cp peartree/data/large_tree.tree  docs/data/large_tree.tree
-          cp peartree/data/SARS-CoV-2_15K.tree docs/data/SARS-CoV-2_15K.tree
-          cp peartree/about.md              docs/about.md
-          cp peartree/help.md               docs/help.md
+          mkdir -p _site/data _site/img _site/logo _site/manual/images
+          cp peartree/index.html                     _site/index.html
+          cp CNAME                                   _site/CNAME
+          cp dist/peartree.bundle.min.js             _site/peartree.bundle.min.js
+          cp peartree/img/peartree.png               _site/img/peartree.png
+          cp logo/peartree.png                       _site/logo/peartree.png
+          cp peartree/data/ebov.tree                 _site/data/ebov.tree
+          cp peartree/data/VARV.tree                 _site/data/VARV.tree
+          cp peartree/data/large_tree.tree           _site/data/large_tree.tree
+          cp peartree/data/SARS-CoV-2_15K.tree      _site/data/SARS-CoV-2_15K.tree
+          cp data/ebov.csv                           _site/data/ebov.csv
+          cp data/measles_genome_tree.nexus          _site/data/measles_genome_tree.nexus
+          cp peartree/about.md                       _site/about.md
+          cp peartree/help.md                        _site/help.md
+          cp peartree/manual/manual.md               _site/manual/manual.md
+          cp -r peartree/manual/images/.             _site/manual/images/
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f docs/
-          git diff --cached --quiet || git commit -m "chore: deploy ${{ github.ref_name }} to docs/ [skip ci]"
-          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
