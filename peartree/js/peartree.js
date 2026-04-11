@@ -507,8 +507,7 @@ async function _initCore(root = document) {
 
   /** The user-set default theme for new windows (persisted in localStorage). */
   let defaultTheme = localStorage.getItem(DEFAULT_THEME_KEY) || 'Artic';
-  // Guard: if the stored default is no longer in the registry fall back gracefully.
-  if (!themeRegistry.has(defaultTheme)) defaultTheme = Object.keys(THEMES)[0];
+  // Guard applied after loadUserThemes() so user-saved defaults are recognised.
 
   /** Per-annotation palette override: annotationKey → palette name string. */
   const annotationPalettes = new Map();
@@ -1261,7 +1260,7 @@ async function _initCore(root = document) {
     if (!confirm('Reset all visual settings to their defaults?')) return;
 
     // Apply the default theme (hydrates all visual DOM controls + renderer).
-    applyTheme('Artic');
+    applyTheme(defaultTheme);
 
     // Reset colour-by dropdowns, legend, and axis controls.
     tipColourBy.value        = 'user_colour';
@@ -1283,7 +1282,7 @@ async function _initCore(root = document) {
     legend4ShowEl.value      = DEFAULT_SETTINGS.legend4Position;
     legend4HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct4;
     $('legend4-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct4 + '%';
-    // legendTextColor is set by applyTheme('Artic') above — do not override with a hardcoded default.
+    // legendTextColor is set by applyTheme(defaultTheme) above — do not override with a hardcoded default.
     legendFontSizeSlider.value = DEFAULT_SETTINGS.legendFontSize;
     $('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
     legendFontFamilyEl.value = DEFAULT_SETTINGS.legendFontFamily;
@@ -1305,7 +1304,7 @@ async function _initCore(root = document) {
     $('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
     axisFontFamilyEl.value = DEFAULT_SETTINGS.axisFontFamily;
     _populateStyleSelect(fontFamilyEl.value, axisTypefaceStyleEl, '', true);
-    // RTT axis/stats/regression colours are already set by applyTheme('Artic') above.
+    // RTT axis/stats/regression colours are already set by applyTheme(defaultTheme) above.
     // Only reset the non-colour RTT controls that applyTheme doesn't touch.
     rttRegressionStyleEl.value   = DEFAULT_SETTINGS.rttRegressionStyle;
     rttRegressionWidthSlider.value = DEFAULT_SETTINGS.rttRegressionWidth;
@@ -1643,6 +1642,9 @@ async function _initCore(root = document) {
 
   // Bootstrap theme registry and select options before restoring saved state.
   loadUserThemes();
+  // Guard: if the stored default is no longer in the registry, fall back gracefully.
+  // Must run after loadUserThemes() so user-saved themes are present.
+  if (!themeRegistry.has(defaultTheme)) defaultTheme = Object.keys(THEMES)[0];
   _populateThemeSelect();
   _syncThemeButtons();
 
