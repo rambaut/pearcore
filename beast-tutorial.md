@@ -5,7 +5,7 @@ permalink: /tutorial/
 ---
 
 <p align="center">
-  <img src="/logo/peartree.png" alt="PearTree logo" style="width:220px;" />
+  <img src="/logo/peartree.svg" alt="PearTree logo" style="width:220px;" />
 </p>
 
 # Tutorial

@@ -194,7 +194,9 @@ jobs:
           cp peartree/index.html                     _site/index.html
           cp CNAME                                   _site/CNAME
           cp dist/peartree.bundle.min.js             _site/peartree.bundle.min.js
+          cp peartree/img/peartree.svg               _site/img/peartree.svg
           cp peartree/img/peartree.png               _site/img/peartree.png
+          cp logo/peartree.svg                       _site/logo/peartree.svg
           cp logo/peartree.png                       _site/logo/peartree.png
           cp peartree/data/ebov.tree                 _site/data/ebov.tree
           cp peartree/data/VARV.tree                 _site/data/VARV.tree

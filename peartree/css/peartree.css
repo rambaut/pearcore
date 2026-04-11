@@ -458,6 +458,8 @@
   cursor: pointer;
 }
 #status-brand:hover { color: var(--pt-brand-hover); }
+.pt-brand-logo { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+#about-panel-header h2 .pt-brand-logo { width: 14px; height: 14px; }
 #status-message {
   position: absolute;
   left: 50%;

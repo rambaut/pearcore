@@ -572,7 +572,7 @@ function _buildCanvasContainer() {
     <div id="canvas-wrapper">
       <div id="empty-state">
         <div style="text-align:center">
-          <img src="img/peartree.png" class="pt-empty-icon" alt="PearTree">
+          <img src="img/peartree.svg" class="pt-empty-icon" alt="PearTree">
           <p class="pt-empty-title">No tree loaded</p>
           <p class="pt-empty-hint" id="empty-state-hint">Drag a NEXUS or Newick file here</p>
           <p id="empty-state-error" style="display:none;color:var(--pt-red);font-size:0.85rem;margin:0.5rem 1rem 0"></p>
@@ -628,7 +628,7 @@ function _buildStatusBar() {
   const showHelp   = _ui.help         !== false;
   return `
 <div id="status-bar">
-  ${showBrand ? `<a id="status-brand" href="https://github.com/artic-network/peartree" target="_blank" rel="noopener" title="PearTree on GitHub"><i class="bi bi-tree"></i>PearTree</a>` : ''}
+  ${showBrand ? `<a id="status-brand" href="https://github.com/artic-network/peartree" target="_blank" rel="noopener" title="PearTree on GitHub"><img src="img/peartree.svg" class="pt-brand-logo" alt="">PearTree</a>` : ''}
   <span id="status-stats"></span>
   <span id="status-select"></span>
   <span id="status-message"></span>
@@ -820,7 +820,7 @@ function _buildHelpAbout() {
 <div id="about-backdrop"></div>
 <div id="about-panel">
   <div id="about-panel-header">
-    <h2><i class="bi bi-tree me-2"></i>About PearTree</h2>
+    <h2><img src="img/peartree.svg" class="pt-brand-logo me-2" alt="">About PearTree</h2>
     <button id="btn-about-close" title="Close">&times;</button>
   </div>
   <div id="about-panel-body">
