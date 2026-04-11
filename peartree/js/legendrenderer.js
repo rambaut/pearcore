@@ -103,7 +103,7 @@ export class LegendRenderer {
                      : r.isLegend3 ? this.onCategoryClick3
                      : r.isLegend2 ? this.onCategoryClick2
                      : this.onCategoryClick;
-            if (cb) cb(r.value);
+            if (cb) cb(r.value, e.metaKey || e.ctrlKey);
             return;
           }
         }

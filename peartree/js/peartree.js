@@ -1951,7 +1951,7 @@ async function _initCore(root = document) {
   renderer.setLegendRenderer(legendRenderer);
 
   // Clicking a categorical legend entry selects all tips with that annotation value.
-  legendRenderer.onCategoryClick = (value) => {
+  legendRenderer.onCategoryClick = (value, additive) => {
     if (!renderer.nodeMap) return;
     const key = legendRenderer._annotation;
     if (!key) return;
@@ -1960,13 +1960,21 @@ async function _initCore(root = document) {
       if (!n.isTip) continue;
       if (n.annotations?.[key] === value) ids.push(id);
     }
-    renderer._selectedTipIds = new Set(ids);
+    if (additive && renderer._selectedTipIds?.size > 0) {
+      const sel = new Set(renderer._selectedTipIds);
+      const allSelected = ids.every(id => sel.has(id));
+      if (allSelected) { ids.forEach(id => sel.delete(id)); }
+      else             { ids.forEach(id => sel.add(id));    }
+      renderer._selectedTipIds = sel;
+    } else {
+      renderer._selectedTipIds = new Set(ids);
+    }
     renderer._mrcaNodeId = null;
-    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(ids.length > 0);
+    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(renderer._selectedTipIds.size > 0);
     renderer._dirty = true;
   };
   // Same for legend 2 categorical entries.
-  legendRenderer.onCategoryClick2 = (value) => {
+  legendRenderer.onCategoryClick2 = (value, additive) => {
     if (!renderer.nodeMap) return;
     const key2 = legendRenderer._annotation2;
     if (!key2) return;
@@ -1975,12 +1983,20 @@ async function _initCore(root = document) {
       if (!n.isTip) continue;
       if (n.annotations?.[key2] === value) ids.push(id);
     }
-    renderer._selectedTipIds = new Set(ids);
+    if (additive && renderer._selectedTipIds?.size > 0) {
+      const sel = new Set(renderer._selectedTipIds);
+      const allSelected = ids.every(id => sel.has(id));
+      if (allSelected) { ids.forEach(id => sel.delete(id)); }
+      else             { ids.forEach(id => sel.add(id));    }
+      renderer._selectedTipIds = sel;
+    } else {
+      renderer._selectedTipIds = new Set(ids);
+    }
     renderer._mrcaNodeId = null;
-    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(ids.length > 0);
+    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(renderer._selectedTipIds.size > 0);
     renderer._dirty = true;
   };
-  legendRenderer.onCategoryClick3 = (value) => {
+  legendRenderer.onCategoryClick3 = (value, additive) => {
     if (!renderer.nodeMap) return;
     const key3 = legendRenderer._annotation3;
     if (!key3) return;
@@ -1989,12 +2005,20 @@ async function _initCore(root = document) {
       if (!n.isTip) continue;
       if (n.annotations?.[key3] === value) ids.push(id);
     }
-    renderer._selectedTipIds = new Set(ids);
+    if (additive && renderer._selectedTipIds?.size > 0) {
+      const sel = new Set(renderer._selectedTipIds);
+      const allSelected = ids.every(id => sel.has(id));
+      if (allSelected) { ids.forEach(id => sel.delete(id)); }
+      else             { ids.forEach(id => sel.add(id));    }
+      renderer._selectedTipIds = sel;
+    } else {
+      renderer._selectedTipIds = new Set(ids);
+    }
     renderer._mrcaNodeId = null;
-    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(ids.length > 0);
+    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(renderer._selectedTipIds.size > 0);
     renderer._dirty = true;
   };
-  legendRenderer.onCategoryClick4 = (value) => {
+  legendRenderer.onCategoryClick4 = (value, additive) => {
     if (!renderer.nodeMap) return;
     const key4 = legendRenderer._annotation4;
     if (!key4) return;
@@ -2003,9 +2027,17 @@ async function _initCore(root = document) {
       if (!n.isTip) continue;
       if (n.annotations?.[key4] === value) ids.push(id);
     }
-    renderer._selectedTipIds = new Set(ids);
+    if (additive && renderer._selectedTipIds?.size > 0) {
+      const sel = new Set(renderer._selectedTipIds);
+      const allSelected = ids.every(id => sel.has(id));
+      if (allSelected) { ids.forEach(id => sel.delete(id)); }
+      else             { ids.forEach(id => sel.add(id));    }
+      renderer._selectedTipIds = sel;
+    } else {
+      renderer._selectedTipIds = new Set(ids);
+    }
     renderer._mrcaNodeId = null;
-    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(ids.length > 0);
+    if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(renderer._selectedTipIds.size > 0);
     renderer._dirty = true;
   };
 
