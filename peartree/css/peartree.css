@@ -1071,6 +1071,33 @@ body.palette-pinned #canvas-and-axis-wrapper {
   margin: 10px 0 4px;
 }
 .pt-palette-subhead:first-child { margin-top: 0; }
+/* Clade highlight list items */
+.pt-highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.pt-highlight-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.pt-highlight-name {
+  font-size: 0.73rem;
+  color: var(--pt-cream);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pt-no-highlights {
+  font-size: 0.68rem;
+  color: rgba(242,241,230,0.35);
+  font-style: italic;
+}
 .pt-palette-row {
   display: flex;
   align-items: center;
