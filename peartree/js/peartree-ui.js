@@ -68,7 +68,7 @@ function _sectionTipLabels() {
         <div class="pt-palette-row"><span class="pt-palette-label">Colour</span><input type="color" class="pt-palette-color" id="label-color" value="#f7eeca" /></div>
         <div class="pt-palette-row"><span class="pt-palette-label">Colour by</span><select class="pt-palette-select" id="label-colour-by" disabled><option value="user_colour">user colour</option></select></div>
         <div class="pt-palette-row" id="label-palette-row" style="display:none"><span class="pt-palette-label">Palette</span><select class="pt-palette-select" id="label-palette-select"></select></div>
-        <div class="pt-palette-row"><span class="pt-palette-label">Spacing <i class="bi bi-arrow-bar-right form-label-sm" title="Padding"></i></span><input type="range" class="form-range" id="tip-label-spacing-slider" min="0" max="20" step="1" value="3" /><span class="pt-val" id="tip-label-spacing-value">3</span></div>
+        <div class="pt-palette-row"><span class="pt-palette-label">Spacing <i class="bi bi-arrow-bar-right form-label-sm" title="Padding"></i></span><input type="range" class="form-range" id="tip-label-spacing-slider" min="0" max="100" step="1" value="3" /><span class="pt-val" id="tip-label-spacing-value">3</span></div>
       </div>
     </div>`;
 }
@@ -84,7 +84,6 @@ function _sectionLabelShapes() {
         <div class="pt-palette-row" id="tip-label-shape-palette-row" style="display:none"><span class="pt-palette-label">Palette</span><select class="pt-palette-select" id="tip-label-shape-palette-select"></select></div>
         <div class="pt-palette-row"><span class="pt-palette-label">Size</span><input type="range" class="form-range" id="tip-label-shape-size-slider" min="1" max="100" step="1" value="50" /><span class="pt-val" id="tip-label-shape-size-value">50</span></div>
         <div class="pt-palette-row"><span class="pt-palette-label">Pad left <i class="bi bi-arrow-bar-right form-label-sm" title="Padding"></i></span><input type="range" class="form-range" id="tip-label-shape-margin-left-slider" min="0" max="100" value="2" /><span class="pt-val" id="tip-label-shape-margin-left-value">2</span></div>
-        <div class="pt-palette-row"><span class="pt-palette-label">Pad right <i class="bi bi-arrow-bar-left form-label-sm" title="Padding"></i></span><input type="range" class="form-range" id="tip-label-shape-margin-right-slider" min="0" max="100" value="3" /><span class="pt-val" id="tip-label-shape-margin-right-value">3</span></div>
         <div class="pt-palette-row" id="tip-label-shape-spacing-row" style="display:none"><span class="pt-palette-label">Spacing</span><input type="range" class="form-range" id="tip-label-shape-spacing-slider" min="0" max="50" value="3" /><span class="pt-val" id="tip-label-shape-spacing-value">3</span></div>
       </div>
       ${[2,3,4,5,6,7,8,9,10].map(n => `

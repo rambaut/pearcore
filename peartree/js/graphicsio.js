@@ -572,7 +572,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   const outlineR     = tr > 0 ? tr + renderer.tipHaloSize : 0;
   const _align       = renderer.tipLabelAlign;
   const alignLabelX  = (_align && _align !== 'off')
-    ? toSX(renderer.maxX) + outlineR + 3
+    ? toSX(renderer.maxX) + outlineR
     : null;
 
   // Shape 1 — size computed the same way as _shapeSize() in treerenderer.js.
@@ -584,8 +584,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
         : Math.max(2, Math.round(sy * renderer._tipLabelShapeSize / 100)))
     : 0;
   const _svgShML      = _svgShape !== 'off' ? renderer._tipLabelShapeMarginLeft  : 0;
-  const _svgShMR      = _svgShape !== 'off' ? renderer._tipLabelShapeMarginRight : 0;
-  const _svgShSpacing = _svgShape !== 'off' ? (renderer._tipLabelShapeSpacing ?? renderer._tipLabelShapeMarginRight) : 0;
+  const _svgShSpacing = _svgShape !== 'off' ? (renderer._tipLabelShapeSpacing ?? 3) : 0;
   // Extra shapes (2–N): each uses shape 1's size/spacing, own colour scale.
   const _svgExtraShapes = _svgShape !== 'off' ? renderer._tipLabelShapesExtra : [];
   // Precompute per-extra-shape pixel sizes (same formula as shape 1).
@@ -601,16 +600,16 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     if (_svgExtraShapes[_i] === 'off') break;
     _svgActiveExtras.push(_i);
   }
-  // _svgShOff: offset past shape 1; uses spacing if extras follow, else marginRight.
-  const _svgShOff = _svgShML + _svgShSz + (_svgActiveExtras.length > 0 ? _svgShSpacing : _svgShMR);
+  // _svgShOff: offset past shape 1; the text gap is controlled by renderer.tipLabelSpacing.
+  const _svgShOff = _svgShML + _svgShSz + (_svgActiveExtras.length > 0 ? _svgShSpacing : 0);
   // Total width of all active extra shapes with inter-shape gaps.
   let _svgExtraTotalOff = 0;
   for (let _i = 0; _i < _svgActiveExtras.length; _i++) {
     const _idx = _svgActiveExtras[_i];
     _svgExtraTotalOff += _svgExtraShSzs[_idx]
-      + (_i < _svgActiveExtras.length - 1 ? _svgShSpacing : _svgShMR);
+      + (_i < _svgActiveExtras.length - 1 ? _svgShSpacing : 0);
   }
-  const _svgTxOff = _svgShOff + _svgExtraTotalOff;  // total x offset from baseX to text
+  const _svgTxOff = _svgShOff + _svgExtraTotalOff + chLblSp;  // total x offset from baseX to text
 
   for (const [, node] of nm) {
     const nx = toSX(node.x), ny = toSY(node.y);
@@ -649,11 +648,11 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       }
       if (node.isTip && !node.isCollapsed) {
         const labelText = renderer._tipLabelText ? renderer._tipLabelText(node) : node.name;
-        const baseX  = alignLabelX ?? (nx + outlineR + 3);
+        const baseX  = alignLabelX ?? (nx + outlineR);
         // Connector line (dashed / dots / solid aligned modes only — only when labels are shown).
         if (labelText && alignLabelX !== null && _align !== 'aligned') {
-          const tipEdgeX = nx + outlineR + 2;
-          const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0) - 2;
+          const tipEdgeX = nx + outlineR;
+          const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0);
           if (lineEndX - tipEdgeX >= 8) {
             let dashAttr = '';
             if (_align === 'dashed') dashAttr = ` stroke-dasharray="3 4"`;
@@ -701,7 +700,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
             } else {
               shapeParts.push(`<rect x="${f(_shapeXX)}" y="${f(ny - _halfSz)}" width="${f(_sSz)}" height="${f(_sSz)}" fill="${esc(_xFill)}"/>`);
             }
-            _xOff += _sSz + (_i < _svgActiveExtras.length - 1 ? _svgShSpacing : _svgShMR);
+            _xOff += _sSz + (_i < _svgActiveExtras.length - 1 ? _svgShSpacing : 0);
           }
         }
         // Label text.

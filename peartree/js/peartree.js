@@ -250,7 +250,6 @@ async function _initCore(root = document) {
   const tipLabelShapePaletteRow      = $('tip-label-shape-palette-row');
   const tipLabelShapePaletteSelect   = $('tip-label-shape-palette-select');
   const tipLabelShapeMarginLeftSlider  = $('tip-label-shape-margin-left-slider');
-  const tipLabelShapeMarginRightSlider = $('tip-label-shape-margin-right-slider');
   const tipLabelShapeSpacingSlider     = $('tip-label-shape-spacing-slider');
   const tipLabelShapeSizeSlider        = $('tip-label-shape-size-slider');
   const tipLabelShapeDetailEl        = $('tip-label-shape-detail');
@@ -969,7 +968,6 @@ async function _initCore(root = document) {
       tipLabelShapeColourBy: tipLabelShapeColourBy.value,
       tipLabelShapeSize:    tipLabelShapeSizeSlider.value,
       tipLabelShapeMarginLeft:  tipLabelShapeMarginLeftSlider.value,
-      tipLabelShapeMarginRight: tipLabelShapeMarginRightSlider.value,
       tipLabelShapeSpacing:     tipLabelShapeSpacingSlider.value,
       tipLabelShapesExtra:        tipLabelShapeExtraEls.map(e => e.value),
       tipLabelShapeExtraColourBys: tipLabelShapeExtraColourBys.map(e => e.value),
@@ -1145,10 +1143,6 @@ async function _initCore(root = document) {
     if (s.tipLabelShapeMarginLeft != null) {
       tipLabelShapeMarginLeftSlider.value = s.tipLabelShapeMarginLeft;
       $('tip-label-shape-margin-left-value').textContent = s.tipLabelShapeMarginLeft;
-    }
-    if (s.tipLabelShapeMarginRight != null) {
-      tipLabelShapeMarginRightSlider.value = s.tipLabelShapeMarginRight;
-      $('tip-label-shape-margin-right-value').textContent = s.tipLabelShapeMarginRight;
     }
     if (s.tipLabelShapeSpacing != null) {
       tipLabelShapeSpacingSlider.value = s.tipLabelShapeSpacing;
@@ -1370,8 +1364,6 @@ async function _initCore(root = document) {
     tipLabelShapeColourBy.value  = 'user_colour';
     tipLabelShapeMarginLeftSlider.value  = DEFAULT_SETTINGS.tipLabelShapeMarginLeft;
     $('tip-label-shape-margin-left-value').textContent  = DEFAULT_SETTINGS.tipLabelShapeMarginLeft;
-    tipLabelShapeMarginRightSlider.value = DEFAULT_SETTINGS.tipLabelShapeMarginRight;
-    $('tip-label-shape-margin-right-value').textContent = DEFAULT_SETTINGS.tipLabelShapeMarginRight;
     tipLabelShapeSpacingSlider.value = DEFAULT_SETTINGS.tipLabelShapeSpacing;
     $('tip-label-shape-spacing-value').textContent = DEFAULT_SETTINGS.tipLabelShapeSpacing;
     tipLabelShapeSizeSlider.value = DEFAULT_SETTINGS.tipLabelShapeSize;
@@ -1501,7 +1493,6 @@ async function _initCore(root = document) {
       tipLabelShapeColor:      tipLabelShapeColorEl.value,
       tipLabelShapeSize:        parseInt(tipLabelShapeSizeSlider.value),
       tipLabelShapeMarginLeft:  parseInt(tipLabelShapeMarginLeftSlider.value),
-      tipLabelShapeMarginRight: parseInt(tipLabelShapeMarginRightSlider.value),
       tipLabelShapeSpacing:     parseInt(tipLabelShapeSpacingSlider.value),
       tipLabelShapesExtra:      tipLabelShapeExtraEls.map(e => e.value),
       tipLabelTypefaceKey:   tipLabelTypefaceEl?.value || null,
@@ -1812,10 +1803,6 @@ async function _initCore(root = document) {
   if (_saved.tipLabelShapeMarginLeft != null) {
     tipLabelShapeMarginLeftSlider.value = _saved.tipLabelShapeMarginLeft;
     $('tip-label-shape-margin-left-value').textContent = _saved.tipLabelShapeMarginLeft;
-  }
-  if (_saved.tipLabelShapeMarginRight != null) {
-    tipLabelShapeMarginRightSlider.value = _saved.tipLabelShapeMarginRight;
-    $('tip-label-shape-margin-right-value').textContent = _saved.tipLabelShapeMarginRight;
   }
   if (_saved.tipLabelShapeSpacing != null) {
     tipLabelShapeSpacingSlider.value = _saved.tipLabelShapeSpacing;
@@ -6059,13 +6046,6 @@ async function _initCore(root = document) {
     const v = parseInt(tipLabelShapeMarginLeftSlider.value);
     $('tip-label-shape-margin-left-value').textContent = v;
     renderer.setTipLabelShapeMarginLeft(v);
-    saveSettings(); _markCustomTheme();
-  });
-
-  tipLabelShapeMarginRightSlider.addEventListener('input', () => {
-    const v = parseInt(tipLabelShapeMarginRightSlider.value);
-    $('tip-label-shape-margin-right-value').textContent = v;
-    renderer.setTipLabelShapeMarginRight(v);
     saveSettings(); _markCustomTheme();
   });
 

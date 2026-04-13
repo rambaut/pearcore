@@ -124,7 +124,6 @@ export const DEFAULT_SETTINGS = {
   tipLabelShapeSize:         '50',      // 1–100: % of scaleY for square/circle; ×0.1 width factor for block
   tipLabelShapeColor:        '#aaaaaa',
   tipLabelShapeMarginLeft:   '2',
-  tipLabelShapeMarginRight:  '3',
   tipLabelShapeSpacing:      '3',
   // Extra tip label shapes 2–10 (shown immediately to the right of shape 1; share shape 1's size/colour)
   tipLabelShapesExtra:       ['off', 'off', 'off', 'off', 'off', 'off', 'off', 'off', 'off'],

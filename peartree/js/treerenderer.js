@@ -151,7 +151,6 @@ export class TreeRenderer {
     this._tipLabelShapeColor       = '#aaaaaa';
     this._tipLabelShapeSize        = 50;     // 1–100: % of scaleY (square/circle) or absolute px width (block)
     this._tipLabelShapeMarginLeft  = 2;      // px gap before shape
-    this._tipLabelShapeMarginRight = 3;      // px gap after the last shape (before label text)
     this._tipLabelShapeSpacing     = 3;      // px gap between consecutive shapes
     // Extra tip-label shapes 2–10 (share shape 1's colour/size; progressive disclosure)
     this._tipLabelShapesExtra         = Array(9).fill('off');  // shape type per extra slot
@@ -227,7 +226,6 @@ export class TreeRenderer {
     this._tipLabelShapeColor       = s.tipLabelShapeColor       ?? '#aaaaaa';
     this._tipLabelShapeSize        = +(s.tipLabelShapeSize        ?? 50);
     this._tipLabelShapeMarginLeft  = +(s.tipLabelShapeMarginLeft  ?? 2);
-    this._tipLabelShapeMarginRight = +(s.tipLabelShapeMarginRight ?? 3);
     this._tipLabelShapeSpacing     = +(s.tipLabelShapeSpacing     ?? 3);
     // ── Extra tip-label shapes 2–10 (share shape 1's colour/size) ────
     // Always reinitialise the shapes array (setSettings fully resets visual state).
@@ -1027,12 +1025,9 @@ export class TreeRenderer {
     this._dirty = true;
   }
 
-  /** Set the right margin (px) between the last shape and the label text. */
+  /** Legacy no-op kept for compatibility with older saved settings/UI code. */
   setTipLabelShapeMarginRight(n) {
-    this._tipLabelShapeMarginRight = n;
-    this._measureLabels();
-    this._updateScaleX(false);
-    this._dirty = true;
+    void n;
   }
 
   /** Set the spacing (px) between consecutive tip-label shapes. */
@@ -1524,21 +1519,21 @@ export class TreeRenderer {
     }
     const r = this.tipRadius;
     const tipOuterR = r > 0 ? r + this.tipHaloSize : 0;
-    // Count active extra shapes to determine inter-shape gap (spacing vs marginRight).
+    // Count active extra shapes to determine the total label-shape width.
     const _activeExtras = [];
     if (this._tipLabelShape !== 'off') {
       for (const s of this._tipLabelShapesExtra) { if (s === 'off') break; _activeExtras.push(s); }
     }
     const shapeExtra = this._tipLabelShape !== 'off'
       ? this._tipLabelShapeMarginLeft + this._shapeSize(this._tipLabelShapeSize, this._tipLabelShape)
-        + (_activeExtras.length > 0 ? this._tipLabelShapeSpacing : this._tipLabelShapeMarginRight)
+        + (_activeExtras.length > 0 ? this._tipLabelShapeSpacing : 0)
       : 0;
     let shapesExtraWidth = 0;
     for (let i = 0; i < _activeExtras.length; i++) {
       shapesExtraWidth += this._shapeSize(this._tipLabelShapeSize, _activeExtras[i])
-        + (i < _activeExtras.length - 1 ? this._tipLabelShapeSpacing : this._tipLabelShapeMarginRight);
+        + (i < _activeExtras.length - 1 ? this._tipLabelShapeSpacing : 0);
     }
-    this.labelRightPad = this._maxLabelWidth + Math.max(tipOuterR, 5) + 5 + shapeExtra + shapesExtraWidth + (this.paddingRight ?? 10);
+    this.labelRightPad = this._maxLabelWidth + Math.max(tipOuterR, 5) + 5 + this.tipLabelSpacing + shapeExtra + shapesExtraWidth + (this.paddingRight ?? 10);
   }
 
   /** Recompute scaleX so the tree always fills the full viewport width.
@@ -2989,30 +2984,30 @@ export class TreeRenderer {
     // Always use the aligned column when the layout option is set, even when
     // tip labels are hidden due to density, so shapes stay in the same column.
     const alignLabelX = (_align && _align !== 'off')
-      ? this._wx(this.maxX) + outlineR + tipLabelSpacing
+      ? this._wx(this.maxX) + outlineR
       : null;
 
     // Tip-label shapes: thin coloured swatches drawn to the left of label text.
     const _shape    = this._tipLabelShape;
     const _shSz     = _shape !== 'off' ? this._shapeSize(this._tipLabelShapeSize, _shape) : 0;
     const _shML      = _shape !== 'off' ? this._tipLabelShapeMarginLeft  : 0;
-    const _shMR      = _shape !== 'off' ? this._tipLabelShapeMarginRight : 0;
     const _shSpacing = _shape !== 'off' ? this._tipLabelShapeSpacing     : 0;
     // Extra shapes (2..N): each uses shape 1's size/spacing; drawn sequentially after shape 1.
     const _extraShapes = _shape !== 'off' ? this._tipLabelShapesExtra : [];
     // Collect active extra shapes (terminate at first 'off').
     const _activeXShapes = [];
     for (const s of _extraShapes) { if (s === 'off') break; _activeXShapes.push(s); }
-    // Offset from baseX past shape 1: uses _shSpacing if extras follow, else _shMR.
-    const _shOffset = _shML + _shSz + (_activeXShapes.length > 0 ? _shSpacing : _shMR);
+    // Offset from baseX past shape 1: extra shapes sit immediately after shape 1,
+    // and tipLabelSpacing controls the final gap between the rightmost shape and text.
+    const _shOffset = _shML + _shSz + (_activeXShapes.length > 0 ? _shSpacing : 0);
     // Total width of all active extra shapes with appropriate inter-shape gaps.
     let _extraTotalOff = 0;
     for (let i = 0; i < _activeXShapes.length; i++) {
       _extraTotalOff += this._shapeSize(this._tipLabelShapeSize, _activeXShapes[i])
-        + (i < _activeXShapes.length - 1 ? _shSpacing : _shMR);
+        + (i < _activeXShapes.length - 1 ? _shSpacing : 0);
     }
     // Helper: text x position for a given base x (all shapes accounted for).
-    const _tx = (baseX) => baseX + _shOffset + _extraTotalOff;
+    const _tx = (baseX) => baseX + _shOffset + _extraTotalOff + tipLabelSpacing;
 
     // Pass 3 – labels (two sub-passes when selection active: dim then bright)
     if (showLabels) {
@@ -3040,7 +3035,7 @@ export class TreeRenderer {
             const N    = node.collapsedRealTips;
             const topY = node.y - (N - 1) / 2;
             const tipEdgeX = this._wx(node.collapsedMaxX);
-            const lineEndX = alignLabelX + (_shOffset > 0 ? _shML : 0) - tipLabelSpacing;
+            const lineEndX = alignLabelX + (_shOffset > 0 ? _shML : 0);
             if (lineEndX - tipEdgeX >= 8) {
               for (let i = 0; i < N; i++) {
                 const wy = topY + i;
@@ -3058,9 +3053,9 @@ export class TreeRenderer {
           // Regular tips: cull by node.y.
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
-          const tipEdgeX = this._wx(node.x) + outlineR + tipLabelSpacing;
+          const tipEdgeX = this._wx(node.x) + outlineR;
           // End just before shape (or text when no shape), leaving a gap.
-          const lineEndX = alignLabelX + (_shOffset > 0 ? _shML : 0) - tipLabelSpacing;
+          const lineEndX = alignLabelX + (_shOffset > 0 ? _shML : 0);
           if (lineEndX - tipEdgeX < 8) continue;  // tip already at/near label column
           const sy = this._wy(node.y);
           ctx.moveTo(tipEdgeX, sy);
@@ -3079,7 +3074,7 @@ export class TreeRenderer {
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
-          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR + tipLabelSpacing);
+          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
           if (_t) ctx.fillText(_t, _tx(_bX), this._wy(node.y));
         }
         // Sub-pass 3b: selected labels in bold + selected colour
@@ -3091,7 +3086,7 @@ export class TreeRenderer {
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
-          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR + tipLabelSpacing);
+          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
           if (_t) ctx.fillText(_t, _tx(_bX), this._wy(node.y));
         }
         ctx.font = this._tipFont(this.fontSize);
@@ -3105,7 +3100,7 @@ export class TreeRenderer {
           const _t = this._tipLabelText(node);
           if (!_t) continue;
           const val = this._statValue(node, key);
-          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR + tipLabelSpacing);
+          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
           ctx.fillStyle = this._labelColourForValue(val) ?? this.labelColor;
           ctx.fillText(_t, _tx(_bX), this._wy(node.y));
         }
@@ -3117,7 +3112,7 @@ export class TreeRenderer {
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
-          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR + tipLabelSpacing);
+          const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
           if (_t) ctx.fillText(_t, _tx(_bX), this._wy(node.y));
         }
       }
@@ -3157,7 +3152,7 @@ export class TreeRenderer {
           const _labelY  = Math.max(node.y - _halfN, Math.min(node.y + _halfN,
                              Math.max(yWorldMin, Math.min(yWorldMax, node.y))));
           const tipEdgeX = this._wx(node.collapsedMaxX);
-          const lineEndX = alignLabelX + (_shOffset > 0 ? _shML : 0) - tipLabelSpacing;
+          const lineEndX = alignLabelX + (_shOffset > 0 ? _shML : 0);
           if (lineEndX - tipEdgeX < 8) continue;
           ctx.moveTo(tipEdgeX, this._wy(_labelY));
           ctx.lineTo(lineEndX, this._wy(_labelY));
@@ -3178,7 +3173,7 @@ export class TreeRenderer {
         if (!_hasName && node.collapsedTipNames && Math.round(node.collapsedTipCount) >= node.collapsedRealTips) {
           const N    = node.collapsedRealTips;
           const topY = node.y - (N - 1) / 2;
-          const _bX  = alignLabelX ?? (this._wx(node.collapsedMaxX) + tipLabelSpacing);
+          const _bX  = alignLabelX ?? (this._wx(node.collapsedMaxX));
           for (let i = 0; i < node.collapsedTipNames.length; i++) {
             const tip = node.collapsedTipNames[i];
             if (!tip.name) continue;
@@ -3207,7 +3202,7 @@ export class TreeRenderer {
           const _labelY = Math.max(node.y - _halfN,
                             Math.min(node.y + _halfN,
                               Math.max(yWorldMin, Math.min(yWorldMax, node.y))));
-          const _bX  = alignLabelX ?? (this._wx(node.collapsedMaxX) + tipLabelSpacing);
+          const _bX  = alignLabelX ?? (this._wx(node.collapsedMaxX));
           const label = _hasName ? _nodeName.trim() : `${node.collapsedRealTips} tips`;
           ctx.font = this._font(_cladeFontSize, this._collapsedCladeTypefaceKey, this._collapsedCladeTypefaceStyle);
           if (dim) {
@@ -3238,7 +3233,7 @@ export class TreeRenderer {
         if (node.isCollapsed) continue;
         if (node.y < yWorldMin || node.y > yWorldMax) continue;
         const sy     = this._wy(node.y);
-        const baseX  = alignLabelX ?? (this._wx(node.x) + outlineR + tipLabelSpacing);
+        const baseX  = alignLabelX ?? (this._wx(node.x) + outlineR);
         const shapeX = baseX + _shML;
         ctx.fillStyle = _hasSc
           ? (this._tipLabelShapeColourForValue(this._statValue(node, _shKey)) ?? this._tipLabelShapeColor)
@@ -3271,7 +3266,7 @@ export class TreeRenderer {
           if (!node.isTip) continue;
           if (node.isCollapsed) continue;
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
-          const baseX   = alignLabelX ?? (this._wx(node.x) + outlineR + tipLabelSpacing);
+          const baseX   = alignLabelX ?? (this._wx(node.x) + outlineR);
           const shapeXX = baseX + extraOff;
           const sy      = this._wy(node.y);
           ctx.fillStyle = _hasXSc
@@ -3288,7 +3283,7 @@ export class TreeRenderer {
             ctx.fillRect(shapeXX, sy - halfSzX, _shSzX, _shSzX);
           }
         }
-        extraOff += _shSzX + (i < _activeXShapes.length - 1 ? _shSpacing : _shMR);
+        extraOff += _shSzX + (i < _activeXShapes.length - 1 ? _shSpacing : 0);
       }
     }
   }
