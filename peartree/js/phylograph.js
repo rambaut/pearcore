@@ -510,7 +510,7 @@ export function injectBuiltinStats(schema, nodes, maxX, maxY, cal) {
     const minDecYear = cal.heightToDecYear(maxX);
     const maxDecYear = cal.heightToDecYear(0);
     const def = {
-      name: '__cal_date__', label: 'Calendar date',
+      name: '__cal_date__', label: 'Year',
       dataType: 'real', min: minDecYear, max: maxDecYear,
       observedMin: minDecYear, observedMax: maxDecYear,
       onTips: true, onNodes: true, builtin: true,

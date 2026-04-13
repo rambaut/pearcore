@@ -3469,6 +3469,7 @@ async function _initCore(root = document) {
       const _newDate = axisDateAnnotEl.value;
       if (_newDate !== _prevDate) {
         rttChart?.recomputeCalibration?.();
+        if (_newDate) _ensureDateInTable(_newDate);
       }
     }
     // Re-apply programmatically configured data table columns after each schema
@@ -3852,6 +3853,7 @@ async function _initCore(root = document) {
       // Recompute OLS calibration; onCalibrationChange syncs axisDateFmtRow, renderer.setCalibration,
       // _updateTimeOption, clamp-row visibility, and the axis renderer.
       rttChart.recomputeCalibration();
+      if (_dateToUse) _ensureDateInTable(_dateToUse);
 
       // Re-inject built-in stats (adds __cal_date__ to schema) then restore any saved cal-date
       // selections that were unavailable when the dropdowns were first populated above.
@@ -6575,6 +6577,8 @@ async function _initCore(root = document) {
     // Recompute OLS calibration; onCalibrationChange syncs axisDateFmtRow, _updateTimeOption,
     // clamp-row, _showDateTickRows, renderer.setCalibration, and the axis renderer.
     rttChart?.recomputeCalibration?.();
+    // If a date annotation is now active, ensure it appears in the data table.
+    if (axisDateAnnotEl.value) _ensureDateInTable(axisDateAnnotEl.value);
     // Repopulate label dropdowns to add/remove Calendar date options, then sync renderer.
     // Pass autoSelectDate:false so the user's explicit choice of "(none)" is not overridden.
     _refreshAnnotationUIs(renderer?._annotationSchema ?? new Map(), { autoSelectDate: false });
@@ -6585,6 +6589,19 @@ async function _initCore(root = document) {
     }
     saveSettings();
   });
+
+  /**
+   * Ensure `key` appears as a column in the data table.
+   * If the key is already present (or the data table isn't ready), this is a no-op.
+   * Only adds — never removes — to avoid disrupting the user's column selection.
+   */
+  function _ensureDateInTable(key) {
+    if (!dataTableRenderer || !key) return;
+    const { columns } = dataTableRenderer.getState();
+    if (!columns.includes(key)) {
+      dataTableRenderer.setColumns([...columns, key]);
+    }
+  }
 
   btnFit?.addEventListener('click', () => renderer.fitToWindow());
   $('btn-fit-labels')?.addEventListener('click', () => renderer.fitLabels());
