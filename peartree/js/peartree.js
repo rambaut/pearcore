@@ -2560,9 +2560,11 @@ async function _initCore(root = document) {
     numBodyEl:    $('dt-num-body'),
     onClose: () => {
       btnDataTable?.classList.remove('active');
+      _syncDtLabel?.();
     },
     onPinChange: (pinned) => {
       document.body.classList.toggle('dt-pinned', pinned);
+      _syncDtLabel?.();
       // Drive renderer._resize() through the full transition so the canvas
       // smoothly gains or releases the space the panel occupies.
       _resizeDuringTransition();
@@ -2637,6 +2639,7 @@ async function _initCore(root = document) {
       // In overlay mode the canvas doesn't resize on open; in pinned mode the
       // onPinChange callback already drives _resizeDuringTransition.
     }
+    _syncDtLabel?.();
   });
 
   // Wire the resize handle
@@ -2763,9 +2766,11 @@ async function _initCore(root = document) {
     },
     onClose: () => {
       btnRtt?.classList.remove('active');
+      _syncRttLabel?.();
     },
     onPinChange: (pinned) => {
       document.body.classList.toggle('rtt-pinned', pinned);
+      _syncRttLabel?.();
       _resizeDuringTransition();
       saveSettings();
     },
@@ -2798,6 +2803,7 @@ async function _initCore(root = document) {
       rttChart.open();
       btnRtt?.classList.add('active');
     }
+    _syncRttLabel?.();
   });
 
   $('export-tree-close').addEventListener('click', _closeExportDialog);
@@ -7262,7 +7268,59 @@ async function _initCore(root = document) {
   // Wire up UI panel behaviours (palette, help, about, keyboard shortcuts,
   // toolbar height tracking) for this instance.  The function is exposed by
   // peartree-ui.js; it's a no-op when running without the UI script.
-  window.initPearTreeUIBindings?.(root);
+  const _uiBindings = window.initPearTreeUIBindings?.(root);
+
+  // ── Panel-toggle menu commands (Options Panel, RTT Plot, Data Table) ─────────────
+  // Each command opens+pins the corresponding panel (or closes it when already
+  // open).  The native menu label flips between “Show…” and “Hide…” via setLabel.
+
+  function _syncOptPanelLabel() {
+    const open = _uiBindings?.palette.isOpen() ?? false;
+    commands.setLabel('view-options-panel', open ? 'Hide Options Panel' : 'Show Options Panel');
+  }
+  function _syncRttLabel() {
+    commands.setLabel('view-rtt-plot', rttChart?.isOpen() ? 'Hide RTT Plot' : 'Show RTT Plot');
+  }
+  function _syncDtLabel() {
+    commands.setLabel('view-data-table', dataTableRenderer?.isOpen() ? 'Hide Data Table' : 'Show Data Table');
+  }
+
+  if (_uiBindings?.palette) {
+    commands.get('view-options-panel').exec = () => {
+      if (_uiBindings.palette.isOpen()) {
+        _uiBindings.palette.close();
+      } else {
+        _uiBindings.palette.pin();
+      }
+    };
+    _uiBindings.palette.onChange(_syncOptPanelLabel);
+    // Sync label for the initial pinned-on-startup case.
+    _syncOptPanelLabel();
+  }
+
+  commands.get('view-rtt-plot').exec = () => {
+    if (rttChart?.isOpen()) {
+      rttChart.close();
+      btnRtt?.classList.remove('active');
+    } else if (rttChart) {
+      rttChart.open();
+      rttChart.setPin(true);
+      btnRtt?.classList.add('active');
+    }
+    _syncRttLabel();
+  };
+
+  commands.get('view-data-table').exec = () => {
+    if (dataTableRenderer?.isOpen()) {
+      dataTableRenderer.close();
+    } else if (dataTableRenderer) {
+      dataTableRenderer.open();
+      dataTableRenderer.pin();
+      btnDataTable?.classList.add('active');
+    }
+    _syncDtLabel();
+  };
+
   return window.peartree;
 
 }

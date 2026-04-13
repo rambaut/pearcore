@@ -972,7 +972,12 @@ function initPearTreeUIBindings(root) {
   const btnPalettePin   = $('btn-palette-pin');
   const PALETTE_PIN_KEY = 'peartree-palette-pinned';
   let   palettePinned   = false;
+  let   _paletteOnChange = null;
   palettePanel.inert = true;  // off-screen by default; inert removes from tab order
+
+  function _notifyPaletteChange() {
+    _paletteOnChange?.(palettePanel.classList.contains('open'), palettePinned);
+  }
 
   function _afterPanelTransition() {
     const DURATION = 250;
@@ -994,6 +999,7 @@ function initPearTreeUIBindings(root) {
     }
     btnPalette.classList.add('active');
     _afterPanelTransition();
+    _notifyPaletteChange();
   }
   function closePalette() {
     palettePanel.classList.remove('open', 'advanced', 'pinned');
@@ -1001,6 +1007,7 @@ function initPearTreeUIBindings(root) {
     _bodyOrWrap().classList.remove('palette-pinned');
     btnPalette.classList.remove('active');
     _afterPanelTransition();
+    _notifyPaletteChange();
   }
   function pinPalette() {
     palettePinned = true;
@@ -1013,6 +1020,7 @@ function initPearTreeUIBindings(root) {
     btnPalettePin.innerHTML = '<i class="bi bi-pin-angle-fill"></i>';
     btnPalette.classList.add('active');
     _afterPanelTransition();
+    _notifyPaletteChange();
   }
   function unpinPalette() {
     palettePinned = false;
@@ -1023,6 +1031,7 @@ function initPearTreeUIBindings(root) {
     btnPalettePin.title = 'Pin panel open';
     btnPalettePin.innerHTML = '<i class="bi bi-pin-angle"></i>';
     _afterPanelTransition();
+    _notifyPaletteChange();
   }
 
   if (palettePanel && window.peartreeConfig?.ui?.palette !== false) {
@@ -1221,6 +1230,19 @@ function initPearTreeUIBindings(root) {
     _updateToolbarH();
     new ResizeObserver(_updateToolbarH).observe(_toolbar);
   }
+
+  // Return a palette controller so peartree.js can drive and observe the panel.
+  return {
+    palette: {
+      open:     openPalette,
+      close:    closePalette,
+      pin:      pinPalette,
+      unpin:    unpinPalette,
+      isOpen:   () => palettePanel.classList.contains('open'),
+      isPinned: () => palettePinned,
+      onChange: (fn) => { _paletteOnChange = fn; },
+    },
+  };
 }
 
 // Expose so _initCore() can call it once per instance.
