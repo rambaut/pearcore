@@ -2174,8 +2174,8 @@ export class TreeRenderer {
    *
    * Right-edge modes
    *   'hardTips'    – vertical line at the rightmost tip x + padding
-   *   'hardLabels'  – just left of the start of tip-label text + padding
-   *   'hardAlign'   – just left of the aligned-label column (when align is on), else hardLabels
+   *   'hardAlign'   – global aligned-label column left edge + padding
+   *   'hardRight'   – right edge of the canvas minus right padding
    *   'outlineTips' – staircase outline following individual tip x values + padding
    */
   _drawCladeHighlights(yWorldMin, yWorldMax) {
@@ -2197,9 +2197,9 @@ export class TreeRenderer {
     const shapeW      = this._totalLabelShapeWidth?.() ?? 0;
 
     // Determine global right-edge X (CSS px from canvas left)
-    // 'hardAlign': use the aligned column start (= tipMaxSX + outlineR + labelSpacing)
-    // 'hardLabels': just before label text = tipMaxSX + tipR + labelSpacing + shapeW
-    // 'hardTips':   just right of the rightmost tip circle
+    // 'hardTips':   just right of the clade's rightmost tip circle + padding
+    // 'hardAlign':  global aligned-label column left edge + padding
+    // 'hardRight':  canvas right edge minus canvas right padding (no extra pad)
     const outlineR  = tipR + (this.tipHaloSize ?? 1);
     const lblSpacing = this.tipLabelSpacing ?? 3;
 
@@ -2208,11 +2208,9 @@ export class TreeRenderer {
       const sx = this._wx(tipXmax);
       switch (rightMode) {
         case 'hardTips':   return sx + outlineR + pad;
-        case 'hardLabels': return sx + outlineR + lblSpacing + shapeW + pad;
-        case 'hardAlign':  return (this.tipLabelAlign && this.tipLabelAlign !== 'off')
-          ? tipMaxSX + outlineR + lblSpacing + shapeW + pad
-          : sx + outlineR + lblSpacing + shapeW + pad;
-        default:           return sx + outlineR + lblSpacing + shapeW + pad;  // hardLabels
+        case 'hardAlign':  return tipMaxSX + outlineR;
+        case 'hardRight':  return this.canvas.clientWidth - (this.paddingRight ?? 10);
+        default:           return tipMaxSX + outlineR + lblSpacing + shapeW + pad;
       }
     };
 

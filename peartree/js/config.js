@@ -148,7 +148,7 @@ export const DEFAULT_SETTINGS = {
   introAnimation:     'x-then-y',
   // Clade highlights
   cladeHighlightLeftEdge:      'hard',
-  cladeHighlightRightEdge:     'hardLabels',
+  cladeHighlightRightEdge:     'hardAlign',
   cladeHighlightPadding:       '6',
   cladeHighlightRadius:        '4',
   cladeHighlightStrokeWidth:   '1',
