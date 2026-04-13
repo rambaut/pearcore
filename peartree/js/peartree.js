@@ -1383,6 +1383,8 @@ async function _initCore(root = document) {
       _applyAxisTypeface();
       renderer.setMode('nodes');
       renderer.setNodeLabelAnnotation(null);
+      // Push all DOM state (including shape = 'off') to the renderer in one pass.
+      renderer.setSettings(_buildRendererSettings());
       applyLegend();
       applyAxis();
       applyTickOptions();
