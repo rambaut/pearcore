@@ -4362,7 +4362,6 @@ async function _initCore(root = document) {
       commands.setEnabled('tree-paint',       hasSelection);
       const hasMrca = !!renderer._mrcaNodeId;
       commands.setEnabled('tree-highlight-clade',  hasMrca);
-      commands.setEnabled('tree-remove-highlight', hasMrca && renderer._cladeHighlights.has(renderer._mrcaNodeId));
       commands.setEnabled('tree-clear-highlights', renderer._cladeHighlights.size > 0);
       // Update status-bar selection count for canvas-click selections.
       // Filter-driven selections update it directly in _applyTipFilter.
@@ -4880,11 +4879,11 @@ async function _initCore(root = document) {
     function _resolveHighlightColour() {
       const colourBy = cladeHighlightColourByEl?.value ?? 'user_colour';
       if (colourBy === 'user_colour') {
-        return cladeHighlightDefaultColourEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
+        return tipColourPickerEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
       }
       // Attribute-based colour: find most-frequent categorical value among descendant tips.
       const nodeId = renderer._mrcaNodeId;
-      if (!nodeId || !renderer.nodeMap) return cladeHighlightDefaultColourEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
+      if (!nodeId || !renderer.nodeMap) return tipColourPickerEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
       const tipIds = renderer._getDescendantTipIds(nodeId);
       const freq = new Map();
       for (const tipId of tipIds) {
@@ -4892,11 +4891,11 @@ async function _initCore(root = document) {
         const val  = node?.annotations?.[colourBy];
         if (val != null && val !== '') freq.set(val, (freq.get(val) ?? 0) + 1);
       }
-      if (freq.size === 0) return cladeHighlightDefaultColourEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
+      if (freq.size === 0) return tipColourPickerEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
       const mostCommon = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
       // Try to find the colour for this value via the renderer's colour scale.
       const colour = renderer._getAnnotationColour?.(colourBy, mostCommon);
-      return colour ?? cladeHighlightDefaultColourEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
+      return colour ?? tipColourPickerEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour;
     }
 
     function _refreshHighlightList() {
@@ -4942,7 +4941,6 @@ async function _initCore(root = document) {
     _refreshHighlightListFn = _refreshHighlightList;
 
     const btnHighlightClade = $('btn-highlight-clade');
-    const btnRemoveHighlight = $('btn-remove-highlight');
     const btnClearHighlights = $('btn-clear-highlights');
 
     btnHighlightClade?.addEventListener('click', () => {
@@ -4951,33 +4949,48 @@ async function _initCore(root = document) {
       const colour = _resolveHighlightColour();
       renderer.addCladeHighlight(nodeId, colour);
       _refreshHighlightList();
-      commands.setEnabled('tree-remove-highlight', true);
       commands.setEnabled('tree-clear-highlights', true);
       saveSettings();
     });
 
-    btnRemoveHighlight?.addEventListener('click', () => {
-      const nodeId = renderer._mrcaNodeId;
-      if (!nodeId) return;
-      renderer.removeCladeHighlight(nodeId);
-      _refreshHighlightList();
-      commands.setEnabled('tree-remove-highlight', false);
-      commands.setEnabled('tree-clear-highlights', renderer._cladeHighlights.size > 0);
-      saveSettings();
-    });
-
     btnClearHighlights?.addEventListener('click', () => {
-      renderer.clearCladeHighlights();
+      const mrcaId = renderer._mrcaNodeId;
+
+      // Case 1: specific highlighted node selected — remove without confirm
+      if (mrcaId && renderer._cladeHighlights.has(mrcaId)) {
+        renderer.removeCladeHighlight(mrcaId);
+        _refreshHighlightList();
+        commands.setEnabled('tree-clear-highlights', renderer._cladeHighlights.size > 0);
+        saveSettings();
+        return;
+      }
+
+      // Case 2 & 3: collect highlights under mrcaId, subtree root, or all
+      const rootId = mrcaId ?? renderer._viewSubtreeRootId ?? null;
+      const toRemove = [...renderer._cladeHighlights.keys()].filter(id => {
+        if (!rootId) return true;
+        let n = renderer.nodeMap?.get(id);
+        while (n) {
+          if (n.id === rootId) return true;
+          n = n.parentId ? renderer.nodeMap.get(n.parentId) : null;
+        }
+        return false;
+      });
+      if (toRemove.length === 0) return;
+      const msg = toRemove.length === 1
+        ? 'Remove this clade highlight?'
+        : `Remove ${toRemove.length} clade highlights?`;
+      if (!confirm(msg)) return;
+      toRemove.forEach(id => renderer.removeCladeHighlight(id));
       _refreshHighlightList();
-      commands.setEnabled('tree-remove-highlight', false);
-      commands.setEnabled('tree-clear-highlights', false);
+      commands.setEnabled('tree-clear-highlights', renderer._cladeHighlights.size > 0);
       saveSettings();
     });
 
     btnPaintHighlight?.addEventListener('click', () => {
       const nodeId = renderer._mrcaNodeId;
       if (!nodeId || !renderer._cladeHighlights.has(nodeId)) return;
-      renderer.setCladeHighlightColour(nodeId, cladeHighlightDefaultColourEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour);
+      renderer.setCladeHighlightColour(nodeId, tipColourPickerEl?.value ?? DEFAULT_SETTINGS.cladeHighlightColour);
       _refreshHighlightList();
       saveSettings();
     });
@@ -4989,10 +5002,6 @@ async function _initCore(root = document) {
     });
     cladeHighlightRightEdgeEl?.addEventListener('change', () => {
       renderer?.setCladeHighlightStyle({ cladeHighlightRightEdge: cladeHighlightRightEdgeEl.value });
-      saveSettings();
-    });
-    cladeHighlightDefaultColourEl?.addEventListener('input', () => {
-      renderer?.setCladeHighlightStyle({ cladeHighlightColour: cladeHighlightDefaultColourEl.value });
       saveSettings();
     });
     cladeHighlightPaddingSlider?.addEventListener('input', () => {

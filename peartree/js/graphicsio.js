@@ -21,6 +21,36 @@ function svgTextEsc(s) {
 }
 
 /**
+ * @private Build a pseudo-canvas 2D path recorder that emits SVG path data.
+ * Mirrors the subset of canvas API used by the clade-outline path helpers.
+ * @param {function} fmt  Number-formatting function (e.g. n => n.toFixed(2))
+ */
+function makeSvgPath(fmt) {
+  const parts = [];
+  let cx = 0, cy = 0;
+  return {
+    moveTo(x, y)  { parts.push(`M${fmt(x)},${fmt(y)}`); cx = x; cy = y; },
+    lineTo(x, y)  { parts.push(`L${fmt(x)},${fmt(y)}`); cx = x; cy = y; },
+    arcTo(x1, y1, x2, y2, r) {
+      const dx0 = x1 - cx, dy0 = y1 - cy;
+      const d0  = Math.hypot(dx0, dy0);
+      const dx1 = x2 - x1, dy1 = y2 - y1;
+      const d1  = Math.hypot(dx1, dy1);
+      if (!d0 || !d1 || r <= 0) { parts.push(`L${fmt(x1)},${fmt(y1)}`); cx = x1; cy = y1; return; }
+      const ux0 = dx0/d0, uy0 = dy0/d0, ux1 = dx1/d1, uy1 = dy1/d1;
+      const t   = Math.min(r, d0, d1);
+      const tx0 = x1 - ux0*t, ty0 = y1 - uy0*t;
+      const tx1 = x1 + ux1*t, ty1 = y1 + uy1*t;
+      const sweep = (ux0*uy1 - uy0*ux1) > 0 ? 1 : 0;
+      parts.push(`L${fmt(tx0)},${fmt(ty0)} A${r},${r} 0 0 ${sweep} ${fmt(tx1)},${fmt(ty1)}`);
+      cx = tx1; cy = ty1;
+    },
+    closePath() { parts.push('Z'); },
+    get d() { return parts.join(' '); },
+  };
+}
+
+/**
  * Return CSS-pixel dimensions of the full composite viewport.
  *
  * @param {Object} ctx
@@ -284,6 +314,161 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     _appendLegendBlock(legendParts, lr2Key, lx2, ttH, 0, 'lgrd2');
   }
 
+  // ── Clade highlights (vector, drawn before branches) ─────────────────
+  const cladeHighlightParts = [];
+  if (renderer._cladeHighlights?.size && renderer.nodes && nm) {
+    const chPad     = renderer.cladeHighlightPadding;
+    const chR       = renderer.cladeHighlightRadius;
+    const leftMode  = renderer.cladeHighlightLeftEdge;
+    const rightMode = renderer.cladeHighlightRightEdge;
+    const fillOp    = renderer.cladeHighlightFillOpacity;
+    const strokeOp  = renderer.cladeHighlightStrokeOpacity;
+    const strokeW   = renderer.cladeHighlightStrokeWidth;
+    const chTipR    = Math.max(renderer.tipRadius ?? 3.5, 0);
+    const chOutR    = chTipR + (renderer.tipHaloSize ?? 1);
+    const chLblSp   = renderer.tipLabelSpacing ?? 3;
+    const chShpW    = renderer._totalLabelShapeWidth?.() ?? 0;
+
+    const _chRightX = (tipXmax) => {
+      const tipSX = toSX(tipXmax);
+      switch (rightMode) {
+        case 'hardTips':   return tipSX + chOutR + chPad;
+        case 'hardAlign':  return (renderer.tipLabelAlign && renderer.tipLabelAlign !== 'off')
+          ? toSX(renderer.maxX) + chOutR + chLblSp + chShpW + chPad
+          : tipSX + chOutR + chLblSp + chShpW + chPad;
+        default:           return tipSX + chOutR + chLblSp + chShpW + chPad;  // hardLabels
+      }
+    };
+
+    // SVG equivalents of the three canvas outline-path helpers.
+    function _chTopPath(p, rootNode) {
+      const topChild = n => n.isTip || !n.children?.length ? null
+        : n.children.map(id => nm.get(id)).filter(Boolean).reduce((b, c) => c.y < b.y ? c : b);
+      p.moveTo(toSX(rootNode.x) - chPad, toSY(rootNode.y));
+      let cur = rootNode, prevSY_ = toSY(rootNode.y);
+      while (true) {
+        const child = topChild(cur);
+        if (!child) break;
+        const cx_ = toSX(cur.x)   - chPad;
+        const cy_ = toSY(child.y) - chPad;
+        const nx_ = toSX(child.x) - chPad;
+        const vd  = prevSY_ - cy_, hd = nx_ - cx_;
+        const cr  = chR > 0 ? Math.min(chR, vd > 0 ? vd*0.45 : chR, hd > 0 ? hd*0.45 : chR) : 0;
+        if (cr > 0) { p.lineTo(cx_, cy_ + cr); p.arcTo(cx_, cy_, nx_, cy_, cr); }
+        else        { p.lineTo(cx_, cy_); }
+        p.lineTo(nx_, cy_);
+        prevSY_ = cy_; cur = child;
+      }
+    }
+
+    function _chBotPath(p, rootNode) {
+      const botChild = n => n.isTip || !n.children?.length ? null
+        : n.children.map(id => nm.get(id)).filter(Boolean).reduce((b, c) => c.y > b.y ? c : b);
+      const spine = []; let cur = rootNode;
+      while (cur) { spine.push(cur); cur = botChild(cur); }
+      spine.reverse();
+      for (let i = 0; i < spine.length - 1; i++) {
+        const child  = spine[i], parent = spine[i + 1];
+        const isLast = i === spine.length - 2;
+        const cornX  = toSX(parent.x) - chPad;
+        const cornY  = toSY(child.y)  + chPad;
+        const nextY_ = toSY(parent.y) + (isLast ? 0 : chPad);
+        const hd = toSX(child.x) - toSX(parent.x), vd = cornY - nextY_;
+        const cr = chR > 0 ? Math.min(chR, hd > 0 ? hd*0.45 : chR, vd > 0 ? vd*0.45 : chR) : 0;
+        if (cr > 0) { p.lineTo(cornX + cr, cornY); p.arcTo(cornX, cornY, cornX, nextY_, cr); }
+        else        { p.lineTo(cornX, cornY); }
+        p.lineTo(cornX, nextY_);
+      }
+    }
+
+    function _chRightPath(p, tipNodes, startY_, endY_) {
+      const sxArr = tipNodes.map(t => toSX(t.x) + chOutR + chLblSp + chShpW + chPad);
+      for (let i = 0; i < tipNodes.length; i++) {
+        const sx       = sxArr[i];
+        const prevSX_  = i > 0 ? sxArr[i - 1] : null;
+        const nextSX_  = i < tipNodes.length - 1 ? sxArr[i + 1] : null;
+        const prevMidY = i === 0 ? startY_ : (toSY(tipNodes[i-1].y) + toSY(tipNodes[i].y)) / 2;
+        const nextMidY = i < tipNodes.length - 1 ? (toSY(tipNodes[i].y) + toSY(tipNodes[i+1].y)) / 2 : endY_;
+        const vd = nextMidY - prevMidY;
+        const topConvex = prevSX_ === null || sx >= prevSX_;
+        const cr_top = chR > 0 && topConvex
+          ? Math.min(chR, vd > 0 ? vd*0.45 : chR, prevSX_ !== null ? Math.abs(sx - prevSX_)*0.45 : chR) : 0;
+        if (cr_top > 0) { p.lineTo(sx - cr_top, prevMidY); p.arcTo(sx, prevMidY, sx, prevMidY + cr_top, cr_top); }
+        else            { p.lineTo(sx, prevMidY); }
+        const botConvex = nextSX_ === null || nextSX_ < sx;
+        const cr_bot = chR > 0 && botConvex
+          ? Math.min(chR, vd > 0 ? vd*0.45 : chR, nextSX_ !== null ? (sx - nextSX_)*0.45 : chR) : 0;
+        if (cr_bot > 0) { p.lineTo(sx, nextMidY - cr_bot); p.arcTo(sx, nextMidY, sx - cr_bot, nextMidY, cr_bot); }
+        else            { p.lineTo(sx, nextMidY); }
+      }
+    }
+
+    function _chRoundedRect(p, x, y, w, h, r) {
+      const br = Math.min(r, w/2, h/2);
+      if (br <= 0) { p.moveTo(x, y); p.lineTo(x+w, y); p.lineTo(x+w, y+h); p.lineTo(x, y+h); p.closePath(); return; }
+      p.moveTo(x + br, y);
+      p.lineTo(x + w - br, y); p.arcTo(x+w, y,   x+w, y+br,   br);
+      p.lineTo(x + w, y + h - br); p.arcTo(x+w, y+h, x+w-br, y+h, br);
+      p.lineTo(x + br, y + h); p.arcTo(x, y+h, x, y+h-br, br);
+      p.lineTo(x, y + br); p.arcTo(x, y, x+br, y, br);
+      p.closePath();
+    }
+
+    for (const [nodeId, hlData] of renderer._cladeHighlights) {
+      const rootN = nm.get(nodeId);
+      if (!rootN) continue;
+      const allTipIds = renderer._getDescendantTipIds(nodeId);
+      if (rootN.isTip && !allTipIds.includes(nodeId)) allTipIds.push(nodeId);
+      if (!allTipIds.length) continue;
+
+      const colour   = hlData.colour ?? renderer.cladeHighlightColour;
+      const tipNodes = allTipIds.map(id => nm.get(id)).filter(Boolean);
+      tipNodes.sort((a, b) => a.y - b.y);
+      const minTipY  = tipNodes[0].y;
+      const maxTipY  = tipNodes[tipNodes.length - 1].y;
+      const maxTipX  = Math.max(...tipNodes.map(n => n.x));
+      const topPadY_ = toSY(minTipY) - chPad;
+      const botPadY_ = toSY(maxTipY) + chPad;
+
+      const p = makeSvgPath(f);
+      if (leftMode === 'outline' && tipNodes.length > 1) {
+        _chTopPath(p, rootN);
+        const rightX_ = _chRightX(maxTipX);
+        if (rightMode === 'outlineTips') {
+          _chRightPath(p, tipNodes, topPadY_, botPadY_);
+        } else {
+          const cr = chR;
+          p.lineTo(rightX_ - cr, topPadY_);
+          p.arcTo(rightX_, topPadY_, rightX_, topPadY_ + cr, cr);
+          p.lineTo(rightX_, botPadY_ - cr);
+          p.arcTo(rightX_, botPadY_, rightX_ - cr, botPadY_, cr);
+        }
+        _chBotPath(p, rootN);
+        p.closePath();
+      } else {
+        const leftX_ = toSX(rootN.x) - chPad;
+        const cr = Math.min(chR, (botPadY_ - topPadY_) / 2);
+        if (rightMode === 'outlineTips' && tipNodes.length > 1) {
+          p.moveTo(leftX_ + cr, topPadY_);
+          _chRightPath(p, tipNodes, topPadY_, botPadY_);
+          p.lineTo(leftX_ + cr, botPadY_);
+          p.arcTo(leftX_, botPadY_, leftX_, botPadY_ - cr, cr);
+          p.lineTo(leftX_, topPadY_ + cr);
+          p.arcTo(leftX_, topPadY_, leftX_ + cr, topPadY_, cr);
+          p.closePath();
+        } else {
+          _chRoundedRect(p, leftX_, topPadY_, _chRightX(maxTipX) - leftX_, botPadY_ - topPadY_, cr);
+        }
+      }
+
+      const d = p.d;
+      if (fillOp > 0)
+        cladeHighlightParts.push(`<path d="${esc(d)}" fill="${esc(colour)}" fill-opacity="${fillOp}" stroke="none"/>`);
+      if (strokeW > 0 && strokeOp > 0)
+        cladeHighlightParts.push(`<path d="${esc(d)}" fill="none" stroke="${esc(colour)}" stroke-width="${strokeW}" stroke-opacity="${strokeOp}"/>`);
+    }
+  }
+
   // ── Node bars (HPD intervals, drawn behind branches) ──────────────────
   const nodeBarParts = [];
   if (renderer.nodeBarsEnabled) {
@@ -447,7 +632,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
     }
 
     if (ny > -MARGIN && ny < ttH + MARGIN) {
-      if (node.isTip && tr > 0) {
+      if (node.isTip && tr > 0 && !node.isCollapsed) {
         const fill = (renderer._tipColourBy && renderer._tipColourScale)
           ? (renderer._tipColourForValue(node.annotations?.[renderer._tipColourBy]) ?? renderer.tipShapeColor)
           : renderer.tipShapeColor;
@@ -462,7 +647,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
           bgNodeParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${nr}" fill="${esc(nodeBgColor)}" stroke="${esc(nodeBgColor)}" stroke-width="${nodeHaloSW}"/>`);
         fgNodeParts.push(`<circle cx="${f(nx)}" cy="${f(ny)}" r="${nr}" fill="${esc(fill)}"/>`);
       }
-      if (node.isTip) {
+      if (node.isTip && !node.isCollapsed) {
         const labelText = renderer._tipLabelText ? renderer._tipLabelText(node) : node.name;
         const baseX  = alignLabelX ?? (nx + outlineR + 3);
         // Connector line (dashed / dots / solid aligned modes only — only when labels are shown).
@@ -547,6 +732,76 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
           }
           labelParts.push(`<text x="${f(tx)}" y="${f(ty)}" dominant-baseline="${baseline}" text-anchor="${anchor}" font-family="monospace" font-size="${nlfs}px" fill="${esc(nlc)}">${svgTextEsc(nodeLabel)}</text>`);
         }
+      }
+    }
+  }
+
+  // ── Collapsed clade triangles and labels ──────────────────────────────
+  const collapsedCladeParts = [];
+  if (renderer.nodes) {
+    const ccOpacity  = renderer._collapsedCladeOpacity ?? 0.25;
+    const ccLblSp    = renderer.tipLabelSpacing ?? 3;
+    const ccFontSize = renderer._collapsedCladeFontSize ?? fs;
+    for (const node of renderer.nodes) {
+      if (!node.isCollapsed) continue;
+      const halfN  = node.collapsedTipCount / 2;
+      const apexSX = toSX(node.x);
+      const apexSY = toSY(node.y);
+      const baseSX = toSX(node.collapsedMaxX);
+      const tSY    = toSY(node.y - halfN);
+      const bSY    = toSY(node.y + halfN);
+      if (!fullTree && (bSY < -MARGIN || tSY > ttH_eff + MARGIN)) continue;
+
+      const colour = node.collapsedColour ?? renderer.tipShapeColor;
+      const pts    = `${f(apexSX)},${f(apexSY)} ${f(baseSX)},${f(tSY)} ${f(baseSX)},${f(bSY)}`;
+      collapsedCladeParts.push(`<polygon points="${pts}" fill="${esc(colour)}" fill-opacity="${ccOpacity}" stroke="${esc(colour)}" stroke-width="${bw}"/>`);
+
+      // Labels — skip if triangle is too small to show text.
+      const pixH = node.collapsedTipCount * sy;
+      if (pixH < ccFontSize) continue;
+      const _nodeName = node.annotations?.['Name'];
+      const _hasName  = _nodeName?.trim();
+      const bX = alignLabelX ?? (baseSX + ccLblSp);
+      const labelTX = bX + _svgTxOff;
+
+      if (!_hasName && node.collapsedTipNames && Math.round(node.collapsedTipCount) >= node.collapsedRealTips) {
+        // Full-height: render individual tip names.
+        const N      = node.collapsedRealTips;
+        const topWY  = node.y - (N - 1) / 2;
+        for (let i = 0; i < node.collapsedTipNames.length; i++) {
+          const tip = node.collapsedTipNames[i];
+          if (!tip.name) continue;
+          const tipWY = topWY + i;
+          const tipSY = toSY(tipWY);
+          if (!fullTree && (tipSY < -MARGIN || tipSY > ttH_eff + MARGIN)) continue;
+          // Connector line (same dash style as regular tips)
+          if (alignLabelX !== null && _align !== 'aligned') {
+            const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0) - 2;
+            if (lineEndX - baseSX >= 8) {
+              let dashAttr = '';
+              if (_align === 'dashed') dashAttr = ` stroke-dasharray="3 4"`;
+              else if (_align === 'dots')   dashAttr = ` stroke-dasharray="1 4"`;
+              connectorParts.push(`<line x1="${f(baseSX)}" y1="${f(tipSY)}" x2="${f(lineEndX)}" y2="${f(tipSY)}" stroke="${esc(renderer.dimLabelColor)}" stroke-width="0.35"${dashAttr}/>`);
+            }
+          }
+          labelParts.push(`<text x="${f(labelTX)}" y="${f(tipSY)}" dominant-baseline="central" font-family="monospace" font-size="${fs}px" fill="${esc(lc)}">${svgTextEsc(tip.name)}</text>`);
+        }
+      } else {
+        // Name or count label.
+        const label  = _hasName ? _nodeName.trim() : `${node.collapsedRealTips} tips`;
+        const labelY = Math.max(node.y - halfN, Math.min(node.y + halfN, node.y));
+        const labelSY = toSY(labelY);
+        // Connector line for the single clade label.
+        if (alignLabelX !== null && _align !== 'aligned') {
+          const lineEndX = alignLabelX + (_svgShOff > 0 ? _svgShML : 0) - ccLblSp;
+          if (lineEndX - baseSX >= 8) {
+            let dashAttr = '';
+            if (_align === 'dashed') dashAttr = ` stroke-dasharray="3 4"`;
+            else if (_align === 'dots')   dashAttr = ` stroke-dasharray="1 4"`;
+            connectorParts.push(`<line x1="${f(baseSX)}" y1="${f(labelSY)}" x2="${f(lineEndX)}" y2="${f(labelSY)}" stroke="${esc(renderer.dimLabelColor)}" stroke-width="0.35"${dashAttr}/>`);
+          }
+        }
+        labelParts.push(`<text x="${f(labelTX)}" y="${f(labelSY)}" dominant-baseline="central" font-family="monospace" font-size="${ccFontSize}px" fill="${esc(lc)}">${svgTextEsc(label)}</text>`);
       }
     }
   }
@@ -669,10 +924,16 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
   ${bgParts.join('\n  ')}
   ${legendParts.join('\n  ')}
   <g clip-path="url(#tc)">
+    ${cladeHighlightParts.join('\n    ')}
+  </g>
+  <g clip-path="url(#tc)">
     ${nodeBarParts.join('\n    ')}
   </g>
   <g clip-path="url(#tc)" stroke="${esc(bc)}" stroke-width="${bw}" fill="none" stroke-linecap="round">
     ${branchParts.join('\n    ')}
+  </g>
+  <g clip-path="url(#tc)">
+    ${collapsedCladeParts.join('\n    ')}
   </g>
   <g clip-path="url(#tc)">
     ${bgNodeParts.join('\n    ')}
