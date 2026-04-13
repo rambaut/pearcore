@@ -133,25 +133,25 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
         const obsMin = def.observedMin ?? def.min;
         const obsMax = def.observedMax ?? def.max;
         const obsCell = `<span style="font-family:monospace">${_fmtNum(obsMin)}</span>
-                   <span style="color:rgba(255,255,255,0.3);padding:0 3px">…</span>
+                   <span style="color:var(--pt-text-muted);padding:0 3px">…</span>
                    <span style="font-family:monospace">${_fmtNum(obsMax)}</span>`;
         rows.push(`
           <tr data-name="${esc(name)}" data-builtin="1" class="ca-row-fixed">
             <td><span class="ca-name">${displayName}</span>
-              <span style="margin-left:5px;font-size:0.68rem;color:rgba(255,255,255,0.3);font-style:italic">computed</span></td>
+              <span style="margin-left:5px;font-size:0.68rem;color:var(--pt-text-muted);font-style:italic">computed</span></td>
             <td><span class="ca-type-badge ca-type-${esc(def.dataType)}">${esc(def.dataType)}</span></td>
-            <td class="ca-center" style="color:rgba(255,255,255,0.45);font-size:0.72rem">${onStr}</td>
+            <td class="ca-center" style="color:var(--pt-text-subdued);font-size:0.72rem">${onStr}</td>
             <td>${obsCell}</td>
-            <td><span style="color:rgba(255,255,255,0.2)">—</span></td>
+            <td><span style="color:var(--pt-text-dim)">—</span></td>
             <td class="ca-center">
               ${def.onTips
                 ? `<input type="checkbox" class="ca-table-chk" data-name="${esc(name)}"
                     ${_tableColumns.has(name) ? 'checked' : ''}
                     title="Show in data table panel"
                     style="cursor:pointer;accent-color:var(--pt-teal,#2aa198)">`
-                : `<span style="color:rgba(255,255,255,0.15)" title="Node-only attribute">—</span>`}
+                : `<span style="color:var(--pt-text-dim)" title="Node-only attribute">—</span>`}
             </td>
-            <td class="ca-center"><span style="color:rgba(255,255,255,0.15)" title="Cannot be deleted">—</span></td>
+            <td class="ca-center"><span style="color:var(--pt-text-dim)" title="Cannot be deleted">—</span></td>
           </tr>`);
         continue;
       }
@@ -171,7 +171,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       const boundsOverridden = p.min !== undefined || p.max !== undefined ||
                                p._boundsMode === 'nonneg' || p._boundsMode === 'prob';
       const boundsColor = (def.fixedBounds || boundsOverridden)
-        ? 'var(--pt-gold)' : 'rgba(255,255,255,0.4)';
+        ? 'var(--pt-gold)' : 'var(--pt-text-subdued)';
 
       const onStr = (def.onTips && def.onNodes) ? 'T+N' : (def.onTips ? 'T' : 'N');
       const isSelected = name === _selected;
@@ -180,26 +180,26 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       let obsCell;
       if (isNum) {
         obsCell = `<span style="font-family:monospace">${_fmtNum(obsMin)}</span>
-                   <span style="color:rgba(255,255,255,0.3);padding:0 3px">…</span>
+                   <span style="color:var(--pt-text-muted);padding:0 3px">…</span>
                    <span style="font-family:monospace">${_fmtNum(obsMax)}</span>`;
       } else if (type === 'date' && def.min != null && def.max != null) {
         obsCell = `<span style="font-family:monospace">${esc(def.min)}</span>
-                   <span style="color:rgba(255,255,255,0.3);padding:0 3px">…</span>
+                   <span style="color:var(--pt-text-muted);padding:0 3px">…</span>
                    <span style="font-family:monospace">${esc(def.max)}</span>`;
       } else if (type === 'categorical' && def.values) {
-        obsCell = `<span style="color:rgba(255,255,255,0.5)">${def.values.length} values</span>`;
+        obsCell = `<span style="color:var(--pt-text-subdued)">${def.values.length} values</span>`;
       } else {
-        obsCell = '<span style="color:rgba(255,255,255,0.3)">—</span>';
+        obsCell = '<span style="color:var(--pt-text-muted)">—</span>';
       }
 
       // Scale bounds column
       let boundsCell;
       if (isNum) {
         boundsCell = `<span style="font-family:monospace;color:${boundsColor}">${_fmtNum(scaleMin)}</span>
-                      <span style="color:rgba(255,255,255,0.3);padding:0 3px">…</span>
+                      <span style="color:var(--pt-text-muted);padding:0 3px">…</span>
                       <span style="font-family:monospace;color:${boundsColor}">${_fmtNum(scaleMax)}</span>`;
       } else {
-        boundsCell = '<span style="color:rgba(255,255,255,0.2)">—</span>';
+        boundsCell = '<span style="color:var(--pt-text-dim)">—</span>';
       }
 
       // Has pending changes marker
@@ -217,7 +217,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
             <span class="ca-name">${esc(def.label ?? name)}</span>
           </td>
           <td><span class="ca-type-badge ca-type-${esc(type)}">${esc(type)}</span></td>
-          <td class="ca-center" style="color:rgba(255,255,255,0.45);font-size:0.72rem">${onStr}</td>
+          <td class="ca-center" style="color:var(--pt-text-subdued);font-size:0.72rem">${onStr}</td>
           <td>${obsCell}</td>
           <td>${boundsCell}</td>
           <td class="ca-center">
@@ -226,14 +226,14 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
                   ${_tableColumns.has(name) ? 'checked' : ''}
                   title="Show in data table panel"
                   style="cursor:pointer;accent-color:var(--pt-teal,#2aa198)">`
-              : `<span style="color:rgba(255,255,255,0.2)" title="Node-only attribute">—</span>`}
+              : `<span style="color:var(--pt-text-dim)" title="Node-only attribute">—</span>`}
           </td>
           <td class="ca-center">${delBtn}</td>
         </tr>`);
     }
 
     tbody.innerHTML = rows.length ? rows.join('') :
-      '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3);padding:16px">No annotations</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;color:var(--pt-text-muted);padding:16px">No annotations</td></tr>';
 
     // Table checkbox handlers
     for (const chk of tbody.querySelectorAll('.ca-table-chk')) {
@@ -308,7 +308,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
         .join('');
       detail.innerHTML =
           `<div class="ca-detail-header"><i class="bi bi-tag me-1"></i>${displayName}</div>`
-        + `<div class="ca-row" style="color:rgba(255,255,255,0.45);font-size:0.78rem;margin-top:4px">`
+        + `<div class="ca-row" style="color:var(--pt-text-subdued);font-size:0.78rem;margin-top:4px">`
         + `<i class="bi bi-lock-fill me-2" style="opacity:0.45"></i>Computed attribute — read-only</div>`
         + `<div class="ca-section-lbl" style="margin-top:10px">Palette</div>`
         + `<div class="ca-row"><label class="ca-row-lbl">Colour scheme</label>`
@@ -391,7 +391,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
         preview = vals.map(v => `<span class="ca-mono" style="margin-right:6px">${esc(v)}</span>`).join('');
       } else {
         preview = [vals[0], vals[1], vals[2]].map(v => `<span class="ca-mono" style="margin-right:6px">${esc(v)}</span>`).join('')
-                + `<span style="color:rgba(255,255,255,0.4);margin-right:6px">\u2026</span>`
+                + `<span style="color:var(--pt-text-muted);margin-right:6px">\u2026</span>`
                 + `<span class="ca-mono">${esc(vals[vals.length - 1])}</span>`;
       }
       html += `<div class="ca-section-lbl" style="margin-top:10px">Values <span class="ca-hint">${vals.length} distinct</span></div>`
@@ -415,7 +415,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
       if (currentType === 'proportion' || currentType === 'percentage') {
         const [fbMin, fbMax] = currentType === 'proportion' ? [0, 1] : [0, 100];
         html += `<div class="ca-section-lbl" style="margin-top:10px">Scale bounds</div>`
-              + `<div class="ca-row" style="color:rgba(255,255,255,0.55);font-size:0.78rem">`
+              + `<div class="ca-row" style="color:var(--pt-text-subdued);font-size:0.78rem">`
               + `<i class="bi bi-lock-fill me-2" style="opacity:0.5"></i>`
               + `Fixed by type: <span class="ca-mono" style="margin:0 6px">${fbMin} … ${fbMax}</span>`
               + `<span class="ca-hint">(change type to Real to adjust)</span>`
@@ -552,7 +552,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
         const label = n.name.length > 60 ? n.name.slice(0, 57) + '\u2026' : n.name;
         return `<div>${esc(label)}</div>`;
       }).join('') + (tips.length > MAX
-        ? `<div style="color:rgba(255,255,255,0.3)">… ${tips.length - MAX} more</div>`
+        ? `<div style="color:var(--pt-text-muted)">… ${tips.length - MAX} more</div>`
         : '');
       examplesWrap.style.display = '';
     } else {
