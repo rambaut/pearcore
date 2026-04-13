@@ -290,6 +290,9 @@ async function _initCore(root = document) {
   const legend4HeightPctSlider  = $('legend4-height-pct-slider');
   const legend4DetailEl         = $('legend4-detail');
   const legend4SectionEl        = $('legend4-section');
+  // Cascade memory for legends 2–4 (index 0=legend2, 1=legend3, 2=legend4)
+  const _legendAnnotEls  = [legend2AnnotEl, legend3AnnotEl, legend4AnnotEl];
+  const _legendMemory    = [null, null, null];
   const axisCanvas             = $('axis-canvas');
   const axisShowEl             = $('axis-show');
   const axisDateAnnotEl        = $('axis-date-annotation');
@@ -1305,6 +1308,7 @@ async function _initCore(root = document) {
     legend3HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct3;
     $('legend3-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct3 + '%';
     legend4AnnotEl.value     = '';
+    _legendMemory.fill(null);
     legend4ShowEl.value      = DEFAULT_SETTINGS.legend4Position;
     legend4HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct4;
     $('legend4-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct4 + '%';
@@ -3742,6 +3746,7 @@ async function _initCore(root = document) {
       legend2AnnotEl.value       = _hasOpt(legend2AnnotEl,       _eff.legendAnnotation2)     ? _eff.legendAnnotation2     : '';
       legend3AnnotEl.value       = _hasOpt(legend3AnnotEl,       _eff.legendAnnotation3)     ? _eff.legendAnnotation3     : '';
       legend4AnnotEl.value       = _hasOpt(legend4AnnotEl,       _eff.legendAnnotation4)     ? _eff.legendAnnotation4     : '';
+      _legendMemory.fill(null);
       tipLabelShow.value  = _hasOpt(tipLabelShow,  _eff.tipLabelShow)     ? _eff.tipLabelShow     : 'names';
       tipLabelControlsEl.style.display = tipLabelShow.value === 'off' ? 'none' : '';
       nodeLabelShowEl.value = _hasOpt(nodeLabelShowEl, _eff.nodeLabelAnnotation) ? _eff.nodeLabelAnnotation : '';
@@ -6193,12 +6198,34 @@ async function _initCore(root = document) {
     _syncControlVisibility();
   }
 
+  function _resetLegendFrom(startIdx) {
+    for (let i = startIdx; i < _legendAnnotEls.length; i++) {
+      if (_legendAnnotEls[i].value !== '') {
+        _legendMemory[i] = _legendAnnotEls[i].value;
+        _legendAnnotEls[i].value = '';
+      }
+    }
+  }
+
+  function _restoreLegendFrom(startIdx) {
+    for (let i = startIdx; i < _legendAnnotEls.length; i++) {
+      if (_legendMemory[i] !== null) {
+        _legendAnnotEls[i].value = _legendMemory[i];
+        _legendMemory[i] = null;
+      } else {
+        break;
+      }
+    }
+  }
+
   legendAnnotEl.addEventListener('change', () => {
-    if (!legendAnnotEl.value) { legend2AnnotEl.value = ''; legend3AnnotEl.value = ''; legend4AnnotEl.value = ''; }
+    if (!legendAnnotEl.value) _resetLegendFrom(0);
+    else _restoreLegendFrom(0);
     applyLegend();
   });
   legend2AnnotEl.addEventListener('change', () => {
-    if (!legend2AnnotEl.value) { legend3AnnotEl.value = ''; legend4AnnotEl.value = ''; }
+    if (!legend2AnnotEl.value) _resetLegendFrom(1);
+    else _restoreLegendFrom(1);
     applyLegend();
   });
   legend2ShowEl .addEventListener('change', applyLegend);
@@ -6207,7 +6234,8 @@ async function _initCore(root = document) {
     applyLegend();
   });
   legend3AnnotEl.addEventListener('change', () => {
-    if (!legend3AnnotEl.value) legend4AnnotEl.value = '';
+    if (!legend3AnnotEl.value) _resetLegendFrom(2);
+    else _restoreLegendFrom(2);
     applyLegend();
   });
   legend3ShowEl .addEventListener('change', applyLegend);
