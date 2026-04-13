@@ -197,6 +197,8 @@ async function _initCore(root = document) {
   const nodeBarsShowEl      = $('node-bars-show');
   const nodeBarsColorEl     = $('node-bars-color');
   const nodeBarsWidthSlider = $('node-bars-width-slider');
+  const nodeBarsFillOpacitySlider   = $('node-bars-fill-opacity');
+  const nodeBarsStrokeOpacitySlider = $('node-bars-stroke-opacity');
   const nodeBarsMedianEl    = $('node-bars-median');
   const nodeBarsRangeEl     = $('node-bars-range');
   const nodeBarsControlsEl  = $('node-bars-controls');
@@ -949,11 +951,13 @@ async function _initCore(root = document) {
       rttMinorInterval:     rttMinorIntervalEl.value,
       rttMajorLabelFormat:  rttMajorLabelEl.value,
       rttMinorLabelFormat:  rttMinorLabelEl.value,
-      nodeBarsEnabled:    nodeBarsShowEl.value,
-      nodeBarsColor:      nodeBarsColorEl.value,
-      nodeBarsWidth:      nodeBarsWidthSlider.value,
-      nodeBarsShowMedian: nodeBarsMedianEl.value,
-      nodeBarsShowRange:  nodeBarsRangeEl.value,
+      nodeBarsEnabled:         nodeBarsShowEl.value,
+      nodeBarsColor:           nodeBarsColorEl.value,
+      nodeBarsWidth:           nodeBarsWidthSlider.value,
+      nodeBarsFillOpacity:     nodeBarsFillOpacitySlider.value,
+      nodeBarsStrokeOpacity:   nodeBarsStrokeOpacitySlider.value,
+      nodeBarsShowMedian:      nodeBarsMedianEl.value,
+      nodeBarsShowRange:       nodeBarsRangeEl.value,
       collapsedCladeOpacity:  collapsedOpacitySlider.value,
       collapsedCladeHeightN:  collapsedHeightNSlider.value,
       collapsedCladeFontSize: collapsedCladeFontSizeSlider.value,
@@ -1220,6 +1224,14 @@ async function _initCore(root = document) {
       nodeBarsWidthSlider.value = s.nodeBarsWidth;
       $('node-bars-width-value').textContent = s.nodeBarsWidth;
     }
+    if (s.nodeBarsFillOpacity != null) {
+      nodeBarsFillOpacitySlider.value = s.nodeBarsFillOpacity;
+      $('node-bars-fill-opacity-value').textContent = s.nodeBarsFillOpacity;
+    }
+    if (s.nodeBarsStrokeOpacity != null) {
+      nodeBarsStrokeOpacitySlider.value = s.nodeBarsStrokeOpacity;
+      $('node-bars-stroke-opacity-value').textContent = s.nodeBarsStrokeOpacity;
+    }
     if (s.nodeBarsShowMedian) nodeBarsMedianEl.value = s.nodeBarsShowMedian;
     if (s.nodeBarsShowRange)  nodeBarsRangeEl.value  = s.nodeBarsShowRange;
     if (s.collapsedCladeOpacity != null) {
@@ -1336,6 +1348,10 @@ async function _initCore(root = document) {
     nodeBarsColorEl.value = DEFAULT_SETTINGS.nodeBarsColor;
     nodeBarsWidthSlider.value = DEFAULT_SETTINGS.nodeBarsWidth;
     $('node-bars-width-value').textContent = DEFAULT_SETTINGS.nodeBarsWidth;
+    nodeBarsFillOpacitySlider.value = DEFAULT_SETTINGS.nodeBarsFillOpacity;
+    $('node-bars-fill-opacity-value').textContent = DEFAULT_SETTINGS.nodeBarsFillOpacity;
+    nodeBarsStrokeOpacitySlider.value = DEFAULT_SETTINGS.nodeBarsStrokeOpacity;
+    $('node-bars-stroke-opacity-value').textContent = DEFAULT_SETTINGS.nodeBarsStrokeOpacity;
     nodeBarsMedianEl.value = DEFAULT_SETTINGS.nodeBarsShowMedian;
     nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsShowRange;
     rootStemPctSlider.value = DEFAULT_SETTINGS.rootStemPct ?? '0';
@@ -1475,6 +1491,8 @@ async function _initCore(root = document) {
       nodeBarsEnabled:    nodeBarsShowEl.value === 'on',
       nodeBarsColor:      nodeBarsColorEl.value,
       nodeBarsWidth:      parseInt(nodeBarsWidthSlider.value),
+      nodeBarsFillOpacity:   parseFloat(nodeBarsFillOpacitySlider.value),
+      nodeBarsStrokeOpacity: parseFloat(nodeBarsStrokeOpacitySlider.value),
       nodeBarsShowMedian: nodeBarsMedianEl.value,
       nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
       collapsedCladeOpacity:  parseFloat(collapsedOpacitySlider.value),
@@ -6396,6 +6414,14 @@ async function _initCore(root = document) {
   nodeBarsColorEl.addEventListener('input', applyNodeBars);
   nodeBarsWidthSlider.addEventListener('input', () => {
     $('node-bars-width-value').textContent = nodeBarsWidthSlider.value;
+    applyNodeBars();
+  });
+  nodeBarsFillOpacitySlider.addEventListener('input', () => {
+    $('node-bars-fill-opacity-value').textContent = nodeBarsFillOpacitySlider.value;
+    applyNodeBars();
+  });
+  nodeBarsStrokeOpacitySlider.addEventListener('input', () => {
+    $('node-bars-stroke-opacity-value').textContent = nodeBarsStrokeOpacitySlider.value;
     applyNodeBars();
   });
   nodeBarsMedianEl.addEventListener('change', applyNodeBars);

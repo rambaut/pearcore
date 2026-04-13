@@ -290,7 +290,9 @@ export class TreeRenderer {
     this.nodeBarsColor      = s.nodeBarsColor      ?? '#2aa198';
     this.nodeBarsWidth      = s.nodeBarsWidth      ?? 6;
     this.nodeBarsShowMedian = s.nodeBarsShowMedian ?? 'mean';
-    this.nodeBarsShowRange  = s.nodeBarsShowRange  ?? false;
+    this.nodeBarsShowRange       = s.nodeBarsShowRange       ?? false;
+    this.nodeBarsFillOpacity   = s.nodeBarsFillOpacity   != null ? +s.nodeBarsFillOpacity   : 0.22;
+    this.nodeBarsStrokeOpacity = s.nodeBarsStrokeOpacity != null ? +s.nodeBarsStrokeOpacity : 0.55;
 
     // ── Calendar-date label support ───────────────────────────────────────
     // calCalibration: active TreeCalibration instance (or null)
@@ -2252,25 +2254,28 @@ export class TreeRenderer {
         }
         const gapAbove = prevY === -Infinity ? halfRowPx : (minTipY - prevY) * this.scaleY * 0.5;
         const gapBelow = nextY === Infinity  ? halfRowPx : (nextY - maxTipY) * this.scaleY * 0.5;
-        topSY = this._wy(minTipY) - Math.min(gapAbove, halfRowPx);
-        botSY = this._wy(maxTipY) + Math.min(gapBelow, halfRowPx);
+        topSY = this._wy(minTipY) - gapAbove;   // actual midpoint to next tip above
+        botSY = this._wy(maxTipY) + gapBelow;   // actual midpoint to next tip below
       }
 
-      // Left boundary
-      const rootSX = this._wx(rootN.x);
+      // Left boundary: min(pad, midpoint between root node and its parent in x)
+      const rootSX  = this._wx(rootN.x);
+      const parentN = rootN.parent != null ? this.nodeMap.get(rootN.parent) : null;
+      const gapLeft = parentN ? (rootSX - this._wx(parentN.x)) * 0.5 : pad;
+      const leftPad = Math.min(pad, gapLeft);
 
       ctx.save();
       ctx.beginPath();
 
-      // Padded screen y at the topmost and bottommost tips — used for the
-      // outline corner points so tip-y-padding is consistent with x-padding.
-      const topPadY = this._wy(minTipY) - pad;
-      const botPadY = this._wy(maxTipY) + pad;
+      // Top/bottom screen Y: use the smaller of the padding value and the midpoint
+      // to the next tip outside the clade, so the highlight never overlaps neighbours.
+      const topPadY = this._wy(minTipY) - Math.min(pad, this._wy(minTipY) - topSY);
+      const botPadY = this._wy(maxTipY) + Math.min(pad, botSY - this._wy(maxTipY));
 
       if (leftMode === 'outline' && tipNodes.length > 1) {
         // Build an outline path that hugs the left edges of all branches.
         // Top walk ends at (topTip.x − pad, topTip.y − pad).
-        this._buildCladeOutlinePath(ctx, rootN, pad, radius);
+        this._buildCladeOutlinePath(ctx, rootN, pad, radius, leftPad);
         // Right edge: from topPadY down to botPadY, with convex corners rounded.
         const rightX = _rightX(maxTipX);
         if (rightMode === 'outlineTips') {
@@ -2284,11 +2289,11 @@ export class TreeRenderer {
           ctx.arcTo(rightX, botPadY, rightX - cr, botPadY, cr);   // round bottom-right
         }
         // Bottom walk: trace from (rightX or last outlineTips sx, botPadY) back to root.
-        this._addBotCladeOutlinePath(ctx, rootN, pad, radius);
+        this._addBotCladeOutlinePath(ctx, rootN, pad, radius, leftPad);
         ctx.closePath();
       } else {
         // Hard left edge
-        const leftX = rootSX - pad;
+        const leftX = rootSX - leftPad;
         const cr = Math.min(radius, (botPadY - topPadY) / 2);
         if (rightMode === 'outlineTips' && tipNodes.length > 1) {
           // Hard left, right outlines individual tips as staircase.
@@ -2360,7 +2365,7 @@ export class TreeRenderer {
    * Ends at: (topTip.x − pad, topTip.y − pad)
    * Caller then appends the right edge and calls _addBotCladeOutlinePath().
    */
-  _buildCladeOutlinePath(ctx, rootNode, pad, r) {
+  _buildCladeOutlinePath(ctx, rootNode, pad, r, leftPad = pad) {
     // Helper: topmost child node of n (min world y), or null if tip.
     const topChild = n => {
       if (n.isTip || !n.children?.length) return null;
@@ -2368,16 +2373,16 @@ export class TreeRenderer {
         .reduce((best, c) => c.y < best.y ? c : best);
     };
 
-    ctx.moveTo(this._wx(rootNode.x) - pad, this._wy(rootNode.y));
+    ctx.moveTo(this._wx(rootNode.x) - leftPad, this._wy(rootNode.y));
 
     let cur   = rootNode;
     let prevY = this._wy(rootNode.y); // y of the last point placed on the path
     while (true) {
       const child = topChild(cur);
       if (!child) break;
-      const cx  = this._wx(cur.x)   - pad;  // convex corner x
-      const cy  = this._wy(child.y) - pad;  // convex corner y (above child row)
-      const nx  = this._wx(child.x) - pad;  // concave corner x
+      const cx  = this._wx(cur.x)   - leftPad;  // convex corner x
+      const cy  = this._wy(child.y) - pad;       // convex corner y (above child row)
+      const nx  = this._wx(child.x) - leftPad;  // concave corner x
       // Clamp radius to half the vertical approach and half the horizontal departure.
       const vd  = prevY - cy;               // > 0: arriving from below
       const hd  = nx - cx;                  // > 0: leaving rightward
@@ -2406,7 +2411,7 @@ export class TreeRenderer {
    *
    * Ends at (root.x − pad, root.y).  Caller calls closePath().
    */
-  _addBotCladeOutlinePath(ctx, rootNode, pad, r) {
+  _addBotCladeOutlinePath(ctx, rootNode, pad, r, leftPad = pad) {
     // Helper: bottommost child node of n (max world y), or null if tip.
     const botChild = n => {
       if (n.isTip || !n.children?.length) return null;
@@ -2424,8 +2429,8 @@ export class TreeRenderer {
       const child      = spine[i];
       const parent     = spine[i + 1];
       const isLastStep = (i === spine.length - 2); // parent is the clade root
-      const cornerX = this._wx(parent.x) - pad;    // convex corner x
-      const cornerY = this._wy(child.y)  + pad;    // convex corner y (below child row)
+      const cornerX = this._wx(parent.x) - leftPad;  // convex corner x
+      const cornerY = this._wy(child.y)  + pad;        // convex corner y (below child row)
       const nextY   = this._wy(parent.y) + (isLastStep ? 0 : pad); // concave corner y
       // Clamp radius to half the horizontal approach and half the vertical departure.
       const hd = this._wx(child.x) - this._wx(parent.x); // > 0: arriving from right
@@ -2578,7 +2583,7 @@ export class TreeRenderer {
 
     // ── Pass 1: filled HPD rectangle (translucent) ──────────────────────────
     ctx.fillStyle   = col;
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = this.nodeBarsFillOpacity;
     for (const node of this.nodes) {
       if (node.isTip) continue;
       if (node.y < yWorldMin || node.y > yWorldMax) continue;
@@ -2595,7 +2600,7 @@ export class TreeRenderer {
     // ── Pass 2: border stroke ────────────────────────────────────────────────
     ctx.strokeStyle = col;
     ctx.lineWidth   = 1;
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = this.nodeBarsStrokeOpacity;
     ctx.beginPath();
     for (const node of this.nodes) {
       if (node.isTip) continue;
@@ -2616,7 +2621,7 @@ export class TreeRenderer {
       const useMedian = this.nodeBarsShowMedian === 'median';
       ctx.strokeStyle = col;
       ctx.lineWidth   = 2;
-      ctx.globalAlpha = 0.85;
+      ctx.globalAlpha = this.nodeBarsStrokeOpacity;
       ctx.beginPath();
       for (const node of this.nodes) {
         if (node.isTip) continue;
@@ -2649,7 +2654,7 @@ export class TreeRenderer {
       const capH = halfW * 0.6;  // height of whisker end-cap
       ctx.strokeStyle = col;
       ctx.lineWidth   = 1;
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = this.nodeBarsStrokeOpacity;
       ctx.beginPath();
       for (const node of this.nodes) {
         if (node.isTip) continue;

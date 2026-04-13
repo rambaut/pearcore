@@ -114,6 +114,8 @@ export const DEFAULT_SETTINGS = {
   nodeBarsEnabled:    'off',
   nodeBarsColor:      '#444444',
   nodeBarsWidth:      '6',
+  nodeBarsFillOpacity:   '0.22',
+  nodeBarsStrokeOpacity: '0.55',
   nodeBarsShowMedian: 'mean',
   nodeBarsShowRange:  'off',
   // Negative branch lengths
