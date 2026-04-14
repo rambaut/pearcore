@@ -42,6 +42,8 @@ export const REQUIRED_THEME_KEYS = [
   'axisColor', 'axisFontSize', 'axisTypefaceKey', 'axisTypefaceStyle', 'axisLineWidth',
   // Root-to-tip: regression line
   'rttRegressionStyle', 'rttRegressionColor', 'rttRegressionWidth',
+  // Root-to-tip: residual band (±2σ)
+  'rttResidBandColor', 'rttResidBandStyle', 'rttResidBandWidth', 'rttResidBandFillColor', 'rttResidBandFillOpacity',
   // Root-to-tip: statistics box
   'rttStatsBgColor', 'rttStatsTextColor', 'rttStatsFontSize',
   // Root-to-tip: axes
@@ -135,8 +137,7 @@ export const DEFAULT_SETTINGS = {
   axisMajorLabelFormat: 'partial',  // 'component' | 'partial' | 'full' | 'off'
   axisMinorLabelFormat: 'off',      // 'component' | 'partial' | 'full' | 'off'
 
-  // ── Root-to-tip ──────────────────────────────────────────────────────────────────────
-  rttDateFormat:        'yyyy-MM-dd',
+  // ── Root-to-tip ──────────────────────────────────────────────────────────────────────  rttResidBandShow:     'off',     // 'off' | 'on' — show ±2σ residual band  rttDateFormat:        'yyyy-MM-dd',
   rttMajorInterval:     'auto',     // 'auto' | 'millennia' | 'centuries' | 'decades' | 'years' | 'quarters' | 'months' | 'weeks' | 'days'
   rttMinorInterval:     'off',      // 'off' | same values as rttMajorInterval (populated dynamically)
   rttMajorLabelFormat:  'partial',  // 'component' | 'partial' | 'full' | 'off'

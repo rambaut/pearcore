@@ -52,6 +52,12 @@ export function createRTTChart({
   getRegressionColor,
   getRegressionWidth,
   getRegressionStyle,
+  getResidBandShow,
+  getResidBandStyle,
+  getResidBandColor,
+  getResidBandWidth,
+  getResidBandFillColor,
+  getResidBandFillOpacity,
   getShowRootAge,
   getGridLines,
   getAspectRatio,
@@ -404,9 +410,35 @@ export function createRTTChart({
     if (majLabels.length > 0)
       parts.push(`<g font-family="${esc(font)}" font-size="${fsz}" fill="${esc(axisC)}" fill-opacity="0.90">${majLabels.join('')}</g>`);
 
-    // 7 ── Regression line (clipped to plot area)
+    // 7 ── Residual band + regression line (clipped to plot area)
     const reg = rtt._calibration?.regression;
     if (reg) {
+      // ── Residual band (±2σ) ──
+      if (rtt.residBandShow === 'on' && reg.rmse > 0) {
+        const rmse = reg.rmse;
+        const bx1 = xToS(xMin), bx2 = xToS(xMax);
+        const byHi1 = yToS(reg.a * xMin + reg.b + 2 * rmse);
+        const byHi2 = yToS(reg.a * xMax + reg.b + 2 * rmse);
+        const byLo1 = yToS(reg.a * xMin + reg.b - 2 * rmse);
+        const byLo2 = yToS(reg.a * xMax + reg.b - 2 * rmse);
+        const bandLineColor = rtt.residBandColor || rtt.regressionColor || axisC;
+        const bandFillColor = rtt.residBandFillColor || bandLineColor;
+        const fillOp = parseFloat(rtt.residBandFillOpacity) || 0;
+        if (fillOp > 0) {
+          parts.push(
+            `<g clip-path="url(#rp)">` +
+            `<polygon points="${f(bx1)},${f(byHi1)} ${f(bx2)},${f(byHi2)} ${f(bx2)},${f(byLo2)} ${f(bx1)},${f(byLo1)}"` +
+            ` fill="${esc(bandFillColor)}" fill-opacity="${f(fillOp)}" stroke="none"/>` +
+            `</g>`);
+        }
+        const bandDash = rtt.residBandStyle === 'solid' ? '' : rtt.residBandStyle === 'bigdash' ? '12 5' : '6 4';
+        parts.push(
+          `<g clip-path="url(#rp)" stroke="${esc(bandLineColor)}" stroke-width="${rtt.residBandWidth}" fill="none"${bandDash ? ` stroke-dasharray="${bandDash}"` : ''}>` +
+          `<line x1="${f(bx1)}" y1="${f(byHi1)}" x2="${f(bx2)}" y2="${f(byHi2)}"/>` +
+          `<line x1="${f(bx1)}" y1="${f(byLo1)}" x2="${f(bx2)}" y2="${f(byLo2)}"/>` +
+          `</g>`);
+      }
+      // ── Regression line ──
       const rx1 = xToS(xMin), ry1 = yToS(reg.a * xMin + reg.b);
       const rx2 = xToS(xMax), ry2 = yToS(reg.a * xMax + reg.b);
       parts.push(
@@ -642,6 +674,12 @@ export function createRTTChart({
       regressionColor: getRegressionColor?.() ?? rtt.regressionColor,
       regressionWidth: getRegressionWidth?.() ?? rtt.regressionWidth,
       regressionStyle: getRegressionStyle?.() ?? rtt.regressionStyle,
+      residBandShow:        getResidBandShow?.()        ?? rtt.residBandShow,
+      residBandStyle:       getResidBandStyle?.()       ?? rtt.residBandStyle,
+      residBandColor:       getResidBandColor?.()       ?? rtt.residBandColor,
+      residBandWidth:       getResidBandWidth?.()       ?? rtt.residBandWidth,
+      residBandFillColor:   getResidBandFillColor?.()   ?? rtt.residBandFillColor,
+      residBandFillOpacity: getResidBandFillOpacity?.() ?? rtt.residBandFillOpacity,
     });
     if (getAxisTypeface) {
       const { key, style } = getAxisTypeface();

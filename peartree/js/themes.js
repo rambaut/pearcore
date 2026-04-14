@@ -66,6 +66,12 @@ export const DEFAULT_THEME = {
         "rttRegressionStyle": "dash",
         "rttRegressionColor": "#807e7c",
         "rttRegressionWidth": "1.5",
+        // Root-to-tip: residual band (±2σ)
+        "rttResidBandColor":       "#807e7c",
+        "rttResidBandStyle":       "dash",
+        "rttResidBandWidth":       "1",
+        "rttResidBandFillColor":   "#807e7c",
+        "rttResidBandFillOpacity": "0.1",
         // Root-to-tip: statistics box
         "rttStatsBgColor": "#bfbcb9",
         "rttStatsTextColor": "#4b4b49",

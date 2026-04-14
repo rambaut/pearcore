@@ -323,6 +323,12 @@ async function _initCore(root = document) {
   const rttRegressionStyleEl   = $('rtt-regression-style');
   const rttRegressionColorEl   = $('rtt-regression-color');
   const rttRegressionWidthSlider = $('rtt-regression-width-slider');
+  const rttResidBandShowEl            = $('rtt-resid-band-show');
+  const rttResidBandStyleEl           = $('rtt-resid-band-style');
+  const rttResidBandColorEl           = $('rtt-resid-band-color');
+  const rttResidBandWidthSlider       = $('rtt-resid-band-width-slider');
+  const rttResidBandFillColorEl       = $('rtt-resid-band-fill-color');
+  const rttResidBandFillOpacitySlider = $('rtt-resid-band-fill-opacity-slider');
   const rttAxisFontSizeSlider  = $('rtt-axis-font-size-slider');
   const rttAxisFontFamilyEl    = $('rtt-axis-font-family-select');
   const rttAxisLineWidthSlider = $('rtt-axis-line-width-slider');
@@ -597,6 +603,8 @@ async function _initCore(root = document) {
       rttStatsBgColor:    rttStatsBgColorEl.value,
       rttStatsTextColor:  rttStatsTextColorEl.value,
       rttRegressionColor: rttRegressionColorEl.value,
+      rttResidBandColor:       rttResidBandColorEl.value,
+      rttResidBandFillColor:   rttResidBandFillColorEl.value,
     };
 
     if (themeOnly) return themePart;
@@ -643,6 +651,10 @@ async function _initCore(root = document) {
       rttStatsFontSize:   rttStatsFontSizeSlider.value,
       rttRegressionStyle: rttRegressionStyleEl.value,
       rttRegressionWidth: rttRegressionWidthSlider.value,
+      rttResidBandShow:         rttResidBandShowEl.value,
+      rttResidBandStyle:        rttResidBandStyleEl.value,
+      rttResidBandWidth:        rttResidBandWidthSlider.value,
+      rttResidBandFillOpacity:  rttResidBandFillOpacitySlider.value,
       rttAxisFontSize:    rttAxisFontSizeSlider.value,
       rttAxisTypefaceKey:    rttAxisFontFamilyEl.value,
       rttAxisTypefaceStyle:  rttAxisTypefaceStyleEl?.value || '',
@@ -1247,6 +1259,7 @@ async function _initCore(root = document) {
     _updateMinorOptions(DEFAULT_SETTINGS.axisMajorInterval, DEFAULT_SETTINGS.axisMinorInterval);
     // RTT date/interval controls — visual RTT appearance is set by applyTheme(defaultTheme) above.
     rttDateFmtEl.value       = DEFAULT_SETTINGS.rttDateFormat;
+    rttResidBandShowEl.value = DEFAULT_SETTINGS.rttResidBandShow;
     rttMajorIntervalEl.value = DEFAULT_SETTINGS.rttMajorInterval;
     _updateRttMinorOptions(DEFAULT_SETTINGS.rttMajorInterval, DEFAULT_SETTINGS.rttMinorInterval);
     rttMajorLabelEl.value    = DEFAULT_SETTINGS.rttMajorLabelFormat;
@@ -1620,6 +1633,11 @@ async function _initCore(root = document) {
     rttStatsFontSizeSlider.value       = t.rttStatsFontSize;       $('rtt-stats-font-size-value').textContent     = t.rttStatsFontSize;
     rttRegressionStyleEl.value         = t.rttRegressionStyle;
     rttRegressionWidthSlider.value     = t.rttRegressionWidth;     $('rtt-regression-width-value').textContent    = t.rttRegressionWidth;
+    if (t.rttResidBandColor)    rttResidBandColorEl.value    = t.rttResidBandColor;
+    if (t.rttResidBandFillColor) rttResidBandFillColorEl.value = t.rttResidBandFillColor;
+    if (t.rttResidBandStyle)    rttResidBandStyleEl.value    = t.rttResidBandStyle;
+    if (t.rttResidBandWidth    != null) { rttResidBandWidthSlider.value       = t.rttResidBandWidth;       $('rtt-resid-band-width-value').textContent       = t.rttResidBandWidth; }
+    if (t.rttResidBandFillOpacity != null) { rttResidBandFillOpacitySlider.value = t.rttResidBandFillOpacity; $('rtt-resid-band-fill-opacity-value').textContent = t.rttResidBandFillOpacity; }
     rttAxisFontSizeSlider.value        = t.rttAxisFontSize;        $('rtt-axis-font-size-value').textContent      = t.rttAxisFontSize;
     rttAxisLineWidthSlider.value       = t.rttAxisLineWidth;       $('rtt-axis-line-width-value').textContent     = t.rttAxisLineWidth;
     if (renderer) {
@@ -1891,6 +1909,12 @@ async function _initCore(root = document) {
     rttRegressionWidthSlider.value = _saved.rttRegressionWidth;
     $('rtt-regression-width-value').textContent = _saved.rttRegressionWidth;
   }
+  if (_saved.rttResidBandShow)   rttResidBandShowEl.value  = _saved.rttResidBandShow;
+  if (_saved.rttResidBandStyle)  rttResidBandStyleEl.value = _saved.rttResidBandStyle;
+  if (_saved.rttResidBandColor  != null) rttResidBandColorEl.value  = _saved.rttResidBandColor;
+  if (_saved.rttResidBandWidth  != null) { rttResidBandWidthSlider.value = _saved.rttResidBandWidth; $('rtt-resid-band-width-value').textContent = _saved.rttResidBandWidth; }
+  if (_saved.rttResidBandFillColor != null) rttResidBandFillColorEl.value = _saved.rttResidBandFillColor;
+  if (_saved.rttResidBandFillOpacity != null) { rttResidBandFillOpacitySlider.value = _saved.rttResidBandFillOpacity; $('rtt-resid-band-fill-opacity-value').textContent = _saved.rttResidBandFillOpacity; }
   if (_saved.rttAxisFontSize != null) {
     rttAxisFontSizeSlider.value = _saved.rttAxisFontSize;
     $('rtt-axis-font-size-value').textContent = _saved.rttAxisFontSize;
@@ -2679,6 +2703,12 @@ async function _initCore(root = document) {
     getRegressionStyle: () => rttRegressionStyleEl.value,
     getRegressionColor: () => rttRegressionColorEl.value,
     getRegressionWidth: () => parseFloat(rttRegressionWidthSlider.value),
+    getResidBandShow:         () => rttResidBandShowEl.value,
+    getResidBandStyle:        () => rttResidBandStyleEl.value,
+    getResidBandColor:        () => rttResidBandColorEl.value,
+    getResidBandWidth:        () => parseFloat(rttResidBandWidthSlider.value),
+    getResidBandFillColor:    () => rttResidBandFillColorEl.value,
+    getResidBandFillOpacity:  () => parseFloat(rttResidBandFillOpacitySlider.value),
     getAxisFontSize:   () => parseInt(rttAxisFontSizeSlider.value),
     getAxisFontFamily: () => {
       // Returns just the CSS font-family string (used for rtt.fontFamily and SVG export).
@@ -5984,6 +6014,34 @@ async function _initCore(root = document) {
   });
   rttRegressionWidthSlider.addEventListener('input', () => {
     $('rtt-regression-width-value').textContent = rttRegressionWidthSlider.value;
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttResidBandShowEl.addEventListener('change', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttResidBandStyleEl.addEventListener('change', () => {
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttResidBandColorEl.addEventListener('input', () => {
+    _markCustomTheme();
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttResidBandWidthSlider.addEventListener('input', () => {
+    $('rtt-resid-band-width-value').textContent = rttResidBandWidthSlider.value;
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttResidBandFillColorEl.addEventListener('input', () => {
+    _markCustomTheme();
+    rttChart?.notifyStyleChange?.();
+    saveSettings();
+  });
+  rttResidBandFillOpacitySlider.addEventListener('input', () => {
+    $('rtt-resid-band-fill-opacity-value').textContent = rttResidBandFillOpacitySlider.value;
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });

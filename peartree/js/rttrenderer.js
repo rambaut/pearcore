@@ -90,6 +90,13 @@ export class RTTRenderer {
     this.regressionWidth       = 1.5;          // CSS px (scaled by dpr)
     // 'solid' | 'bigdash' | 'dash' | 'dots'
     this.regressionStyle       = 'dash';
+    // ── Residual band (±2σ) ──────────────────────────────────────────────────
+    this.residBandShow         = 'off';        // 'on' | 'off'
+    this.residBandColor        = '';           // '' → fallback to regressionColor
+    this.residBandWidth        = 1;            // CSS px (scaled by dpr)
+    this.residBandStyle        = 'dash';       // 'solid' | 'bigdash' | 'dash' | 'dots'
+    this.residBandFillColor    = '';           // '' → fallback to residBandColor
+    this.residBandFillOpacity  = 0.1;
     this.fontSize              = 11;
     this.statsBoxFontSize      = 11;
     this.fontFamily            = 'Inter, system-ui, sans-serif';
@@ -355,6 +362,7 @@ export class RTTRenderer {
 
     this._drawGrid(ctx, rect);
     this._drawAxes(ctx, rect);
+    this._drawResidBand(ctx, rect);
     this._drawRegression(ctx, rect);
     this._drawPoints(ctx, rect);
     this._drawStatsBox(ctx, rect);
@@ -626,6 +634,81 @@ export class RTTRenderer {
         }
       }
     }
+
+    ctx.restore();
+  }
+
+  // ─── Residual band ─────────────────────────────────────────────────────────
+
+  _drawResidBand(ctx, rect) {
+    const reg = this._calibration?.regression;
+    if (!reg || this.residBandShow !== 'on') return;
+    const rmse = reg.rmse;
+    if (!rmse || rmse <= 0) return;
+    const d = this._dpr;
+    const { a, b } = reg;
+
+    // Resolve line colour: explicit setting, or fall back to regressionColor, then axisColor at 55%
+    const lineColor = this.residBandColor
+      ? this.residBandColor
+      : (this.regressionColor || this._colorWithAlpha(this.axisColor, 0.55));
+    // Resolve fill colour: explicit setting, or fall back to line colour
+    const fillColor = this.residBandFillColor || lineColor;
+
+    // Resolve dash pattern (same logic as _drawRegression)
+    const u = d;
+    let dash;
+    switch (this.residBandStyle) {
+      case 'solid':   dash = [];                                                break;
+      case 'bigdash': dash = [Math.round(12 * u), Math.round(5 * u)];         break;
+      case 'dots':    dash = [0, Math.round(this.residBandWidth * 1.5 * d)];  break;
+      default:        dash = [Math.round(6 * u), Math.round(4 * u)];          break;
+    }
+
+    const x1 = this._xMin, x2 = this._xMax;
+    const yHi1 = a * x1 + b + 2 * rmse,  yHi2 = a * x2 + b + 2 * rmse;
+    const yLo1 = a * x1 + b - 2 * rmse,  yLo2 = a * x2 + b - 2 * rmse;
+
+    const sx1   = this._xToScreen(x1,   rect);
+    const sx2   = this._xToScreen(x2,   rect);
+    const syHi1 = this._yToScreen(yHi1, rect);
+    const syHi2 = this._yToScreen(yHi2, rect);
+    const syLo1 = this._yToScreen(yLo1, rect);
+    const syLo2 = this._yToScreen(yLo2, rect);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+
+    // ── Fill the band area ────────────────────────────────────────────────
+    const fillOpacity = parseFloat(this.residBandFillOpacity) || 0;
+    if (fillOpacity > 0) {
+      ctx.beginPath();
+      ctx.moveTo(sx1, syHi1);
+      ctx.lineTo(sx2, syHi2);
+      ctx.lineTo(sx2, syLo2);
+      ctx.lineTo(sx1, syLo1);
+      ctx.closePath();
+      ctx.fillStyle   = fillColor;
+      ctx.globalAlpha = fillOpacity;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // ── Draw the two boundary lines ──────────────────────────────────────
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth   = this.residBandWidth * d;
+    ctx.setLineDash(dash);
+    ctx.lineCap = (this.residBandStyle === 'dots') ? 'round' : 'butt';
+    ctx.beginPath();
+    ctx.moveTo(sx1, syHi1);
+    ctx.lineTo(sx2, syHi2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx1, syLo1);
+    ctx.lineTo(sx2, syLo2);
+    ctx.stroke();
 
     ctx.restore();
   }
