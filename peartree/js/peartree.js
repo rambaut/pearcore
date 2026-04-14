@@ -4532,7 +4532,7 @@ async function _initCore(root = document) {
       saveSettings();
     });
 
-    btnClearHighlights?.addEventListener('click', () => {
+    btnClearHighlights?.addEventListener('click', async () => {
       const mrcaId = renderer._mrcaNodeId;
 
       // Case 1: specific highlighted node selected — remove without confirm
@@ -5014,7 +5014,7 @@ async function _initCore(root = document) {
       _applyUserColour(hex);
     });
 
-    btnClearUserColour?.addEventListener('click', () => {
+    btnClearUserColour?.addEventListener('click', async () => {
       if (!graph) return;
       const hasSelection  = renderer._selectedTipIds.size > 0;
       const subtreeRootId = renderer._viewSubtreeRootId ?? null;

@@ -87,14 +87,14 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
     overlay.classList.remove('open');
   }
 
-  function _apply() {
+  async function _apply() {
     const graph = getGraph();
     if (!graph) return;
 
     if (_deleted.size > 0) {
       const names = [..._deleted].join(', ');
       const plural = _deleted.size === 1 ? 'annotation' : 'annotations';
-      if (!confirm(`Permanently delete ${_deleted.size} ${plural}?\n\n${names}\n\nThis cannot be undone.`)) return;
+      if (!await showConfirmDialog(`Delete ${plural}`, `Permanently delete ${_deleted.size} ${plural}?\n\n${names}\n\nThis cannot be undone.`, { okLabel: 'Delete', cancelLabel: 'Cancel' })) return;
     }
 
     const schema = _buildModifiedSchema(graph);
@@ -569,7 +569,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
     el.style.display = '';
   }
 
-  function _runParseTips() {
+  async function _runParseTips() {
     const graph = getGraph();
     if (!graph) return;
 
@@ -587,7 +587,7 @@ export function createAnnotCurator({ getGraph, onApply, onTableColumnsChange, ge
 
     // Warn if name already exists
     if (graph.annotationSchema.has(annotName)) {
-      if (!confirm(`An annotation named "${annotName}" already exists. Overwrite it?`)) return;
+      if (!await showConfirmDialog('Overwrite annotation', `An annotation named "${annotName}" already exists. Overwrite it?`, { okLabel: 'Overwrite', cancelLabel: 'Cancel' })) return;
     }
 
     // Collect tip nodes (exactly one adjacent = parent only)
