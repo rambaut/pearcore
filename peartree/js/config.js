@@ -78,7 +78,7 @@ export const DEFAULT_SETTINGS = {
 
   // ── Tip Labels ───────────────────────────────────────────────────────────────────
   tipLabelShow:    'names',   // 'off' | 'names' | annotation key
-  tipLabelAlign:   'none',
+  tipLabelAlign:   'off',    // 'off' | 'aligned' | 'dots' | 'dashed' | 'solid'
   tipLabelSpacing: '3',
 
   // ── Label Shapes ────────────────────────────────────────────────────────────────────
@@ -91,19 +91,19 @@ export const DEFAULT_SETTINGS = {
   tipLabelShapeExtraColourBys: ['user_colour', 'user_colour', 'user_colour', 'user_colour', 'user_colour', 'user_colour', 'user_colour', 'user_colour', 'user_colour'],
 
   // ── Node Labels ───────────────────────────────────────────────────────────────────
-  nodeLabelAnnotation: '',
-  nodeLabelPosition:   'right',
+  nodeLabelAnnotation: '',          // '' = off | annotation key
+  nodeLabelPosition:   'right',     // 'right' | 'above-left' | 'below-left'
 
   // ── Node Bars ───────────────────────────────────────────────────────────────────────
   // (only shown when tree has 'height' group from BEAST)
-  nodeBarsEnabled:    'off',
-  nodeBarsShowMedian: 'mean',
-  nodeBarsShowRange:  'off',
+  nodeBarsEnabled:    'off',   // 'off' | 'on'
+  nodeBarsShowMedian: 'none',  // 'none' | 'mean' | 'median'
+  nodeBarsShowRange:  'off',   // 'off' | 'on'
 
   // ── Clade Highlights ────────────────────────────────────────────────────────────────
   cladeHighlightLeftEdge:  'outlineNodes', // 'atRoot' | 'outlineNodes'
   cladeHighlightRightEdge: 'outlineTips',  // 'atTips' | 'atLabels' | 'atLabelsRight' | 'outlineTips'
-  cladeHighlightPadding:   '6',
+  cladeHighlightPadding:   '4',
   cladeHighlightRadius:    '4',
 
   // ── Legend ───────────────────────────────────────────────────────────────────────────
@@ -117,28 +117,28 @@ export const DEFAULT_SETTINGS = {
   legendHeightPct2:  '50',
   // Third legend
   legendAnnotation3: '',
-  legend3Position:   'right',
+  legend3Position:   'right',  // 'right' (beside L2) | 'below' (stacked under L2)
   legendHeightPct3:  '50',
   // Fourth legend
   legendAnnotation4: '',
-  legend4Position:   'right',
+  legend4Position:   'right',  // 'right' (beside L3) | 'below' (stacked under L3)
   legendHeightPct4:  '50',
 
   // ── Axis ─────────────────────────────────────────────────────────────────────────────
-  axisShow:             'off',
-  axisDateAnnotation:   '',
+  axisShow:             'off',      // 'off' | 'forward' | 'reverse' | 'time'
+  axisDateAnnotation:   '',         // '' = none | annotation key (used when axisShow = 'time')
   axisDateFormat:       'yyyy-MM-dd',
-  axisMajorInterval:    'auto',
-  axisMinorInterval:    'off',
-  axisMajorLabelFormat: 'partial',
-  axisMinorLabelFormat: 'off',
+  axisMajorInterval:    'auto',     // 'auto' | 'millennia' | 'centuries' | 'decades' | 'years' | 'quarters' | 'months' | 'weeks' | 'days'
+  axisMinorInterval:    'off',      // 'off' | same values as axisMajorInterval (populated dynamically)
+  axisMajorLabelFormat: 'partial',  // 'component' | 'partial' | 'full' | 'off'
+  axisMinorLabelFormat: 'off',      // 'component' | 'partial' | 'full' | 'off'
 
   // ── Root-to-tip ──────────────────────────────────────────────────────────────────────
   rttDateFormat:        'yyyy-MM-dd',
-  rttMajorInterval:     'auto',
-  rttMinorInterval:     'off',
-  rttMajorLabelFormat:  'partial',
-  rttMinorLabelFormat:  'off',
+  rttMajorInterval:     'auto',     // 'auto' | 'millennia' | 'centuries' | 'decades' | 'years' | 'quarters' | 'months' | 'weeks' | 'days'
+  rttMinorInterval:     'off',      // 'off' | same values as rttMajorInterval (populated dynamically)
+  rttMajorLabelFormat:  'partial',  // 'component' | 'partial' | 'full' | 'off'
+  rttMinorLabelFormat:  'off',      // 'component' | 'partial' | 'full' | 'off'
 
   // ── Theme ───────────────────────────────────────────────────────────────────────────
   // Name of the built-in theme that serves as the fully-specified visual base.
