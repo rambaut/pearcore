@@ -135,6 +135,18 @@ export const THEMES = {
         rttAxisColor: '#f7eeca',
         typeface: 'Helvetica Neue',
         typefaceStyle: 'Thin',
+        // Selection & Hover: selected tips
+        "selectedTipFillColor": "#B58901",
+        "selectedTipStrokeColor": "#f7eeca",
+        // Selection & Hover: MRCA node
+        "selectedNodeFillColor": "#E06961",
+        "selectedNodeStrokeColor": "#f7eeca",
+        // Selection & Hover: tip hover
+        "tipHoverFillColor": "#f5a700",
+        "tipHoverStrokeColor": "#f5a700",
+        // Selection & Hover: node hover
+        "nodeHoverFillColor": "#f5a700",
+        "nodeHoverStrokeColor": "#f5a700",
     },
     "BEAST": {
         canvasBgColor: '#02292e',
