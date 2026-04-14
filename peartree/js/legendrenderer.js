@@ -407,8 +407,31 @@ export class LegendRenderer {
     return { total: containerH, h1, h2, h3, h4 };
   }
 
+  /** Maximum auto-sized legend width (CSS px). Labels wider than this are truncated with '…'. */
+  static MAX_LEGEND_W = 280;
+
   /**
-   * Measure the minimum canvas width (CSS px) for any annotation key.
+   * Return `text` truncated with '…' so it fits within `maxW` CSS px,
+   * given a 2D canvas context already set to the desired font.
+   * @private
+   */
+  _truncateText(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    const ellipsis = '\u2026';
+    const ellW = ctx.measureText(ellipsis).width;
+    if (ellW >= maxW) return ellipsis;
+    let lo = 0, hi = text.length;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (ctx.measureText(text.slice(0, mid)).width + ellW <= maxW) lo = mid;
+      else hi = mid;
+    }
+    return text.slice(0, lo) + ellipsis;
+  }
+
+  /**
+   * Measure the minimum canvas width (CSS px) for any annotation key,
+   * capped at MAX_LEGEND_W.
    * @param {string|null} key
    * @returns {number}
    */
@@ -449,7 +472,7 @@ export class LegendRenderer {
         }
       }
     }
-    return Math.ceil(PAD + contentW + PAD);
+    return Math.min(LegendRenderer.MAX_LEGEND_W, Math.ceil(PAD + contentW + PAD));
   }
 
   /** Minimum canvas width for legend 1. */
@@ -584,7 +607,7 @@ export class LegendRenderer {
     // Title.
     ctx.font = `700 ${lfs}px ${this._fontFamily ?? 'monospace'}`; ctx.fillStyle = ltc;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(def.label ?? key, PAD, y, W - PAD * 2);
+    ctx.fillText(this._truncateText(ctx, def.label ?? key, W - PAD * 2), PAD, y);
     y += lfs + 10;
 
     if (def.dataType === 'categorical' || def.dataType === 'ordinal') {
@@ -623,7 +646,8 @@ export class LegendRenderer {
         }
         ctx.fillStyle = isSelected ? this._selStrokeColor : ltc;
         ctx.textAlign = 'left';
-        ctx.fillText(String(val), PAD + effectiveSwatch + 6, y + effectiveSwatch / 2, W - PAD * 2 - effectiveSwatch - 6);
+        const _labelAvail = W - PAD * 2 - effectiveSwatch - 6;
+        ctx.fillText(this._truncateText(ctx, String(val), _labelAvail), PAD + effectiveSwatch + 6, y + effectiveSwatch / 2);
         hitRegions.push({ value: val, y0: y, y1: y + effectiveRowH });
         y += effectiveRowH;
       });
@@ -663,7 +687,7 @@ export class LegendRenderer {
         for (const v of vals) { const d = Math.abs(dateToDecimalYear(v) - targetDec); if (d < best) { best = d; label = v; } }
         ctx.fillRect(PAD + BAR_W, tickY - 0.5, 4, 1);
         ctx.textBaseline = i === 0 ? 'top' : (i === tc - 1 ? 'bottom' : 'middle');
-        ctx.fillText(label, LABEL_X, tickY, LABEL_W);
+        ctx.fillText(this._truncateText(ctx, label, LABEL_W), LABEL_X, tickY);
       }
     } else if (isNumericType(def.dataType)) {
       const BAR_W = 14;
@@ -686,7 +710,7 @@ export class LegendRenderer {
         const tickY = BAR_Y + t * BAR_H;
         ctx.fillRect(PAD + BAR_W, tickY - 0.5, 4, 1);
         ctx.textBaseline = i === 0 ? 'top' : (i === tc - 1 ? 'bottom' : 'middle');
-        ctx.fillText(fmt(max - t * range), LABEL_X, tickY, LABEL_W);
+        ctx.fillText(this._truncateText(ctx, fmt(max - t * range), LABEL_W), LABEL_X, tickY);
       }
     }
     return hitRegions;

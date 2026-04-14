@@ -2628,9 +2628,11 @@ async function _initCore(root = document) {
     onClose: () => {
       btnDataTable?.classList.remove('active');
       saveSettings();
+      _syncDtLabel?.();
     },
     onPinChange: (pinned) => {
       document.body.classList.toggle('dt-pinned', pinned);
+      _syncDtLabel?.();
       // Drive renderer._resize() through the full transition so the canvas
       // smoothly gains or releases the space the panel occupies.
       _resizeDuringTransition();
@@ -2715,6 +2717,7 @@ async function _initCore(root = document) {
       // In overlay mode the canvas doesn't resize on open; in pinned mode the
       // onPinChange callback already drives _resizeDuringTransition.
     }
+    _syncDtLabel?.();
   });
 
   // Wire the resize handle
@@ -2842,9 +2845,11 @@ async function _initCore(root = document) {
     onClose: () => {
       btnRtt?.classList.remove('active');
       saveSettings();
+      _syncRttLabel?.();
     },
     onPinChange: (pinned) => {
       document.body.classList.toggle('rtt-pinned', pinned);
+      _syncRttLabel?.();
       _resizeDuringTransition();
       saveSettings();
     },
@@ -2882,6 +2887,7 @@ async function _initCore(root = document) {
       btnRtt?.classList.add('active');
       saveSettings();
     }
+    _syncRttLabel?.();
   });
 
   btnExportTree?.addEventListener('click', () => exportCtrl.openExportDialog());
@@ -3092,6 +3098,7 @@ async function _initCore(root = document) {
       const _newDate = axisDateAnnotEl.value;
       if (_newDate !== _prevDate) {
         rttChart?.recomputeCalibration?.();
+        if (_newDate) _ensureDateInTable(_newDate);
       }
     }
     // Re-apply programmatically configured data table columns after each schema
@@ -3476,6 +3483,7 @@ async function _initCore(root = document) {
       // Recompute OLS calibration; onCalibrationChange syncs axisDateFmtRow, renderer.setCalibration,
       // _updateTimeOption, clamp-row visibility, and the axis renderer.
       rttChart.recomputeCalibration();
+      if (_dateToUse) _ensureDateInTable(_dateToUse);
 
       // Re-inject built-in stats (adds __cal_date__ to schema) then restore any saved cal-date
       // selections that were unavailable when the dropdowns were first populated above.
@@ -6214,6 +6222,8 @@ async function _initCore(root = document) {
     // Recompute OLS calibration; onCalibrationChange syncs axisDateFmtRow, _updateTimeOption,
     // clamp-row, _showDateTickRows, renderer.setCalibration, and the axis renderer.
     rttChart?.recomputeCalibration?.();
+    // If a date annotation is now active, ensure it appears in the data table.
+    if (axisDateAnnotEl.value) _ensureDateInTable(axisDateAnnotEl.value);
     // Repopulate label dropdowns to add/remove Calendar date options, then sync renderer.
     // Pass autoSelectDate:false so the user's explicit choice of "(none)" is not overridden.
     _refreshAnnotationUIs(renderer?._annotationSchema ?? new Map(), { autoSelectDate: false });
@@ -6224,6 +6234,19 @@ async function _initCore(root = document) {
     }
     saveSettings();
   });
+
+  /**
+   * Ensure `key` appears as a column in the data table.
+   * If the key is already present (or the data table isn't ready), this is a no-op.
+   * Only adds — never removes — to avoid disrupting the user's column selection.
+   */
+  function _ensureDateInTable(key) {
+    if (!dataTableRenderer || !key) return;
+    const { columns } = dataTableRenderer.getState();
+    if (!columns.includes(key)) {
+      dataTableRenderer.setColumns([...columns, key]);
+    }
+  }
 
   btnFit?.addEventListener('click', () => renderer.fitToWindow());
   $('btn-fit-labels')?.addEventListener('click', () => renderer.fitLabels());
@@ -6920,11 +6943,63 @@ async function _initCore(root = document) {
   // Wire up UI panel behaviours (palette, help, about, keyboard shortcuts,
   // toolbar height tracking) for this instance.  The function is exposed by
   // peartree-ui.js; it's a no-op when running without the UI script.
-  window.initPearTreeUIBindings?.(root, {
+  const _uiBindings = window.initPearTreeUIBindings?.(root, {
     palettePinned:        _saved.palettePinned ?? DEFAULT_SETTINGS.palettePinned,
     paletteOpen:          _saved.paletteOpen   ?? DEFAULT_SETTINGS.paletteOpen,
     onPaletteStateChange: saveSettings,
   });
+
+  // ── Panel-toggle menu commands (Options Panel, RTT Plot, Data Table) ─────────────
+  // Each command opens+pins the corresponding panel (or closes it when already
+  // open).  The native menu label flips between “Show…” and “Hide…” via setLabel.
+
+  function _syncOptPanelLabel() {
+    const open = _uiBindings?.palette.isOpen() ?? false;
+    commands.setLabel('view-options-panel', open ? 'Hide Options Panel' : 'Show Options Panel');
+  }
+  function _syncRttLabel() {
+    commands.setLabel('view-rtt-plot', rttChart?.isOpen() ? 'Hide RTT Plot' : 'Show RTT Plot');
+  }
+  function _syncDtLabel() {
+    commands.setLabel('view-data-table', dataTableRenderer?.isOpen() ? 'Hide Data Table' : 'Show Data Table');
+  }
+
+  if (_uiBindings?.palette) {
+    commands.get('view-options-panel').exec = () => {
+      if (_uiBindings.palette.isOpen()) {
+        _uiBindings.palette.close();
+      } else {
+        _uiBindings.palette.pin();
+      }
+    };
+    _uiBindings.palette.onChange(_syncOptPanelLabel);
+    // Sync label for the initial pinned-on-startup case.
+    _syncOptPanelLabel();
+  }
+
+  commands.get('view-rtt-plot').exec = () => {
+    if (rttChart?.isOpen()) {
+      rttChart.close();
+      btnRtt?.classList.remove('active');
+    } else if (rttChart) {
+      rttChart.open();
+      rttChart.setPin(true);
+      btnRtt?.classList.add('active');
+    }
+    _syncRttLabel();
+  };
+
+  commands.get('view-data-table').exec = () => {
+    if (dataTableRenderer?.isOpen()) {
+      dataTableRenderer.close();
+    } else if (dataTableRenderer) {
+      dataTableRenderer.open();
+      dataTableRenderer.pin();
+      btnDataTable?.classList.add('active');
+    }
+    _syncDtLabel();
+  };
+
   return window.peartree;
 
 }

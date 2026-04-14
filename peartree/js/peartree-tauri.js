@@ -115,18 +115,22 @@
   // Subscribe to state changes from the JS command registry. Rust sets the
   // correct initial disabled states at launch; this handles all dynamic
   // changes thereafter (tree loaded, selection changed, etc.).
-  registry.onStateChange((id, enabled) => {
+  registry.onStateChange((id, enabled, label) => {
     invoke('set_menu_item_enabled', { id, enabled })
       .catch(err => console.error('[tauri] set_menu_item_enabled failed', id, err));
+    if (label !== undefined) {
+      invoke('set_menu_item_text', { id, text: label }).catch(() => {});
+    }
   });
 
-  // ── Re-sync menu when this window gains focus ──────────────────────────
+  // ── Re-sync menu when this window gains focus ────────────────────────
   // macOS has a single global menu bar. When the user switches windows the
   // menu must reflect the newly focused window's command state, so we push
   // the full registry state to Rust whenever this window gets focus.
   window.addEventListener('focus', () => {
     for (const cmd of registry.getAll().values()) {
       invoke('set_menu_item_enabled', { id: cmd.id, enabled: cmd.enabled }).catch(() => {});
+      if (cmd.label) invoke('set_menu_item_text', { id: cmd.id, text: cmd.label }).catch(() => {});
     }
   });
 

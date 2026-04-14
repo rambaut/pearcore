@@ -474,10 +474,12 @@ function _tbSectionReroot() {
         <button id="btn-mode-branches" class="btn btn-sm btn-outline-secondary" disabled title="Toggle branches/nodes mode (⌘B)"><i class="bi bi-dash-lg"></i></button>
       </div>
       <div class="pt-toolbar-sep"></div>
-      <button id="btn-reroot" class="btn btn-sm btn-outline-secondary" disabled title="Reroot tree at selection"><i class="bi bi-reply-fill"></i></button>
-      <button id="btn-midpoint-root" class="btn btn-sm btn-outline-secondary" disabled title="Midpoint root (⌘M)"><i class="bi bi-vr" style="display:inline-block;transform:rotate(90deg)"></i></button>
-      <button id="btn-temporal-root-global" class="btn btn-sm btn-outline-secondary" disabled title="Global temporal root (⌘R)"><i class="bi bi-clock"></i></button>
-      <button id="btn-temporal-root" class="btn btn-sm btn-outline-secondary" disabled title="Optimise root on current branch (⇧⌘R)"><i class="bi bi-clock-history"></i></button>
+      <div class="btn-group" role="group" aria-label="Rooting">
+        <button id="btn-reroot" class="btn btn-sm btn-outline-secondary" disabled title="Reroot tree at selection"><i class="bi bi-arrow-return-left"></i></button>
+        <button id="btn-midpoint-root" class="btn btn-sm btn-outline-secondary" disabled title="Midpoint root (⌘M)"><i class="bi bi-chevron-bar-contract" style="display:inline-block;transform:rotate(90deg)"></i></button>
+        <button id="btn-temporal-root-global" class="btn btn-sm btn-outline-secondary" disabled title="Global temporal root (⌘R)"><i class="bi bi-clock"></i></button>
+        <button id="btn-temporal-root" class="btn btn-sm btn-outline-secondary" disabled title="Optimise root on current branch (⇧⌘R)"><i class="bi bi-clock-history"></i></button>
+      </div>
     </div>`;
 }
 
@@ -981,7 +983,12 @@ function initPearTreeUIBindings(root, opts = {}) {
   const btnPalettePin   = $('btn-palette-pin');
   const PALETTE_PIN_KEY = 'peartree-palette-pinned';
   let   palettePinned   = false;
+  let   _paletteOnChange = null;
   palettePanel.inert = true;  // off-screen by default; inert removes from tab order
+
+  function _notifyPaletteChange() {
+    _paletteOnChange?.(palettePanel.classList.contains('open'), palettePinned);
+  }
 
   function _afterPanelTransition() {
     const DURATION = 250;
@@ -1003,6 +1010,7 @@ function initPearTreeUIBindings(root, opts = {}) {
     }
     btnPalette.classList.add('active');
     _afterPanelTransition();
+    _notifyPaletteChange();
     opts.onPaletteStateChange?.();
   }
   function closePalette() {
@@ -1011,6 +1019,7 @@ function initPearTreeUIBindings(root, opts = {}) {
     _bodyOrWrap().classList.remove('palette-pinned');
     btnPalette.classList.remove('active');
     _afterPanelTransition();
+    _notifyPaletteChange();
     opts.onPaletteStateChange?.();
   }
   function pinPalette() {
@@ -1024,6 +1033,7 @@ function initPearTreeUIBindings(root, opts = {}) {
     btnPalettePin.innerHTML = '<i class="bi bi-pin-angle-fill"></i>';
     btnPalette.classList.add('active');
     _afterPanelTransition();
+    _notifyPaletteChange();
     opts.onPaletteStateChange?.();
   }
   function unpinPalette() {
@@ -1035,6 +1045,7 @@ function initPearTreeUIBindings(root, opts = {}) {
     btnPalettePin.title = 'Pin panel open';
     btnPalettePin.innerHTML = '<i class="bi bi-pin-angle"></i>';
     _afterPanelTransition();
+    _notifyPaletteChange();
     opts.onPaletteStateChange?.();
   }
 
@@ -1237,6 +1248,19 @@ function initPearTreeUIBindings(root, opts = {}) {
     _updateToolbarH();
     new ResizeObserver(_updateToolbarH).observe(_toolbar);
   }
+
+  // Return a palette controller so peartree.js can drive and observe the panel.
+  return {
+    palette: {
+      open:     openPalette,
+      close:    closePalette,
+      pin:      pinPalette,
+      unpin:    unpinPalette,
+      isOpen:   () => palettePanel.classList.contains('open'),
+      isPinned: () => palettePinned,
+      onChange: (fn) => { _paletteOnChange = fn; },
+    },
+  };
 }
 
 // Expose so _initCore() can call it once per instance.
