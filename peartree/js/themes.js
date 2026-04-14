@@ -8,7 +8,7 @@ export const USER_THEMES_KEY = 'peartree-user-themes';
 export const DEFAULT_THEME_KEY = 'peartree-default-theme';
 
 export const THEMES = {
-    "Monochrome": {
+    "Monochrome": { // fully specified base theme: all keys in REQUIRED_THEME_KEYS are defined here
         "canvasBgColor": "#ebe8e2",
         "branchColor": "#333231",
         "branchWidth": "1.5",

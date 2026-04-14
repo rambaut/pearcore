@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS = {
   // Name of the built-in theme that serves as the fully-specified visual base.
   // All other themes are merged on top of this at applyTheme() time, so only
   // this theme needs to define every key in REQUIRED_THEME_KEYS.
-  defaultTheme:     'Monochrome',
+  baseTheme:        'Monochrome',
   // RTT non-theme settings
   rttStatsFontSize:  '11',
   rttRegressionStyle: 'dash',

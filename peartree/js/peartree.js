@@ -637,7 +637,7 @@ async function _initCore(root = document) {
       canvasBgColor:    canvasBgColorEl.value,
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
-      elbowRadius:      elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.defaultTheme)?.elbowRadius ?? '2'),
+      elbowRadius:      elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.baseTheme)?.elbowRadius ?? '2'),
       fontSize:         fontSlider.value,
       typeface:         fontFamilyEl.value,
       typefaceStyle:    fontTypefaceStyleEl?.value || '',
@@ -820,7 +820,7 @@ async function _initCore(root = document) {
       // Warn if inheritTheme is specified but doesn't match a built-in.
       if (themeObj.inheritTheme && !THEMES[themeObj.inheritTheme]) {
         if (!await showConfirmDialog('Unknown inheritTheme',
-            `The file specifies inheritTheme "${themeObj.inheritTheme}" which is not a built-in theme. The base theme ("${DEFAULT_SETTINGS.defaultTheme}") will be used instead. Continue?`,
+            `The file specifies inheritTheme "${themeObj.inheritTheme}" which is not a built-in theme. The base theme ("${DEFAULT_SETTINGS.baseTheme}") will be used instead. Continue?`,
             { okLabel: 'Continue', cancelLabel: 'Cancel' })) return;
       }
       // Ask the user to confirm or change the name.
@@ -928,11 +928,11 @@ async function _initCore(root = document) {
 
   function _buildSettingsSnapshot() {
     return {
-      theme:            themeSelect?.value ?? DEFAULT_SETTINGS.defaultTheme,
+      theme:            themeSelect?.value ?? DEFAULT_SETTINGS.baseTheme,
       canvasBgColor:    canvasBgColorEl.value,
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
-      elbowRadius:      elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.defaultTheme)?.elbowRadius ?? '2'),
+      elbowRadius:      elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.baseTheme)?.elbowRadius ?? '2'),
       fontSize:         fontSlider.value,
       typeface:         fontFamilyEl.value,
       typefaceStyle:    fontTypefaceStyleEl?.value || '',
@@ -1510,7 +1510,7 @@ async function _initCore(root = document) {
       bgColor:          canvasBgColorEl.value,
       branchColor:      branchColorEl.value,
       branchWidth:      parseFloat(branchWidthSlider.value),
-      elbowRadius:      parseFloat(elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.defaultTheme)?.elbowRadius ?? '2')),
+      elbowRadius:      parseFloat(elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.baseTheme)?.elbowRadius ?? '2')),
       fontSize:         parseInt(fontSlider.value),
       tipRadius:        parseInt(tipSlider.value),
       tipHaloSize:      parseInt(tipHaloSlider.value),
@@ -1658,7 +1658,7 @@ async function _initCore(root = document) {
     if (!themeRegistry.has(name)) return;
     // Merge order: base theme → inheritTheme (if declared) → this theme's own properties.
     // This ensures every property is always defined, even for sparse themes.
-    const _base = themeRegistry.get(DEFAULT_SETTINGS.defaultTheme) ?? themeRegistry.get(Object.keys(THEMES)[0]);
+    const _base = themeRegistry.get(DEFAULT_SETTINGS.baseTheme) ?? themeRegistry.get(Object.keys(THEMES)[0]);
     const _stored = themeRegistry.get(name);
     const _inherit = (_stored.inheritTheme && THEMES[_stored.inheritTheme]) ? THEMES[_stored.inheritTheme] : null;
     const t = { ..._base, ...(_inherit ?? {}), ..._stored };
@@ -1788,14 +1788,14 @@ async function _initCore(root = document) {
   // Guard: if the stored default is no longer in the registry, fall back gracefully.
   // Must run after loadUserThemes() so user-saved themes are present.
   if (!themeRegistry.has(defaultTheme)) defaultTheme = Object.keys(THEMES)[0];
-  // Validate that the base theme (DEFAULT_SETTINGS.defaultTheme) is fully specified.
+  // Validate that the base theme (DEFAULT_SETTINGS.baseTheme) is fully specified.
   {
-    const _baseEntry = themeRegistry.get(DEFAULT_SETTINGS.defaultTheme);
+    const _baseEntry = themeRegistry.get(DEFAULT_SETTINGS.baseTheme);
     if (!_baseEntry) {
-      console.warn(`PearTree: base theme "${DEFAULT_SETTINGS.defaultTheme}" not found in registry. Falling back to first built-in.`);
+      console.warn(`PearTree: base theme "${DEFAULT_SETTINGS.baseTheme}" not found in registry. Falling back to first built-in.`);
     } else {
       const _missing = REQUIRED_THEME_KEYS.filter(k => !(k in _baseEntry));
-      if (_missing.length) console.warn(`PearTree: base theme "${DEFAULT_SETTINGS.defaultTheme}" is missing required keys:`, _missing);
+      if (_missing.length) console.warn(`PearTree: base theme "${DEFAULT_SETTINGS.baseTheme}" is missing required keys:`, _missing);
     }
   }
   _populateThemeSelect();
@@ -2274,13 +2274,18 @@ async function _initCore(root = document) {
 
   // Apply stored visual settings to the renderer immediately.
   // For embeds (storageKey=null) there are no stored colour customisations, so
-  // always apply the theme (or the default) to get correct colours.  For the
-  // standalone app, stored colour values were already hydrated into DOM above,
-  // so only call applyTheme when no theme was previously saved.
-  if (!_saved.theme || _cfg.storageKey === null) {
+  // always apply the theme (or the default) to get correct colours.
+  // For the standalone app, if a named (non-custom) theme was saved, always
+  // re-apply the user's default theme on startup rather than the previously
+  // selected named theme — this ensures the starred/default theme is used.
+  // If the stored theme is 'custom', the persisted visual controls are already
+  // hydrated above and we just sync the renderer.
+  if (_cfg.storageKey === null) {
     applyTheme(_saved.theme || defaultTheme);
+  } else if (!_saved.theme || _saved.theme !== 'custom') {
+    applyTheme(defaultTheme);
   } else {
-    // DOM controls were already hydrated from _saved above; just sync the renderer.
+    // Custom theme: DOM controls were already hydrated from _saved above; just sync the renderer.
     renderer.setSettings(_buildRendererSettings(), false);
     _syncControlVisibility();
   }
