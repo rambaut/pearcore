@@ -3538,6 +3538,13 @@ async function _initCore(root = document) {
         $('btn-mode-nodes')   ?.removeAttribute('disabled');
         $('btn-mode-branches')?.removeAttribute('disabled');
         if (btnDataTable) btnDataTable.disabled = false;
+        // On fresh tree load, default the Names column so the table is never blank.
+        if (dataTableRenderer && !_cfg.dataTableColumns) {
+          const { columns, showNames } = dataTableRenderer.getState();
+          if (!showNames && columns.length === 0) {
+            dataTableRenderer.setColumns(['__names__']);
+          }
+        }
         if (btnRtt)       btnRtt.disabled       = false;
         // Hide the empty-state overlay
         emptyStateEl.classList.add('hidden');
