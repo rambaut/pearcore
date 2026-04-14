@@ -16,7 +16,7 @@ import { createDataTableRenderer } from './datatablerenderer.js';
 import { createRTTChart          } from './rttchart.js';
 import { createCommands } from './commands.js';
 import { createExportController } from './export-controller.js';
-import { EXAMPLE_TREE_PATH, PEARTREE_BASE_URL, DEFAULT_SETTINGS } from './config.js';
+import { EXAMPLE_TREE_PATH, PEARTREE_BASE_URL, DEFAULT_SETTINGS, REQUIRED_THEME_KEYS } from './config.js';
 
 /**
  * Fetch a file by relative path, falling back to the absolute GitHub Pages URL
@@ -637,7 +637,7 @@ async function _initCore(root = document) {
       canvasBgColor:    canvasBgColorEl.value,
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
-      elbowRadius:      elbowRadiusSlider?.value ?? DEFAULT_SETTINGS.elbowRadius,
+      elbowRadius:      elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.defaultTheme)?.elbowRadius ?? '2'),
       fontSize:         fontSlider.value,
       typeface:         fontFamilyEl.value,
       typefaceStyle:    fontTypefaceStyleEl?.value || '',
@@ -807,7 +807,8 @@ async function _initCore(root = document) {
         data = JSON.parse(text);
         // Accept { name, theme } format or a bare theme object.
         themeObj = (data.theme && typeof data.theme === 'object') ? data.theme : data;
-        if (typeof themeObj !== 'object' || !themeObj.canvasBgColor) {
+        // Valid if it has canvasBgColor (fully specified) or a recognised inheritTheme.
+        if (typeof themeObj !== 'object' || (!themeObj.canvasBgColor && !(themeObj.inheritTheme && THEMES[themeObj.inheritTheme]))) {
           await showAlertDialog('Invalid file', 'This does not appear to be a valid PearTree theme file.');
           return;
         }
@@ -816,6 +817,12 @@ async function _initCore(root = document) {
         return;
       }
       const fileNameSuggestion = (typeof data.name === 'string' && data.name.trim()) ? data.name.trim() : '';
+      // Warn if inheritTheme is specified but doesn't match a built-in.
+      if (themeObj.inheritTheme && !THEMES[themeObj.inheritTheme]) {
+        if (!await showConfirmDialog('Unknown inheritTheme',
+            `The file specifies inheritTheme "${themeObj.inheritTheme}" which is not a built-in theme. The base theme ("${DEFAULT_SETTINGS.defaultTheme}") will be used instead. Continue?`,
+            { okLabel: 'Continue', cancelLabel: 'Cancel' })) return;
+      }
       // Ask the user to confirm or change the name.
       let name = await showPromptDialog('Import Theme', 'Name for the imported theme:', fileNameSuggestion);
       if (!name) return;
@@ -921,11 +928,11 @@ async function _initCore(root = document) {
 
   function _buildSettingsSnapshot() {
     return {
-      theme:            themeSelect?.value ?? DEFAULT_SETTINGS.theme,
+      theme:            themeSelect?.value ?? DEFAULT_SETTINGS.defaultTheme,
       canvasBgColor:    canvasBgColorEl.value,
       branchColor:      branchColorEl.value,
       branchWidth:      branchWidthSlider.value,
-      elbowRadius:      elbowRadiusSlider?.value ?? DEFAULT_SETTINGS.elbowRadius,
+      elbowRadius:      elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.defaultTheme)?.elbowRadius ?? '2'),
       fontSize:         fontSlider.value,
       typeface:         fontFamilyEl.value,
       typefaceStyle:    fontTypefaceStyleEl?.value || '',
@@ -1379,10 +1386,6 @@ async function _initCore(root = document) {
     legend4HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct4;
     $('legend4-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct4 + '%';
     // legendTextColor is set by applyTheme(defaultTheme) above — do not override with a hardcoded default.
-    legendFontSizeSlider.value = DEFAULT_SETTINGS.legendFontSize;
-    $('legend-font-size-value').textContent = DEFAULT_SETTINGS.legendFontSize;
-    legendFontFamilyEl.value = DEFAULT_SETTINGS.legendFontFamily;
-    _populateStyleSelect(fontFamilyEl.value, legendTypefaceStyleEl, '', true);
     axisShowEl.value         = DEFAULT_SETTINGS.axisShow;  // 'off'
     axisDateAnnotEl.value    = '';
     calibration.setAnchor(null, new Map(), 0);
@@ -1394,14 +1397,7 @@ async function _initCore(root = document) {
     axisMajorLabelEl.value       = DEFAULT_SETTINGS.axisMajorLabelFormat;
     axisMinorLabelEl.value       = DEFAULT_SETTINGS.axisMinorLabelFormat;
     _updateMinorOptions(DEFAULT_SETTINGS.axisMajorInterval, DEFAULT_SETTINGS.axisMinorInterval);
-    axisFontSizeSlider.value = DEFAULT_SETTINGS.axisFontSize;
-    $('axis-font-size-value').textContent = DEFAULT_SETTINGS.axisFontSize;
-    axisLineWidthSlider.value = DEFAULT_SETTINGS.axisLineWidth;
-    $('axis-line-width-value').textContent = DEFAULT_SETTINGS.axisLineWidth;
-    axisFontFamilyEl.value = DEFAULT_SETTINGS.axisFontFamily;
-    _populateStyleSelect(fontFamilyEl.value, axisTypefaceStyleEl, '', true);
-    // RTT axis/stats/regression colours are already set by applyTheme(defaultTheme) above.
-    // Only reset the non-colour RTT controls that applyTheme doesn't touch.
+    // All RTT colours are set by applyTheme(defaultTheme) above; only reset non-visual RTT controls here.
     rttRegressionStyleEl.value   = DEFAULT_SETTINGS.rttRegressionStyle;
     rttRegressionWidthSlider.value = DEFAULT_SETTINGS.rttRegressionWidth;
     $('rtt-regression-width-value').textContent = DEFAULT_SETTINGS.rttRegressionWidth;
@@ -1419,7 +1415,6 @@ async function _initCore(root = document) {
     rttMajorLabelEl.value    = DEFAULT_SETTINGS.rttMajorLabelFormat;
     rttMinorLabelEl.value    = DEFAULT_SETTINGS.rttMinorLabelFormat;
     nodeBarsShowEl.value  = DEFAULT_SETTINGS.nodeBarsEnabled;
-    nodeBarsColorEl.value = DEFAULT_SETTINGS.nodeBarsColor;
     nodeBarsWidthSlider.value = DEFAULT_SETTINGS.nodeBarsWidth;
     $('node-bars-width-value').textContent = DEFAULT_SETTINGS.nodeBarsWidth;
     nodeBarsFillOpacitySlider.value = DEFAULT_SETTINGS.nodeBarsFillOpacity;
@@ -1468,7 +1463,6 @@ async function _initCore(root = document) {
       renderer.setLabelColourBy('user_colour');
       renderer.setTipLabelShapeColourBy('user_colour');
       for (let i = 0; i < EXTRA_SHAPE_COUNT; i++) renderer.setTipLabelShapeExtraColourBy(i, null);
-      legendRenderer.setFontSize(parseInt(DEFAULT_SETTINGS.legendFontSize));
       _applyLegendTypeface();
       legendRenderer.setTextColor(legendTextColorEl.value);
       _applyAxisTypeface();
@@ -1516,13 +1510,12 @@ async function _initCore(root = document) {
       bgColor:          canvasBgColorEl.value,
       branchColor:      branchColorEl.value,
       branchWidth:      parseFloat(branchWidthSlider.value),
-      elbowRadius:      parseFloat(elbowRadiusSlider?.value ?? DEFAULT_SETTINGS.elbowRadius),
+      elbowRadius:      parseFloat(elbowRadiusSlider?.value ?? (themeRegistry.get(DEFAULT_SETTINGS.defaultTheme)?.elbowRadius ?? '2')),
       fontSize:         parseInt(fontSlider.value),
       tipRadius:        parseInt(tipSlider.value),
       tipHaloSize:      parseInt(tipHaloSlider.value),
       tipShapeColor:    tipShapeColorEl.value,
       tipShapeBgColor:  tipShapeBgEl.value,
-      tipOutlineColor:  DEFAULT_SETTINGS.tipOutlineColor,
       nodeRadius:       parseInt(nodeSlider.value),
       nodeHaloSize:     parseInt(nodeHaloSlider.value),
       nodeShapeColor:   nodeShapeColorEl.value,
@@ -1662,8 +1655,13 @@ async function _initCore(root = document) {
 
   /** Apply a named theme: hydrate all visual DOM controls and push to renderer. */
   function applyTheme(name) {
-    const t = themeRegistry.get(name);
-    if (!t) return;
+    if (!themeRegistry.has(name)) return;
+    // Merge order: base theme → inheritTheme (if declared) → this theme's own properties.
+    // This ensures every property is always defined, even for sparse themes.
+    const _base = themeRegistry.get(DEFAULT_SETTINGS.defaultTheme) ?? themeRegistry.get(Object.keys(THEMES)[0]);
+    const _stored = themeRegistry.get(name);
+    const _inherit = (_stored.inheritTheme && THEMES[_stored.inheritTheme]) ? THEMES[_stored.inheritTheme] : null;
+    const t = { ..._base, ...(_inherit ?? {}), ..._stored };
     canvasBgColorEl.value   = t.canvasBgColor;
     _syncCanvasWrapperBg(t.canvasBgColor);
     branchColorEl.value     = t.branchColor;
@@ -1676,15 +1674,15 @@ async function _initCore(root = document) {
     fontSlider.value        = t.fontSize;
     $('font-size-value').textContent    = t.fontSize;
     labelColorEl.value         = t.labelColor;
-    selectedLabelStyleEl.value = t.selectedLabelStyle       ?? DEFAULT_SETTINGS.selectedLabelStyle;
-    selectedTipStrokeEl.value  = t.selectedTipStrokeColor   ?? DEFAULT_SETTINGS.selectedTipStrokeColor;
-    selectedNodeStrokeEl.value = t.selectedNodeStrokeColor  ?? DEFAULT_SETTINGS.selectedNodeStrokeColor;
-    tipHoverFillEl.value       = t.tipHoverFillColor        ?? DEFAULT_SETTINGS.tipHoverFillColor;
-    nodeHoverFillEl.value      = t.nodeHoverFillColor       ?? DEFAULT_SETTINGS.nodeHoverFillColor;
-    selectedTipFillEl.value    = t.selectedTipFillColor     ?? DEFAULT_SETTINGS.selectedTipFillColor;
-    selectedNodeFillEl.value   = t.selectedNodeFillColor    ?? DEFAULT_SETTINGS.selectedNodeFillColor;
-    tipHoverStrokeEl.value     = t.tipHoverStrokeColor      ?? DEFAULT_SETTINGS.tipHoverStrokeColor;
-    nodeHoverStrokeEl.value    = t.nodeHoverStrokeColor     ?? DEFAULT_SETTINGS.nodeHoverStrokeColor;
+    selectedLabelStyleEl.value = t.selectedLabelStyle;
+    selectedTipStrokeEl.value  = t.selectedTipStrokeColor;
+    selectedNodeStrokeEl.value = t.selectedNodeStrokeColor;
+    tipHoverFillEl.value       = t.tipHoverFillColor;
+    nodeHoverFillEl.value      = t.nodeHoverFillColor;
+    selectedTipFillEl.value    = t.selectedTipFillColor;
+    selectedNodeFillEl.value   = t.selectedNodeFillColor;
+    tipHoverStrokeEl.value     = t.tipHoverStrokeColor;
+    nodeHoverStrokeEl.value    = t.nodeHoverStrokeColor;
     tipSlider.value         = t.tipSize;
     $('tip-size-value').textContent     = t.tipSize;
     tipHaloSlider.value     = t.tipHaloSize;
@@ -1697,36 +1695,65 @@ async function _initCore(root = document) {
     $('node-halo-value').textContent    = t.nodeHaloSize;
     nodeShapeColorEl.value  = t.nodeShapeColor;
     nodeShapeBgEl.value     = t.nodeShapeBgColor;
-    // Label shapes fall back to the theme's tip/node shape colours when not
-    // explicitly set (built-in themes don't define them).
-    tipLabelShapeColorEl.value  = t.tipLabelShapeColor  || t.tipShapeColor;
-    if (t.axisColor) {
-      axisColorEl.value = t.axisColor;
-    }
-    nodeBarsColorEl.value = t.nodeBarsColor ?? DEFAULT_SETTINGS.nodeBarsColor;
+    // Hover state
+    tipHoverGrowthSlider.value    = t.tipHoverGrowthFactor;    $('tip-hover-growth-value').textContent    = t.tipHoverGrowthFactor;
+    tipHoverMinSizeSlider.value   = t.tipHoverMinSize;         $('tip-hover-min-size-value').textContent  = t.tipHoverMinSize;
+    tipHoverFillOpacitySlider.value   = t.tipHoverFillOpacity;    $('tip-hover-fill-opacity-value').textContent    = t.tipHoverFillOpacity;
+    tipHoverStrokeWidthSlider.value   = t.tipHoverStrokeWidth;    $('tip-hover-stroke-width-value').textContent    = t.tipHoverStrokeWidth;
+    tipHoverStrokeOpacitySlider.value = t.tipHoverStrokeOpacity;  $('tip-hover-stroke-opacity-value').textContent  = t.tipHoverStrokeOpacity;
+    nodeHoverGrowthSlider.value   = t.nodeHoverGrowthFactor;   $('node-hover-growth-value').textContent   = t.nodeHoverGrowthFactor;
+    nodeHoverMinSizeSlider.value  = t.nodeHoverMinSize;        $('node-hover-min-size-value').textContent = t.nodeHoverMinSize;
+    nodeHoverFillOpacitySlider.value   = t.nodeHoverFillOpacity;   $('node-hover-fill-opacity-value').textContent   = t.nodeHoverFillOpacity;
+    nodeHoverStrokeWidthSlider.value   = t.nodeHoverStrokeWidth;   $('node-hover-stroke-width-value').textContent   = t.nodeHoverStrokeWidth;
+    nodeHoverStrokeOpacitySlider.value = t.nodeHoverStrokeOpacity; $('node-hover-stroke-opacity-value').textContent = t.nodeHoverStrokeOpacity;
+    // Selected state
+    selectedTipGrowthSlider.value   = t.selectedTipGrowthFactor;  $('selected-tip-growth-value').textContent   = t.selectedTipGrowthFactor;
+    selectedTipMinSizeSlider.value  = t.selectedTipMinSize;       $('selected-tip-min-size-value').textContent = t.selectedTipMinSize;
+    selectedTipFillOpacitySlider.value   = t.selectedTipFillOpacity;   $('selected-tip-fill-opacity-value').textContent   = t.selectedTipFillOpacity;
+    selectedTipStrokeWidthSlider.value   = t.selectedTipStrokeWidth;   $('selected-tip-stroke-width-value').textContent   = t.selectedTipStrokeWidth;
+    selectedTipStrokeOpacitySlider.value = t.selectedTipStrokeOpacity; $('selected-tip-stroke-opacity-value').textContent = t.selectedTipStrokeOpacity;
+    selectedNodeGrowthSlider.value  = t.selectedNodeGrowthFactor; $('selected-node-growth-value').textContent  = t.selectedNodeGrowthFactor;
+    selectedNodeMinSizeSlider.value = t.selectedNodeMinSize;      $('selected-node-min-size-value').textContent = t.selectedNodeMinSize;
+    selectedNodeFillOpacitySlider.value   = t.selectedNodeFillOpacity;   $('selected-node-fill-opacity-value').textContent   = t.selectedNodeFillOpacity;
+    selectedNodeStrokeWidthSlider.value   = t.selectedNodeStrokeWidth;   $('selected-node-stroke-width-value').textContent   = t.selectedNodeStrokeWidth;
+    selectedNodeStrokeOpacitySlider.value = t.selectedNodeStrokeOpacity; $('selected-node-stroke-opacity-value').textContent = t.selectedNodeStrokeOpacity;
+    // Axis style
+    axisColorEl.value         = t.axisColor;
+    axisFontSizeSlider.value  = t.axisFontSize;  $('axis-font-size-value').textContent  = t.axisFontSize;
+    axisLineWidthSlider.value = t.axisLineWidth; $('axis-line-width-value').textContent = t.axisLineWidth;
+    axisFontFamilyEl.value    = t.axisFontFamily;
+    // Legend style
+    legendFontSizeSlider.value = t.legendFontSize; $('legend-font-size-value').textContent = t.legendFontSize;
+    legendFontFamilyEl.value   = t.legendFontFamily;
+    nodeBarsColorEl.value = t.nodeBarsColor;
     // legendTextColor falls back to labelColor for themes that don't define it explicitly.
     const legendColor = t.legendTextColor || t.labelColor;
     legendTextColorEl.value = legendColor;
-    fontFamilyEl.value = t.typeface ?? DEFAULT_SETTINGS.typeface;
+    fontFamilyEl.value = t.typeface;
     // Populate typeface style selects for the new theme
     const _themeStyle = t.typefaceStyle ?? TYPEFACES[fontFamilyEl.value]?.defaultStyle ?? 'Regular';
     _populateStyleSelect(fontFamilyEl.value, fontTypefaceStyleEl, _themeStyle);
     if (tipLabelTypefaceEl) tipLabelTypefaceEl.value = '';
     _populateStyleSelect(fontFamilyEl.value, typefaceStyleEl, '', true);
-    _populateStyleSelect(fontFamilyEl.value, legendTypefaceStyleEl, '', true);
-    _populateStyleSelect(fontFamilyEl.value, axisTypefaceStyleEl, '', true);
+    _populateStyleSelect(legendFontFamilyEl.value || fontFamilyEl.value, legendTypefaceStyleEl, t.legendFontStyle || '', true);
+    _populateStyleSelect(axisFontFamilyEl.value   || fontFamilyEl.value, axisTypefaceStyleEl,   t.axisFontStyle   || '', true);
     _populateStyleSelect(fontFamilyEl.value, rttAxisTypefaceStyleEl, '', true);
     _populateStyleSelect(fontFamilyEl.value, nodeLabelTypefaceStyleEl, '', true);
     _populateStyleSelect(fontFamilyEl.value, collapsedCladeTypefaceStyleEl, '', true);
-    // RTT plot colours — only override if the theme defines them
+    // Label shapes fall back to the theme's tip shape colour when not explicitly set.
+    tipLabelShapeColorEl.value  = t.tipLabelShapeColor  || t.tipShapeColor;
+    // RTT plot colours — rttAxisColor and rttRegressionColor default to '' (inherit)
     if (t.rttAxisColor)       rttAxisColorEl.value       = t.rttAxisColor;
-    if (t.rttStatsBgColor)    rttStatsBgColorEl.value    = t.rttStatsBgColor;
-    if (t.rttStatsTextColor)  rttStatsTextColorEl.value  = t.rttStatsTextColor;
+    rttStatsBgColorEl.value    = t.rttStatsBgColor;
+    rttStatsTextColorEl.value  = t.rttStatsTextColor;
     if (t.rttRegressionColor) rttRegressionColorEl.value = t.rttRegressionColor;
     if (renderer) {
       renderer.setSettings(_buildRendererSettings());
-      if (t.axisColor) axisRenderer.setColor(t.axisColor);
+      axisRenderer.setColor(t.axisColor);
+      axisRenderer.setLineWidth(parseFloat(t.axisLineWidth));
+      axisRenderer.setFontSize(parseInt(t.axisFontSize));
       legendRenderer.setTextColor(legendColor);
+      legendRenderer.setFontSize(parseInt(t.legendFontSize));
       _applyAxisTypeface();
       _applyLegendTypeface();
       // Invalidate axis hash so next update redraws
@@ -1761,6 +1788,16 @@ async function _initCore(root = document) {
   // Guard: if the stored default is no longer in the registry, fall back gracefully.
   // Must run after loadUserThemes() so user-saved themes are present.
   if (!themeRegistry.has(defaultTheme)) defaultTheme = Object.keys(THEMES)[0];
+  // Validate that the base theme (DEFAULT_SETTINGS.defaultTheme) is fully specified.
+  {
+    const _baseEntry = themeRegistry.get(DEFAULT_SETTINGS.defaultTheme);
+    if (!_baseEntry) {
+      console.warn(`PearTree: base theme "${DEFAULT_SETTINGS.defaultTheme}" not found in registry. Falling back to first built-in.`);
+    } else {
+      const _missing = REQUIRED_THEME_KEYS.filter(k => !(k in _baseEntry));
+      if (_missing.length) console.warn(`PearTree: base theme "${DEFAULT_SETTINGS.defaultTheme}" is missing required keys:`, _missing);
+    }
+  }
   _populateThemeSelect();
   _syncThemeButtons();
 

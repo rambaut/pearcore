@@ -803,7 +803,7 @@ canvas.grabbing   { cursor: grabbing; }
 [data-bs-theme="light"] {
   /* ── Surface backgrounds ── */
   --pt-bg-deepest:   #eee8d5;            /* Solar Base2 – warm off-white flash-prevention */
-  --pt-bg:           #fdf6e3;            /* Solar Base3 – main canvas/body bg */
+  --pt-bg:           #fefaf0;            /* Solar Base3 – main canvas/body bg */
   --pt-bg-panel:     #eee8d5;            /* Solar Base2 – toolbar, panels, modal */
 
   /* ── Borders & dividers ── */

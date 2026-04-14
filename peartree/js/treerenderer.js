@@ -201,7 +201,6 @@ export class TreeRenderer {
     this.tipHaloSize       = s.tipHaloSize;
     this.tipShapeColor     = s.tipShapeColor;
     this.tipShapeBgColor   = s.tipShapeBgColor;
-    this.tipOutlineColor   = s.tipOutlineColor;
 
     // ── Node shape ──────────────────────────────────────────────────────────
     this.nodeRadius        = s.nodeRadius;

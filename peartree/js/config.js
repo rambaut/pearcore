@@ -5,65 +5,50 @@ export const EXAMPLE_TREE_PATH = 'data/ebov.tree';
  *  fails (e.g. when the HTML file is opened directly from disk). */
 export const PEARTREE_BASE_URL = 'http://peartree.live/';
 
+/**
+ * All property keys that a fully-specified base theme must define.
+ * The theme named by DEFAULT_SETTINGS.defaultTheme must contain every key here.
+ * Other themes (user themes, non-base built-ins) may be sparse — missing keys
+ * are filled in from the base theme at applyTheme() time.
+ */
+export const REQUIRED_THEME_KEYS = [
+  // Core appearance
+  'canvasBgColor', 'branchColor', 'branchWidth', 'elbowRadius',
+  'fontSize', 'typeface', 'typefaceStyle', 'labelColor', 'selectedLabelStyle',
+  // Tip shape / size
+  'tipSize', 'tipHaloSize', 'tipShapeColor', 'tipShapeBgColor',
+  // Node shape / size
+  'nodeSize', 'nodeHaloSize', 'nodeShapeColor', 'nodeShapeBgColor',
+  // Node bars
+  'nodeBarsColor',
+  // Selected tip state (7)
+  'selectedTipStrokeColor', 'selectedTipFillColor', 'selectedTipGrowthFactor',
+  'selectedTipMinSize', 'selectedTipFillOpacity', 'selectedTipStrokeWidth', 'selectedTipStrokeOpacity',
+  // Selected node state (7)
+  'selectedNodeStrokeColor', 'selectedNodeFillColor', 'selectedNodeGrowthFactor',
+  'selectedNodeMinSize', 'selectedNodeFillOpacity', 'selectedNodeStrokeWidth', 'selectedNodeStrokeOpacity',
+  // Tip hover state (7)
+  'tipHoverFillColor', 'tipHoverStrokeColor', 'tipHoverGrowthFactor',
+  'tipHoverMinSize', 'tipHoverFillOpacity', 'tipHoverStrokeWidth', 'tipHoverStrokeOpacity',
+  // Node hover state (7)
+  'nodeHoverFillColor', 'nodeHoverStrokeColor', 'nodeHoverGrowthFactor',
+  'nodeHoverMinSize', 'nodeHoverFillOpacity', 'nodeHoverStrokeWidth', 'nodeHoverStrokeOpacity',
+  // Axis
+  'axisColor', 'axisFontSize', 'axisFontFamily', 'axisFontStyle', 'axisLineWidth',
+  // Legend
+  'legendTextColor', 'legendFontSize', 'legendFontFamily', 'legendFontStyle',
+  // RTT chart
+  'rttAxisColor', 'rttStatsBgColor', 'rttStatsTextColor', 'rttRegressionColor',
+];
+
 export const DEFAULT_SETTINGS = {
-  theme:            'Artic',
-  typeface:         'Monospace',
-  typefaceStyle:    'Regular',
-  canvasBgColor:    '#ffffff',
-  branchColor:      '#444444',
-  branchWidth:      '1',
-  fontSize:         '11',
-  labelColor:       '#000000',
-  tipSize:          '2',
-  tipHaloSize:      '1',
-  tipShapeColor:    '#ffffff',
-  tipShapeBgColor:  '#000000',
-  tipOutlineColor:  '#033940',
-  nodeSize:         '0',
-  nodeHaloSize:     '1',
-  nodeShapeColor:   '#000000',
-  nodeShapeBgColor: '#000000',
-  axisColor:        '#444444',
-  legendTextColor:  '#444444',
-  selectedLabelStyle:   'bold',
-  selectedTipStrokeColor:       '#ffffff',
-  selectedTipFillColor:         '#ffffff',
-  selectedTipGrowthFactor:      '1.5',
-  selectedTipMinSize:           '5',
-  selectedTipFillOpacity:       '0.35',
-  selectedTipStrokeWidth:       '0.5',
-  selectedTipStrokeOpacity:     '0.5',
-  selectedNodeStrokeColor:      '#ffffff',
-  selectedNodeFillColor:        '#ffffff',
-  selectedNodeGrowthFactor:     '1.5',
-  selectedNodeMinSize:          '5',
-  selectedNodeFillOpacity:      '0.35',
-  selectedNodeStrokeWidth:      '0.5',
-  selectedNodeStrokeOpacity:    '0.5',
-  tipHoverStrokeColor:          '#f5a700',
-  tipHoverFillColor:            '#f5a700',
-  tipHoverGrowthFactor:         '1.5',
-  tipHoverMinSize:              '5',
-  tipHoverFillOpacity:          '0.45',
-  tipHoverStrokeWidth:          '0.5',
-  tipHoverStrokeOpacity:        '0.5',
-  nodeHoverStrokeColor:         '#f5a700',
-  nodeHoverFillColor:           '#f5a700',
-  nodeHoverGrowthFactor:        '1.5',
-  nodeHoverMinSize:             '5',
-  nodeHoverFillOpacity:         '0.45',
-  nodeHoverStrokeWidth:         '0.5',
-  nodeHoverStrokeOpacity:       '0.5',
-  axisFontSize:     '9',
-  axisFontFamily:   '',
-  axisFontStyle:    '',
-  axisLineWidth:    '1',
-  rttAxisColor:     '',
-  rttStatsBgColor:   '#081c22',
-  rttStatsTextColor: '#f2f1e6',
+  // Name of the built-in theme that serves as the fully-specified visual base.
+  // All other themes are merged on top of this at applyTheme() time, so only
+  // this theme needs to define every key in REQUIRED_THEME_KEYS.
+  defaultTheme:     'Monochrome',
+  // RTT non-theme settings
   rttStatsFontSize:  '11',
   rttRegressionStyle: 'dash',
-  rttRegressionColor: '',
   rttRegressionWidth: '1.5',
   rttAxisFontSize:  '9',
   rttAxisFontFamily: '',
@@ -74,9 +59,7 @@ export const DEFAULT_SETTINGS = {
   rttMinorInterval:     'off',
   rttMajorLabelFormat:  'partial',
   rttMinorLabelFormat:  'off',
-  legendFontSize:     '11',
-  legendFontFamily:   '',
-  legendFontStyle:    '',
+  // Axis display settings
   axisShow:           'off',
   axisDateAnnotation: '',
   axisDateFormat:     'yyyy-MM-dd',
@@ -107,18 +90,15 @@ export const DEFAULT_SETTINGS = {
   legendHeightPct4:  '50',
   // Axis canvas vertical padding (px) — gap above the baseline line
   axisPaddingTop: '3',
-  elbowRadius:    '2',
   rootStubLength: '10',
   rootStemPct:    '1',    // whole-tree root-stem length as % of tree age (0–20)
   // Node bars (only shown when tree has 'height' group from BEAST)
   nodeBarsEnabled:    'off',
-  nodeBarsColor:      '#444444',
   nodeBarsWidth:      '6',
   nodeBarsFillOpacity:   '0.22',
   nodeBarsStrokeOpacity: '0.55',
   nodeBarsShowMedian: 'mean',
   nodeBarsShowRange:  'off',
-  // Negative branch lengths
   // Tip label layout
   tipLabelAlign:      'off',
   // Tip label shapes (displayed to the left of label text)
