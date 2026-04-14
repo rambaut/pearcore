@@ -605,7 +605,7 @@ async function _initCore(root = document) {
     // non-visual config, and paintColour (intentionally excluded from themes).
     return {
       ...themePart,
-      theme:            themeSelect?.value ?? DEFAULT_SETTINGS.baseTheme,
+      selectedTheme:     themeSelect?.value ?? DEFAULT_SETTINGS.baseTheme,
       defaultTheme:     defaultTheme,
       paintColour:      paintColourPickerEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
@@ -1876,8 +1876,9 @@ async function _initCore(root = document) {
     tipLabelSpacingSlider.value = _saved.tipLabelSpacing;
     $('tip-label-spacing-value').textContent = _saved.tipLabelSpacing;
   }
-  // Restore saved theme name (or default to Artic if no saved settings)
-  if (themeSelect) themeSelect.value = _saved.theme || 'Artic';
+  // Restore saved theme name; fall back to defaultTheme if no saved settings.
+  // selectedTheme is the theme in use; defaultTheme is the starred/preferred one.
+  if (themeSelect) themeSelect.value = _saved.selectedTheme ?? _saved.theme /* bwc */ ?? defaultTheme;
   if (_saved.rttXOrigin)    rttXOriginEl.value    = _saved.rttXOrigin;
   if (_saved.rttGridLines)  rttGridLinesEl.value  = _saved.rttGridLines;
   if (_saved.rttAspectRatio) rttAspectRatioEl.value = _saved.rttAspectRatio;
@@ -2156,8 +2157,8 @@ async function _initCore(root = document) {
   // If the stored theme is 'custom', the persisted visual controls are already
   // hydrated above and we just sync the renderer.
   if (_cfg.storageKey === null) {
-    applyTheme(_saved.theme || defaultTheme);
-  } else if (!_saved.theme || _saved.theme !== 'custom') {
+    applyTheme(_saved.selectedTheme ?? _saved.theme /* bwc */ ?? defaultTheme);
+  } else if (!(_saved.selectedTheme ?? _saved.theme) || (_saved.selectedTheme ?? _saved.theme) !== 'custom') {
     applyTheme(defaultTheme);
   } else {
     // Custom theme: DOM controls were already hydrated from _saved above; just sync the renderer.
