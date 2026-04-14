@@ -200,7 +200,7 @@ async function _initCore(root = document) {
   const nodeBarsWidthSlider = $('node-bars-width-slider');
   const nodeBarsFillOpacitySlider   = $('node-bars-fill-opacity');
   const nodeBarsStrokeOpacitySlider = $('node-bars-stroke-opacity');
-  const nodeBarsMedianEl    = $('node-bars-median');
+  const nodeBarsLineEl      = $('node-bars-median');
   const nodeBarsRangeEl     = $('node-bars-range');
   const nodeBarsControlsEl  = $('node-bars-controls');
   const nodeBarsUnavailEl   = $('node-bars-unavail');
@@ -1035,8 +1035,8 @@ async function _initCore(root = document) {
       nodeBarsWidth:           nodeBarsWidthSlider.value,
       nodeBarsFillOpacity:     nodeBarsFillOpacitySlider.value,
       nodeBarsStrokeOpacity:   nodeBarsStrokeOpacitySlider.value,
-      nodeBarsShowMedian:      nodeBarsMedianEl.value,
-      nodeBarsShowRange:       nodeBarsRangeEl.value,
+      nodeBarsLine:             nodeBarsLineEl.value,
+      nodeBarsRange:          nodeBarsRangeEl.value,
       collapsedCladeOpacity:  collapsedOpacitySlider.value,
       collapsedCladeHeightN:  collapsedHeightNSlider.value,
       collapsedCladeFontSize: collapsedCladeFontSizeSlider.value,
@@ -1312,8 +1312,8 @@ async function _initCore(root = document) {
       nodeBarsStrokeOpacitySlider.value = s.nodeBarsStrokeOpacity;
       $('node-bars-stroke-opacity-value').textContent = s.nodeBarsStrokeOpacity;
     }
-    if (s.nodeBarsShowMedian) nodeBarsMedianEl.value = s.nodeBarsShowMedian;
-    if (s.nodeBarsShowRange)  nodeBarsRangeEl.value  = s.nodeBarsShowRange;
+    if (s.nodeBarsLine) nodeBarsLineEl.value = s.nodeBarsLine;
+    if (s.nodeBarsRange)  nodeBarsRangeEl.value  = s.nodeBarsRange;
     if (s.collapsedCladeOpacity != null) {
       collapsedOpacitySlider.value = s.collapsedCladeOpacity;
       $('collapsed-opacity-value').textContent = s.collapsedCladeOpacity;
@@ -1404,8 +1404,8 @@ async function _initCore(root = document) {
     rttMajorLabelEl.value    = DEFAULT_SETTINGS.rttMajorLabelFormat;
     rttMinorLabelEl.value    = DEFAULT_SETTINGS.rttMinorLabelFormat;
     nodeBarsShowEl.value  = DEFAULT_SETTINGS.nodeBarsEnabled;
-    nodeBarsMedianEl.value = DEFAULT_SETTINGS.nodeBarsShowMedian;
-    nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsShowRange;
+    nodeBarsLineEl.value = DEFAULT_SETTINGS.nodeBarsLine;
+    nodeBarsRangeEl.value  = DEFAULT_SETTINGS.nodeBarsRange;
     cladeHighlightLeftEdgeEl.value  = DEFAULT_SETTINGS.cladeHighlightLeftEdge;
     cladeHighlightRightEdgeEl.value = DEFAULT_SETTINGS.cladeHighlightRightEdge;
     cladeHighlightPaddingSlider.value = DEFAULT_SETTINGS.cladeHighlightPadding;
@@ -1541,8 +1541,8 @@ async function _initCore(root = document) {
       nodeBarsWidth:      parseInt(nodeBarsWidthSlider.value),
       nodeBarsFillOpacity:   parseFloat(nodeBarsFillOpacitySlider.value),
       nodeBarsStrokeOpacity: parseFloat(nodeBarsStrokeOpacitySlider.value),
-      nodeBarsShowMedian: nodeBarsMedianEl.value,
-      nodeBarsShowRange:  nodeBarsRangeEl.value  === 'on',
+      nodeBarsLine: nodeBarsLineEl.value,
+      nodeBarsRange:  nodeBarsRangeEl.value  === 'on',
       collapsedCladeOpacity:  parseFloat(collapsedOpacitySlider.value),
       collapsedCladeHeightN:  parseInt(collapsedHeightNSlider.value),
       collapsedCladeFontSize: parseInt(collapsedCladeFontSizeSlider.value),
@@ -6089,7 +6089,7 @@ async function _initCore(root = document) {
     $('node-bars-stroke-opacity-value').textContent = nodeBarsStrokeOpacitySlider.value;
     applyNodeBars();
   });
-  nodeBarsMedianEl.addEventListener('change', applyNodeBars);
+  nodeBarsLineEl.addEventListener('change', applyNodeBars);
   nodeBarsRangeEl.addEventListener('change', applyNodeBars);
 
   collapsedOpacitySlider.addEventListener('input', () => {

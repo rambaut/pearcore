@@ -288,8 +288,8 @@ export class TreeRenderer {
     this.nodeBarsEnabled    = s.nodeBarsEnabled    ?? false;
     this.nodeBarsColor      = s.nodeBarsColor      ?? '#2aa198';
     this.nodeBarsWidth      = s.nodeBarsWidth      ?? 6;
-    this.nodeBarsShowMedian = s.nodeBarsShowMedian ?? 'mean';
-    this.nodeBarsShowRange       = s.nodeBarsShowRange       ?? false;
+    this.nodeBarsLine = s.nodeBarsLine ?? 'off';
+    this.nodeBarsRange       = s.nodeBarsRange       ?? false;
     this.nodeBarsFillOpacity   = s.nodeBarsFillOpacity   != null ? +s.nodeBarsFillOpacity   : 0.22;
     this.nodeBarsStrokeOpacity = s.nodeBarsStrokeOpacity != null ? +s.nodeBarsStrokeOpacity : 0.55;
 
@@ -1574,7 +1574,7 @@ export class TreeRenderer {
     const heightDef = this._annotationSchema.get('height');
     if (!heightDef?.group?.hpd) return 0;
     const hpdKey   = heightDef.group.hpd;
-    const rangeKey = (this.nodeBarsShowRange && heightDef.group.range) ? heightDef.group.range : null;
+    const rangeKey = (this.nodeBarsRange && heightDef.group.range) ? heightDef.group.range : null;
     let maxLeftward = 0;
     for (const node of this.nodes) {
       if (node.isTip) continue;
@@ -2631,8 +2631,8 @@ export class TreeRenderer {
     ctx.lineWidth   = 1;
 
     // ── Pass 3: mean/median line ──────────────────────────────────────────────
-    if (this.nodeBarsShowMedian !== 'none') {
-      const useMedian = this.nodeBarsShowMedian === 'median';
+    if (this.nodeBarsLine !== 'off') {
+      const useMedian = this.nodeBarsLine === 'median';
       ctx.strokeStyle = col;
       ctx.lineWidth   = 2;
       ctx.globalAlpha = this.nodeBarsStrokeOpacity;
@@ -2664,7 +2664,7 @@ export class TreeRenderer {
     }
 
     // ── Pass 4: range whiskers ────────────────────────────────────────────────
-    if (this.nodeBarsShowRange && rangeKey) {
+    if (this.nodeBarsRange && rangeKey) {
       const capH = halfW * 0.6;  // height of whisker end-cap
       ctx.strokeStyle = col;
       ctx.lineWidth   = 1;

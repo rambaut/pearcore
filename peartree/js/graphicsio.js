@@ -492,8 +492,8 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       }
 
       // Pass 3: mean or median centre line.
-      if (renderer.nodeBarsShowMedian !== 'none') {
-        const useMedian = renderer.nodeBarsShowMedian === 'median';
+      if (renderer.nodeBarsLine !== 'off') {
+        const useMedian = renderer.nodeBarsLine === 'median';
         for (const [, node] of nm) {
           if (node.isTip) continue;
           const ny = toSY(node.y);
@@ -516,7 +516,7 @@ export function buildGraphicSVG(ctx, fullTree = false, transparent = false) {
       }
 
       // Pass 4: range whiskers (line to full-range extent + end cap).
-      if (renderer.nodeBarsShowRange && rangeKey) {
+      if (renderer.nodeBarsRange && rangeKey) {
         const capH = halfW * 0.6;
         for (const [, node] of nm) {
           if (node.isTip) continue;
