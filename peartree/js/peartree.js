@@ -2152,19 +2152,21 @@ async function _initCore(root = document) {
   // For embeds (storageKey=null) there are no stored colour customisations, so
   // always apply the theme (or the default) to get correct colours.
   // For the standalone app, if a named (non-custom) theme was saved, always
-  // re-apply the user's default theme on startup rather than the previously
-  // selected named theme — this ensures the starred/default theme is used.
-  // If the stored theme is 'custom', the persisted visual controls are already
-  // hydrated above and we just sync the renderer.
-  if (_cfg.storageKey === null) {
-    applyTheme(_saved.selectedTheme ?? _saved.theme /* bwc */ ?? defaultTheme);
-  } else if (!(_saved.selectedTheme ?? _saved.theme) || (_saved.selectedTheme ?? _saved.theme) !== 'custom') {
-    applyTheme(defaultTheme);
-  } else {
-    // Custom theme: DOM controls were already hydrated from _saved above; just sync the renderer.
-    renderer.setSettings(_buildRendererSettings(), false);
-    _syncControlVisibility();
-    _syncThemeButtons();
+  // Apply the saved theme on startup.
+  // If selectedTheme is 'custom', reset it to defaultTheme and apply that instead —
+  // custom is a transient state that cannot be meaningfully restored by name.
+  // For embeds with no storage (storageKey === null), apply whatever was passed in
+  // initSettings, falling back to defaultTheme.
+  {
+    const _st = _saved.selectedTheme ?? _saved.theme /* bwc */;
+    if (_st && _st !== 'custom') {
+      applyTheme(_st);
+    } else {
+      // No saved theme, or saved theme was 'custom' — fall back to defaultTheme.
+      applyTheme(defaultTheme);
+      // Also update the in-memory snapshot so saveSettings() below records the correct name.
+      if (themeSelect) themeSelect.value = defaultTheme;
+    }
   }
 
   // Always sync legend/axis font families after renderer init — applyTheme does
