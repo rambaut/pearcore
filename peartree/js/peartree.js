@@ -5811,11 +5811,13 @@ async function _initCore(root = document) {
   });
 
   legendTextColorEl.addEventListener('input', () => {
+    _markCustomTheme();
     legendRenderer.setTextColor(legendTextColorEl.value);
     saveSettings();
   });
   legendFontSizeSlider.addEventListener('input', () => {
     $('legend-font-size-value').textContent = legendFontSizeSlider.value;
+    _markCustomTheme();
     applyLegend();
   });
   legendHeightPctSlider.addEventListener('input', () => {
@@ -5933,10 +5935,12 @@ async function _initCore(root = document) {
   axisColorEl.addEventListener('input', () => { _markCustomTheme(); applyAxisStyle(); });
   axisFontSizeSlider.addEventListener('input', () => {
     $('axis-font-size-value').textContent = axisFontSizeSlider.value;
+    _markCustomTheme();
     applyAxisStyle();
   });
   axisLineWidthSlider.addEventListener('input', () => {
     $('axis-line-width-value').textContent = axisLineWidthSlider.value;
+    _markCustomTheme();
     applyAxisStyle();
   });
 
@@ -5956,14 +5960,17 @@ async function _initCore(root = document) {
   });
 
   rttAxisColorEl.addEventListener('input', () => {
+    _markCustomTheme();
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
   rttStatsBgColorEl.addEventListener('input', () => {
+    _markCustomTheme();
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
   rttStatsTextColorEl.addEventListener('input', () => {
+    _markCustomTheme();
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
@@ -5972,6 +5979,7 @@ async function _initCore(root = document) {
     saveSettings();
   });
   rttRegressionColorEl.addEventListener('input', () => {
+    _markCustomTheme();
     rttChart?.notifyStyleChange?.();
     saveSettings();
   });
@@ -6019,7 +6027,7 @@ async function _initCore(root = document) {
   }
 
   nodeBarsShowEl.addEventListener('change', applyNodeBars);
-  nodeBarsColorEl.addEventListener('input', applyNodeBars);
+  nodeBarsColorEl.addEventListener('input', () => { _markCustomTheme(); applyNodeBars(); });
   nodeBarsWidthSlider.addEventListener('input', () => {
     $('node-bars-width-value').textContent = nodeBarsWidthSlider.value;
     applyNodeBars();
