@@ -11,7 +11,7 @@ import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from './annotationsio.js';
-import { createAnnotCurator  } from './annotcurator.js';
+import { createAnnotCurator  } from './annotations-manager.js';
 import { createDataTableRenderer } from './datatablerenderer.js';
 import { createRTTChart          } from './rttchart.js';
 import { createCommands } from './commands.js';
@@ -2384,7 +2384,7 @@ async function _initCore(root = document) {
 
     if (e.key === 'Escape') {
       // Close innermost open overlay first.
-      if ($('parse-tips-overlay')?.classList.contains('open'))    { /* handled by annotcurator */ return; }
+      if ($('parse-tips-overlay')?.classList.contains('open'))    { /* handled by annotations-manager */ return; }
       if ($('export-graphic-overlay')?.classList.contains('open')) { exportCtrl.closeGraphicsDialog(); return; }
       if ($('export-tree-overlay')?.classList.contains('open'))    { exportCtrl.closeExportDialog();   return; }
       if ($('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
