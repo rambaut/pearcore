@@ -155,5 +155,9 @@ export const DEFAULT_SETTINGS = {
   // Name of the built-in theme that serves as the fully-specified visual base.
   // All other themes are merged on top of this at applyTheme() time, so only
   // this theme needs to define every key in REQUIRED_THEME_KEYS.
-  baseTheme: 'Monochrome',
+  baseTheme:     'Monochrome',
+  // Applied on a fresh session (no saved settings) or after Reset Settings.
+  defaultTheme:  'Artic',
+  // Last-active theme name; restored on reload. Falls back to defaultTheme.
+  selectedTheme: 'Artic',
 };

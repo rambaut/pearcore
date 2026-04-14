@@ -417,7 +417,7 @@ async function _initCore(root = document) {
   const themeRegistry = new Map(Object.entries(THEMES));
 
   /** The user-set default theme for new windows (persisted in localStorage). */
-  let defaultTheme = 'Artic';  // restored from _saved.defaultTheme in the init block below
+  let defaultTheme = DEFAULT_SETTINGS.defaultTheme;  // restored from _saved.defaultTheme in the init block below
   // Guard applied after loadUserThemes() so user-saved defaults are recognised.
 
   /**
@@ -605,7 +605,7 @@ async function _initCore(root = document) {
     // non-visual config, and paintColour (intentionally excluded from themes).
     return {
       ...themePart,
-      selectedTheme:     themeSelect?.value ?? DEFAULT_SETTINGS.baseTheme,
+      selectedTheme:     themeSelect?.value ?? DEFAULT_SETTINGS.selectedTheme,
       defaultTheme:     defaultTheme,
       paintColour:      paintColourPickerEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
