@@ -5,7 +5,6 @@ export { TYPEFACES, buildFont } from './typefaces.js';
 
 export const SETTINGS_KEY = 'peartree-settings';
 export const USER_THEMES_KEY = 'peartree-user-themes';
-export const DEFAULT_THEME_KEY = 'peartree-default-theme';
 
 export const DEFAULT_THEME = {
     // acts as the fallback base theme: all keys in REQUIRED_THEME_KEYS must be defined here, and other themes are allowed to be sparse overrides that inherit from this at applyTheme() time

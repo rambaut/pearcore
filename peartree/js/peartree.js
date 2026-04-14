@@ -5,7 +5,7 @@ import { htmlEsc as _esc, downloadBlob as _downloadBlob, wireDropZone as _wireDr
 import { TreeRenderer, CAL_DATE_KEY, CAL_DATE_HPD_KEY, CAL_DATE_HPD_ONLY_KEY } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
-import { THEMES, DEFAULT_THEME, SETTINGS_KEY, USER_THEMES_KEY, DEFAULT_THEME_KEY } from './themes.js';
+import { THEMES, DEFAULT_THEME, SETTINGS_KEY, USER_THEMES_KEY } from './themes.js';
 import { TYPEFACES, buildFont } from './typefaces.js';
 import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from './palettes.js';
@@ -417,7 +417,7 @@ async function _initCore(root = document) {
   const themeRegistry = new Map(Object.entries(THEMES));
 
   /** The user-set default theme for new windows (persisted in localStorage). */
-  let defaultTheme = localStorage.getItem(DEFAULT_THEME_KEY) || 'Artic';
+  let defaultTheme = 'Artic';  // restored from _saved.defaultTheme in the init block below
   // Guard applied after loadUserThemes() so user-saved defaults are recognised.
 
   /**
@@ -606,6 +606,7 @@ async function _initCore(root = document) {
     return {
       ...themePart,
       theme:            themeSelect?.value ?? DEFAULT_SETTINGS.baseTheme,
+      defaultTheme:     defaultTheme,
       paintColour:      paintColourPickerEl.value,
       selectedLabelStyle: selectedLabelStyleEl.value,
       tipLabelTypefaceKey:         tipLabelTypefaceEl?.value  || '',
@@ -739,7 +740,7 @@ async function _initCore(root = document) {
     const name = themeSelect.value;
     if (name === 'custom' || !themeRegistry.has(name)) return;
     defaultTheme = name;
-    localStorage.setItem(DEFAULT_THEME_KEY, name);
+    saveSettings();
     // Repopulate select to refresh the ★ marker, then restore selection.
     _populateThemeSelect();
     themeSelect.value = name;
@@ -754,7 +755,6 @@ async function _initCore(root = document) {
     // If the removed theme was the default, fall back to the first built-in.
     if (defaultTheme === name) {
       defaultTheme = Object.keys(THEMES)[0];
-      localStorage.setItem(DEFAULT_THEME_KEY, defaultTheme);
     }
     themeRegistry.delete(name);
     saveUserThemes();
@@ -1660,8 +1660,11 @@ async function _initCore(root = document) {
 
   // Bootstrap theme registry and select options before restoring saved state.
   loadUserThemes();
+  // Restore the per-instance default theme from saved settings.
+  // Must run after loadUserThemes() so user-saved themes are recognised.
+  const _preSaved = loadSettings();
+  if (_preSaved.defaultTheme && themeRegistry.has(_preSaved.defaultTheme)) defaultTheme = _preSaved.defaultTheme;
   // Guard: if the stored default is no longer in the registry, fall back gracefully.
-  // Must run after loadUserThemes() so user-saved themes are present.
   if (!themeRegistry.has(defaultTheme)) defaultTheme = Object.keys(THEMES)[0];
   // Validate that DEFAULT_THEME is fully specified (all REQUIRED_THEME_KEYS present).
   {
@@ -1673,7 +1676,8 @@ async function _initCore(root = document) {
 
   // Load stored settings, then merge any embed-time initSettings on top so
   // window.peartreeConfig.settings always wins over persisted values.
-  const _saved = Object.assign(loadSettings(), _cfg.initSettings);
+  // _preSaved was already loaded above for defaultTheme; reuse it here.
+  const _saved = Object.assign(_preSaved, _cfg.initSettings);
   // Restore per-annotation palette choices.
   if (_saved.annotationPalettes) {
     for (const [k, v] of Object.entries(_saved.annotationPalettes)) annotationPalettes.set(k, v);
