@@ -584,31 +584,57 @@ export function injectBuiltinStats(schema, nodes, maxX, maxY, cal, residualData 
  * @param {Array}            nodes   – layout node array (tips only are used)
  * @param {TreeCalibration|null} cal – calibration object, or null
  * @param {string|null}    dateKey   – annotation key containing tip dates
- * @returns {{ residualMap: Map, outlierMap: Map,
+ * @returns {{ residualMap: Map, zscoreMap: Map, outlierMap: Map,
  *             minResidual: number, maxResidual: number,
+ *             minZscore: number, maxZscore: number,
  *             minOutlier:  number, maxOutlier:  number }}
  */
 export function computeTemporalResiduals(nodes, cal, dateKey) {
-  const tips = nodes ? nodes.filter(n => n.isTip) : [];
+  // Include all real leaf tips, including those inside collapsed clades.
+  // Collapsed clade phantom nodes (isTip && isCollapsed) are expanded via
+  // collapsedTipNames so every actual tip contributes to the regression.
+  const tips = [];
+  if (nodes) {
+    for (const n of nodes) {
+      if (!n.isTip) continue;
+      if (n.isCollapsed) {
+        if (n.collapsedTipNames) for (const t of n.collapsedTipNames) tips.push(t);
+      } else {
+        tips.push(n);
+      }
+    }
+  }
   const residualMap = new Map();
+  const zscoreMap   = new Map();
   const outlierMap  = new Map();
-  const empty = { residualMap, outlierMap, minResidual: 0, maxResidual: 0, minOutlier: 0, maxOutlier: 0 };
+  const empty = { residualMap, zscoreMap, outlierMap,
+                  minResidual: 0, maxResidual: 0,
+                  minZscore: 0, maxZscore: 0,
+                  minOutlier: 0, maxOutlier: 0 };
   if (!tips.length) return empty;
 
   const reg = (cal?.isActive && cal.regression) ? cal.regression : null;
 
   if (reg && dateKey) {
     // ── Regression mode ────────────────────────────────────────────────────
+    // Tips without a date annotation are not used in the regression and get
+    // null values for all three annotations.
     for (const tip of tips) {
       const raw = tip.annotations?.[dateKey];
       const x   = (raw != null) ? TreeCalibration.parseDateToDecYear(String(raw)) : null;
-      if (x == null) { residualMap.set(tip.id, null); outlierMap.set(tip.id, null); continue; }
+      if (x == null) {
+        residualMap.set(tip.id, null);
+        zscoreMap.set(tip.id, null);
+        outlierMap.set(tip.id, null);
+        continue;
+      }
       residualMap.set(tip.id, tip.x - (reg.a * x + reg.b));
     }
     const rmse = reg.rmse ?? 0;
     for (const [id, r] of residualMap) {
-      if (r == null) { outlierMap.set(id, null); continue; }
+      if (r == null) continue;  // already set to null above
       const z = rmse > 0 ? r / rmse : 0;
+      zscoreMap.set(id, z);
       outlierMap.set(id, Math.abs(z) > 2 ? z : 0);
     }
   } else {
@@ -620,6 +646,7 @@ export function computeTemporalResiduals(nodes, cal, dateKey) {
       const r = tip.x - mean;
       residualMap.set(tip.id, r);
       const z = stdev > 0 ? r / stdev : 0;
+      zscoreMap.set(tip.id, z);
       outlierMap.set(tip.id, Math.abs(z) > 2 ? z : 0);
     }
   }
@@ -630,6 +657,12 @@ export function computeTemporalResiduals(nodes, cal, dateKey) {
     if (v < minResidual) minResidual = v;
     if (v > maxResidual) maxResidual = v;
   }
+  let minZscore = Infinity, maxZscore = -Infinity;
+  for (const v of zscoreMap.values()) {
+    if (v == null) continue;
+    if (v < minZscore) minZscore = v;
+    if (v > maxZscore) maxZscore = v;
+  }
   let minOutlier = Infinity, maxOutlier = -Infinity;
   for (const v of outlierMap.values()) {
     if (v == null) continue;
@@ -637,8 +670,12 @@ export function computeTemporalResiduals(nodes, cal, dateKey) {
     if (v > maxOutlier) maxOutlier = v;
   }
   if (!isFinite(minResidual)) { minResidual = 0; maxResidual = 0; }
+  if (!isFinite(minZscore))   { minZscore   = 0; maxZscore   = 0; }
   if (!isFinite(minOutlier))  { minOutlier  = 0; maxOutlier  = 0; }
-  return { residualMap, outlierMap, minResidual, maxResidual, minOutlier, maxOutlier };
+  return { residualMap, zscoreMap, outlierMap,
+           minResidual, maxResidual,
+           minZscore, maxZscore,
+           minOutlier, maxOutlier };
 }
 
 /**

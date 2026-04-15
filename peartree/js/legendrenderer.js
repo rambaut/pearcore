@@ -183,6 +183,26 @@ export class LegendRenderer {
   }
 
   /**
+   * Receive the per-annotation scale mode overrides Map from TreeRenderer.
+   * Triggers a redraw so legend axis labels update immediately.
+   * @param {Map<string,string>|null} overrides
+   */
+  setScaleModeOverrides(overrides) {
+    this._scaleModeOverrides = overrides;
+    this.draw();
+  }
+
+  /**
+   * Receive per-annotation live min/max ranges computed from currently visible
+   * nodes by TreeRenderer._pushLiveRangesToLegend().
+   * @param {Map<string, {min:number, max:number}>|null} ranges
+   */
+  setLiveRanges(ranges) {
+    this._liveRanges = ranges;
+    this.draw();
+  }
+
+  /**
    * Set which annotation and which canvas side to use, then draw.
    * Pass position=null to hide the legend entirely.
    * @param {'right'|null} position
@@ -699,7 +719,23 @@ export class LegendRenderer {
       for (let i = 0; i < ns; i++) grad.addColorStop(i / (ns - 1), stops[ns - 1 - i]);
       ctx.fillStyle = grad;
       ctx.fillRect(PAD, BAR_Y, BAR_W, BAR_H);
-      const min = def.min ?? 0; const max = def.max ?? 1; const range = max - min;
+      // Compute effective range from scale mode.
+      const _mode = this._scaleModeOverrides?.get(key) ?? '';
+      // Prefer live range (computed from visible nodes) over schema bounds.
+      const _live = this._liveRanges?.get(key);
+      let effMin = _live?.min ?? def.min ?? 0;
+      let effMax = _live?.max ?? def.max ?? 1;
+      if (_mode === 'symmetric-zero') {
+        const maxAbs = Math.max(Math.abs(effMin), Math.abs(effMax));
+        effMin = -maxAbs;
+        effMax = +maxAbs;
+      } else if (_mode === 'zero-positive') {
+        effMin = 0;
+      } else if (_mode === 'zero-one') {
+        effMin = Math.min(effMin, 0);
+        effMax = Math.max(effMax, 1);
+      }
+      const range = effMax - effMin;
       const LABEL_X = PAD + BAR_W + 6;
       const LABEL_W = W - LABEL_X - PAD;
       const tc  = Math.max(2, Math.min(6, Math.floor(BAR_H / (lfs + 6))));
@@ -710,7 +746,7 @@ export class LegendRenderer {
         const tickY = BAR_Y + t * BAR_H;
         ctx.fillRect(PAD + BAR_W, tickY - 0.5, 4, 1);
         ctx.textBaseline = i === 0 ? 'top' : (i === tc - 1 ? 'bottom' : 'middle');
-        ctx.fillText(this._truncateText(ctx, fmt(max - t * range), LABEL_W), LABEL_X, tickY);
+        ctx.fillText(this._truncateText(ctx, fmt(effMax - t * range), LABEL_W), LABEL_X, tickY);
       }
     }
     return hitRegions;

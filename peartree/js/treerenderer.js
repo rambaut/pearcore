@@ -142,6 +142,7 @@ export class TreeRenderer {
     // Annotation colouring
     this._annotationSchema          = null;   // Map<name, AnnotationDef> from buildAnnotationSchema
     this._annotationPaletteOverrides = new Map(); // annotKey → paletteName string
+    this._annotationScaleModes        = new Map(); // annotKey → 'symmetric-zero'|'zero-positive'|'zero-one'|''
     this._tipColourBy      = null;   // annotation key or null
     this._tipColourScale   = null;   // Map<value, CSS colour> | null
     this._nodeColourBy     = null;   // annotation key for internal nodes, or null
@@ -386,6 +387,9 @@ export class TreeRenderer {
     } else {
       this.fitToWindow();  // animated
     }
+    // Colour scales for numeric annotations are based on visible-node values,
+    // so rebuild them whenever the node set changes.
+    this._rebuildNumericColourScales();
     this._notifyStats();
   }
 
@@ -430,6 +434,8 @@ export class TreeRenderer {
     this._measureLabels();
     this._updateScaleX(false);
     this._updateMinScaleY();
+    // Rebuild numeric colour scales for the new visible node set.
+    this._rebuildNumericColourScales();
 
     // Notify observers while nodes still carry their final target y values so
     // consumers (e.g. data table) see the correct post-sort order.
@@ -966,6 +972,8 @@ export class TreeRenderer {
     }
     this._legendRenderer?.setAnnotationSchema(schema);
     this._legendRenderer?.setPaletteOverrides(this._annotationPaletteOverrides);
+    this._legendRenderer?.setScaleModeOverrides(this._annotationScaleModes);
+    this._pushLiveRangesToLegend();
     this._dirty = true;
   }
 
@@ -1085,6 +1093,32 @@ export class TreeRenderer {
     }
     // Propagate to legend so it redraws with the new palette.
     this._legendRenderer?.setPaletteOverrides(this._annotationPaletteOverrides);
+    this._pushLiveRangesToLegend();
+    this._dirty = true;
+  }
+
+  /**
+   * Set (or clear) the scale mode for a specific annotation key.
+   * Rebuilds any active colour scales that use that key.
+   * @param {string}      key   Annotation name
+   * @param {string|null} mode  'symmetric-zero', 'zero-positive', 'zero-one', or null/''/falsy to revert
+   */
+  setAnnotationScaleMode(key, mode) {
+    if (mode) {
+      this._annotationScaleModes.set(key, mode);
+    } else {
+      this._annotationScaleModes.delete(key);
+    }
+    if (this._tipColourBy            === key) this._tipColourScale            = this._buildColourScale(key);
+    if (this._nodeColourBy           === key) this._nodeColourScale           = this._buildColourScale(key);
+    if (this._labelColourBy          === key) this._labelColourScale          = this._buildColourScale(key);
+    if (this._tipLabelShapeColourBy  === key) this._tipLabelShapeColourScale  = this._buildColourScale(key);
+    for (let i = 0; i < this._tipLabelShapeExtraColourBys.length; i++) {
+      if (this._tipLabelShapeExtraColourBys[i] === key)
+        this._tipLabelShapeExtraColourScales[i] = this._buildColourScale(key);
+    }
+    this._legendRenderer?.setScaleModeOverrides(this._annotationScaleModes);
+    this._pushLiveRangesToLegend();
     this._dirty = true;
   }
 
@@ -1115,12 +1149,101 @@ export class TreeRenderer {
       scale.set('__palette__', this._annotationPaletteOverrides.get(key) ?? null);
       scale.set('__isDate__', true);
     } else if (isNumericType(def.dataType)) {
-      // Store range and palette name so _colourFromScale can interpolate at draw time.
-      scale.set('__min__', def.min ?? 0);
-      scale.set('__max__', def.max ?? 1);
+      // Compute live min/max from currently visible, non-collapsed nodes,
+      // skipping null/undefined/missing values.  This keeps the colour scale
+      // accurate after re-roots, subtree navigation, tip hide/show, annotation
+      // edits in the data table, and changes to the RTT regression.
+      let liveMin = Infinity, liveMax = -Infinity;
+      if (this.nodes) {
+        for (const n of this.nodes) {
+          if (n.isTip && n.isCollapsed) {
+            // Expand the individual tips inside the collapsed clade.
+            if (n.collapsedTipNames && def.onTips !== false) {
+              for (const tip of n.collapsedTipNames) {
+                const v = this._statValue(tip, key);
+                if (v == null || v === '?' || !Number.isFinite(v)) continue;
+                if (v < liveMin) liveMin = v;
+                if (v > liveMax) liveMax = v;
+              }
+            }
+            continue;
+          }
+          if (def.onTips  === false && n.isTip)  continue;
+          if (def.onNodes === false && !n.isTip) continue;
+          const v = this._statValue(n, key);
+          if (v == null || v === '?' || !Number.isFinite(v)) continue;
+          if (v < liveMin) liveMin = v;
+          if (v > liveMax) liveMax = v;
+        }
+      }
+      // Fall back to schema bounds when no visible nodes have values (e.g. at
+      // startup before setData() is called, or when all values are null).
+      if (!isFinite(liveMin)) { liveMin = def.min ?? 0; liveMax = def.max ?? 1; }
+
+      // Apply scale mode on top of the live range.
+      const _mode = this._annotationScaleModes.get(key) ?? '';
+      let effMin = liveMin, effMax = liveMax;
+      if (_mode === 'symmetric-zero') {
+        const maxAbs = Math.max(Math.abs(effMin), Math.abs(effMax));
+        effMin = -maxAbs;
+        effMax = +maxAbs;
+      } else if (_mode === 'zero-positive') {
+        effMin = 0;
+      } else if (_mode === 'zero-one') {
+        effMin = Math.min(effMin, 0);
+        effMax = Math.max(effMax, 1);
+      }
+      scale.set('__min__', effMin);
+      scale.set('__max__', effMax);
+      scale.set('__liveMin__', liveMin);
+      scale.set('__liveMax__', liveMax);
       scale.set('__palette__', this._annotationPaletteOverrides.get(key) ?? null);
     }
     return scale;
+  }
+
+  /**
+   * Rebuild all active numeric colour scales (when node data or annotation
+   * values have changed but the schema structure is unchanged).
+   * Also pushes fresh live ranges to the legend renderer.
+   */
+  _rebuildNumericColourScales() {
+    const rebuild = (key, current) => {
+      if (!key) return current;
+      const def = this._annotationSchema?.get(key);
+      if (def && isNumericType(def.dataType)) return this._buildColourScale(key);
+      return current;
+    };
+    this._tipColourScale   = rebuild(this._tipColourBy,   this._tipColourScale);
+    this._nodeColourScale  = rebuild(this._nodeColourBy,  this._nodeColourScale);
+    this._labelColourScale = rebuild(this._labelColourBy, this._labelColourScale);
+    this._tipLabelShapeColourScale = rebuild(this._tipLabelShapeColourBy, this._tipLabelShapeColourScale);
+    for (let i = 0; i < this._tipLabelShapeExtraColourBys.length; i++) {
+      this._tipLabelShapeExtraColourScales[i] =
+        rebuild(this._tipLabelShapeExtraColourBys[i], this._tipLabelShapeExtraColourScales[i]);
+    }
+    this._pushLiveRangesToLegend();
+  }
+
+  /**
+   * Collect the current live min/max from every active numeric colour scale
+   * and push them to the legend renderer so its tick labels stay accurate.
+   */
+  _pushLiveRangesToLegend() {
+    if (!this._legendRenderer) return;
+    const ranges = new Map();
+    const addRange = (key, scale) => {
+      if (!key || !scale) return;
+      if (scale.has('__liveMin__')) ranges.set(key, { min: scale.get('__liveMin__'), max: scale.get('__liveMax__') });
+    };
+    addRange(this._tipColourBy,           this._tipColourScale);
+    addRange(this._nodeColourBy,          this._nodeColourScale);
+    addRange(this._labelColourBy,         this._labelColourScale);
+    addRange(this._tipLabelShapeColourBy, this._tipLabelShapeColourScale);
+    for (let i = 0; i < this._tipLabelShapeExtraColourBys.length; i++) {
+      addRange(this._tipLabelShapeExtraColourBys[i], this._tipLabelShapeExtraColourScales[i]);
+    }
+    this._legendRenderer.setLiveRanges(ranges);
   }
 
   /** Return a CSS colour string for a value looked up in the given scale, or null. */

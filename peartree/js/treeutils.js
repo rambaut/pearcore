@@ -84,7 +84,7 @@ function _subtreeTipNamesOrdered(gnodes, hiddenNodeIds, startIdx, fromIdx, start
       .map((adjIdx, i) => ({ adjIdx, len: gnode.lengths[i] }))
       .filter(({ adjIdx }) => adjIdx !== fi && !hiddenNodeIds.has(gnodes[adjIdx].origId));
     if (fwdChildren.length === 0) {
-      tips.push({ name: gnode.name ?? null, annotations: gnode.annotations ?? {}, x });
+      tips.push({ id: gnode.origId, name: gnode.name ?? null, annotations: gnode.annotations ?? {}, x });
     } else {
       // Push in reverse so forward (left-to-right) order is popped first.
       for (let j = fwdChildren.length - 1; j >= 0; j--) {
@@ -226,11 +226,11 @@ export function computeLayoutFromGraph(graph, subtreeRootId = null, options = {}
         entry.collapsedRealTips = realTipCount; // actual descendant tip count
         entry.collapsedMaxX     = maxX;
         entry.collapsedColour   = info?.colour ?? null;
-        // When the clade is shown at full height, store tip info so the
-        // renderer can draw individual tip labels instead of "X tips".
-        entry.collapsedTipNames = (heightN === realTipCount)
-          ? _subtreeTipNamesOrdered(gnodes, hiddenNodeIds, nodeIdx, fromNodeIdx, xFromRoot, clampNeg)
-          : null;
+        // Always store individual tip info so colour scales, RTT chart, and
+        // regression include tips from collapsed clades.  The renderer drawing
+        // code separately guards on collapsedTipCount >= collapsedRealTips
+        // before using this for individual tip labels.
+        entry.collapsedTipNames = _subtreeTipNamesOrdered(gnodes, hiddenNodeIds, nodeIdx, fromNodeIdx, xFromRoot, clampNeg);
         entry.isTip             = true;   // acts as leaf for y-assignment
         tipCounter += heightN;
         entry.y = tipCounter - (heightN - 1) / 2;

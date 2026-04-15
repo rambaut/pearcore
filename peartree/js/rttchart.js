@@ -637,39 +637,38 @@ export function createRTTChart({
     const key = getDateAnnotKey();
     if (!tr || !tr.nodes) return [];
 
-    const pts = [];
-    for (const node of tr.nodes) {
-      if (!node.isTip) continue;
-      if (node.isCollapsed) continue;   // collapsed clades show as triangles, not points
+    const colourKey = tr._tipColourBy;
 
-      // X axis: assigned date from the chosen date annotation.
-      // Works whether or not the Axis calibration is active — parseDateToDecYear
-      // handles ISO strings and decimal-year reals directly.
+    function _tipPoint(tip) {
+      // tip can be a regular layout node or a collapsedTipNames entry {id,name,annotations,x}
       let x = null;
       if (key) {
-        const raw = tr._statValue(node, key);
-        if (raw != null) {
-          x = TreeCalibration.parseDateToDecYear(String(raw));
-        }
+        const raw = tr._statValue(tip, key);
+        if (raw != null) x = TreeCalibration.parseDateToDecYear(String(raw));
       }
-
-      // Colour: resolve exactly as the tree renderer does.
-      // Use _statValue so def.dataKey remapping and built-in synthetic keys are
-      // handled correctly, matching the tree's own colour logic.
-      const colourKey = tr._tipColourBy;
       let colour = null;
       if (colourKey) {
-        const val = tr._statValue(node, colourKey);
+        const val = tr._statValue(tip, colourKey);
         if (colourKey === 'user_colour') {
-          // The annotation value IS a CSS colour — skip the identity-scale lookup
-          // to avoid misses when a freshly-painted colour isn't yet in def.values.
           colour = val ?? null;
         } else {
           colour = tr._tipColourForValue(val) ?? null;
         }
       }
+      return { id: tip.id, x, y: tip.x, name: tip.name ?? tip.id, colour };
+    }
 
-      pts.push({ id: node.id, x, y: node.x, name: node.name ?? node.id, colour });
+    const pts = [];
+    for (const node of tr.nodes) {
+      if (!node.isTip) continue;
+      if (node.isCollapsed) {
+        // Collapsed clades: include each individual tip as its own RTT point.
+        if (node.collapsedTipNames) {
+          for (const tip of node.collapsedTipNames) pts.push(_tipPoint(tip));
+        }
+        continue;
+      }
+      pts.push(_tipPoint(node));
     }
     return pts;
   }
@@ -739,7 +738,15 @@ export function createRTTChart({
     const pts = _buildPoints();
     let minTipH = Infinity;
     for (const node of tr.nodes) {
-      if (node.isTip && !node.isCollapsed) {
+      if (!node.isTip) continue;
+      if (node.isCollapsed) {
+        if (node.collapsedTipNames) {
+          for (const tip of node.collapsedTipNames) {
+            const h = tr.maxX - tip.x;
+            if (h < minTipH) minTipH = h;
+          }
+        }
+      } else {
         const h = tr.maxX - node.x;
         if (h < minTipH) minTipH = h;
       }

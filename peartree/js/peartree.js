@@ -263,6 +263,16 @@ async function _initCore(root = document) {
   const tipLabelShapeExtraColourBys     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-colour-by`));
   const tipLabelShapeExtraPaletteRows   = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-palette-row`));
   const tipLabelShapeExtraPaletteSelects = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-palette-select`));
+  const tipScaleModeSelect   = $('tip-scale-mode-select');
+  const tipScaleModeRow      = $('tip-scale-mode-row');
+  const nodeScaleModeSelect  = $('node-scale-mode-select');
+  const nodeScaleModeRow     = $('node-scale-mode-row');
+  const labelScaleModeSelect = $('label-scale-mode-select');
+  const labelScaleModeRow    = $('label-scale-mode-row');
+  const tipLabelShapeScaleModeRow    = $('tip-label-shape-scale-mode-row');
+  const tipLabelShapeScaleModeSelect = $('tip-label-shape-scale-mode-select');
+  const tipLabelShapeExtraScaleModeRows    = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-scale-mode-row`));
+  const tipLabelShapeExtraScaleModeSelects = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-scale-mode-select`));
   const tipLabelShapeExtraSectionEls    = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-section`));
   const tipLabelShapeExtraDetailEls     = Array.from({length: EXTRA_SHAPE_COUNT}, (_, i) => $(`tip-label-shape-${i + 2}-detail`));
   // Per-level cascade memory: stores the last non-'off' value of each extra shape
@@ -436,6 +446,49 @@ async function _initCore(root = document) {
 
   /** Per-annotation palette override: annotationKey → palette name string. */
   const annotationPalettes = new Map();
+
+  /** Per-annotation scale mode: annotationKey → 'symmetric-zero'|'zero-positive'|'' */
+  const annotationScaleModes = new Map();
+
+  /**
+   * Populate a scale-mode <select> for the given annotation key and show/hide its row.
+   * Only shown for numeric annotation types.
+   * @param {HTMLSelectElement} sel
+   * @param {HTMLElement}       row
+   * @param {string|null}       annotKey
+   */
+  function _updateScaleModeSelect(sel, row, annotKey) {
+    const schema = renderer?._annotationSchema;
+    if (!annotKey || annotKey === 'user_colour' || !schema || !row) {
+      if (row) row.style.display = 'none';
+      return;
+    }
+    const def = schema.get(annotKey);
+    if (!def || !isNumericType(def.dataType)) { row.style.display = 'none'; return; }
+    const stored = annotationScaleModes.get(annotKey) ?? '';
+    sel.value = [...sel.options].some(o => o.value === stored) ? stored : '';
+    row.style.display = '';
+  }
+
+  /**
+   * After storing a scale mode change for `key`, sync every other scale-mode <select>
+   * bound to the same annotation so they all show the same value.
+   */
+  function _syncScaleModeSelects(key, mode) {
+    const pairs = () => [
+      [tipColourBy,            tipScaleModeSelect],
+      [nodeColourBy,           nodeScaleModeSelect],
+      [labelColourBy,          labelScaleModeSelect],
+      [tipLabelShapeColourBy,  tipLabelShapeScaleModeSelect],
+      ...tipLabelShapeExtraColourBys.map((cb, i) => [cb, tipLabelShapeExtraScaleModeSelects[i]]),
+    ];
+    for (const [colourBy, sel] of pairs()) {
+      if (colourBy.value === key && sel.value !== mode) {
+        if ([...sel.options].some(o => o.value === mode)) sel.value = mode;
+      }
+    }
+  }
+
 
   /**
    * Populate a palette <select> for the given annotation key and show/hide its row.
@@ -627,6 +680,7 @@ async function _initCore(root = document) {
       nodeColourBy:     nodeColourBy.value,
       labelColourBy:    labelColourBy.value,
       annotationPalettes: Object.fromEntries(annotationPalettes),
+      annotationScaleModes: Object.fromEntries(annotationScaleModes),
       legendAnnotation:  legendAnnotEl.value,
       legendAnnotation2: legend2AnnotEl.value,
       legend2Position:   legend2ShowEl.value,
@@ -1702,6 +1756,10 @@ async function _initCore(root = document) {
   if (_saved.annotationPalettes) {
     for (const [k, v] of Object.entries(_saved.annotationPalettes)) annotationPalettes.set(k, v);
   }
+  // Restore per-annotation scale mode choices.
+  if (_saved.annotationScaleModes) {
+    for (const [k, v] of Object.entries(_saved.annotationScaleModes)) annotationScaleModes.set(k, v);
+  }
   if (_saved.canvasBgColor)        canvasBgColorEl.value    = _saved.canvasBgColor;
   if (_saved.branchColor)          branchColorEl.value      = _saved.branchColor;
   if (_saved.branchWidth    != null) {
@@ -2219,6 +2277,9 @@ async function _initCore(root = document) {
     // Sync data table with new tip layout
     const viewNodes = renderer.nodes || [];
     dataTableRenderer?.setTips(viewNodes.filter(n => n.isTip));
+    // Recompute temporal annotations for the new visible tip set (re-root,
+    // subtree navigation, tip hide/show all fire this callback).
+    _recomputeTemporalAnnotations();
     // Sync RTT plot with new visible tip set
     rttChart?.notifyLayoutChange?.();
 
@@ -2505,6 +2566,14 @@ async function _initCore(root = document) {
       _syncPaletteSelects(key, paletteName);
       renderer._dirty = true;
     },
+    getAnnotationScaleMode: (key) => annotationScaleModes.get(key) ?? '',
+    onScaleModeChange: (key, mode) => {
+      if (mode) annotationScaleModes.set(key, mode);
+      else annotationScaleModes.delete(key);
+      renderer.setAnnotationScaleMode(key, mode);
+      _syncScaleModeSelects(key, mode);
+      renderer._dirty = true;
+    },
   });
   btnCurateAnnot?.addEventListener('click', () => commands.execute('curate-annot'));
 
@@ -2748,6 +2817,8 @@ async function _initCore(root = document) {
                             renderer.labelRightPad, renderer.bgColor, renderer.fontSize,
                             window.devicePixelRatio || 1);
       }
+      // Regression has changed (new fit or new excluded set) — refresh temporal annotations.
+      _recomputeTemporalAnnotations();
     },
     onClose: () => {
       btnRtt?.classList.remove('active');
@@ -2819,6 +2890,29 @@ async function _initCore(root = document) {
                       !SYNTHETIC.includes(annotKey) &&
                       ['real', 'integer', 'proportion', 'percentage'].includes(dt);
     rowEl.style.display = isNumeric ? '' : 'none';
+  }
+
+  /**
+   * Recompute temporal residual / z-score / outlier maps for the current visible
+   * tip set and update the schema bounds + renderer maps in-place.  Lightweight —
+   * does NOT repopulate any dropdowns, so safe to call on every layout change.
+   */
+  function _recomputeTemporalAnnotations() {
+    if (!renderer?.nodes?.length || !graph?.annotationSchema) return;
+    const schema  = graph.annotationSchema;
+    // Only include layout-visible tips (same set the RTT chart uses).
+    const dateKey = (!axisDateAnnotEl.disabled && axisDateAnnotEl.value) ? axisDateAnnotEl.value : null;
+    const residualData = computeTemporalResiduals(
+      renderer.nodes,
+      calibration?.isActive ? calibration : null,
+      dateKey,
+    );
+    renderer._rttResidualsMap = residualData.residualMap;
+    renderer._rttZScoresMap   = residualData.zscoreMap;
+    renderer._rttOutliersMap  = residualData.outlierMap;
+    // Colour scale ranges are now computed live from this.nodes in _buildColourScale,
+    // so no need to patch def.min/def.max here.
+    renderer.setAnnotationSchema(schema);
   }
 
   /** Repopulate annotation dropdowns (tipColourBy, nodeColourBy, legendAnnotEl) after schema change. */
@@ -3335,6 +3429,15 @@ async function _initCore(root = document) {
       for (const [k, v] of annotationPalettes) {
         renderer.setAnnotationPalette(k, v);
       }
+      // Apply any per-annotation scale mode overrides.
+      if (_eff.annotationScaleModes) {
+        for (const [k, v] of Object.entries(_eff.annotationScaleModes)) {
+          annotationScaleModes.set(k, v);
+        }
+      }
+      for (const [k, v] of annotationScaleModes) {
+        renderer.setAnnotationScaleMode(k, v);
+      }
       renderer.setTipColourBy(tipColourBy.value     || null);
       renderer.setNodeColourBy(nodeColourBy.value   || null);
       renderer.setLabelColourBy(labelColourBy.value || null);
@@ -3344,13 +3447,19 @@ async function _initCore(root = document) {
       renderer.setTipLabelsOff(tipLabelShow.value === 'off');
       if (tipLabelShow.value !== 'off') renderer.setTipLabelAnnotation(tipLabelShow.value === 'names' ? null : tipLabelShow.value);
       renderer.setNodeLabelAnnotation(nodeLabelShowEl.value || null);
-      // Show palette selects for active colour-by annotations.
+      // Show palette and scale-mode selects for active colour-by annotations.
       _updatePaletteSelect(tipPaletteSelect,            tipPaletteRow,            tipColourBy.value);
       _updatePaletteSelect(nodePaletteSelect,           nodePaletteRow,           nodeColourBy.value);
       _updatePaletteSelect(labelPaletteSelect,          labelPaletteRow,          labelColourBy.value);
       _updatePaletteSelect(tipLabelShapePaletteSelect,  tipLabelShapePaletteRow,  tipLabelShapeColourBy.value);
       for (let _i = 0; _i < EXTRA_SHAPE_COUNT; _i++)
         _updatePaletteSelect(tipLabelShapeExtraPaletteSelects[_i], tipLabelShapeExtraPaletteRows[_i], tipLabelShapeExtraColourBys[_i].value);
+      _updateScaleModeSelect(tipScaleModeSelect,           tipScaleModeRow,           tipColourBy.value);
+      _updateScaleModeSelect(nodeScaleModeSelect,          nodeScaleModeRow,          nodeColourBy.value);
+      _updateScaleModeSelect(labelScaleModeSelect,         labelScaleModeRow,         labelColourBy.value);
+      _updateScaleModeSelect(tipLabelShapeScaleModeSelect, tipLabelShapeScaleModeRow, tipLabelShapeColourBy.value);
+      for (let _i = 0; _i < EXTRA_SHAPE_COUNT; _i++)
+        _updateScaleModeSelect(tipLabelShapeExtraScaleModeSelects[_i], tipLabelShapeExtraScaleModeRows[_i], tipLabelShapeExtraColourBys[_i].value);
       applyLegend();   // rebuild legend with new data (may clear it)
       renderer.setData(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       // setData() does not fire _onLayoutChange (unlike setDataAnimated), so
@@ -5533,12 +5642,14 @@ async function _initCore(root = document) {
   nodeColourBy.addEventListener('change', () => {
     renderer.setNodeColourBy(nodeColourBy.value || null);
     _updatePaletteSelect(nodePaletteSelect, nodePaletteRow, nodeColourBy.value);
+    _updateScaleModeSelect(nodeScaleModeSelect, nodeScaleModeRow, nodeColourBy.value);
     saveSettings();
   });
 
   tipColourBy.addEventListener('change', () => {
     renderer.setTipColourBy(tipColourBy.value || null);
     _updatePaletteSelect(tipPaletteSelect, tipPaletteRow, tipColourBy.value);
+    _updateScaleModeSelect(tipScaleModeSelect, tipScaleModeRow, tipColourBy.value);
     saveSettings();
     rttChart?.notifyStyleChange?.();
   });
@@ -5546,6 +5657,7 @@ async function _initCore(root = document) {
   labelColourBy.addEventListener('change', () => {
     renderer.setLabelColourBy(labelColourBy.value || null);
     _updatePaletteSelect(labelPaletteSelect, labelPaletteRow, labelColourBy.value);
+    _updateScaleModeSelect(labelScaleModeSelect, labelScaleModeRow, labelColourBy.value);
     saveSettings();
   });
 
@@ -5647,6 +5759,32 @@ async function _initCore(root = document) {
     }
   });
 
+  // ── Scale mode change handlers ─────────────────────────────────────────────
+
+  function _handleScaleModeChange(key, mode) {
+    if (!key || key === 'user_colour') return;
+    if (mode) annotationScaleModes.set(key, mode);
+    else annotationScaleModes.delete(key);
+    _syncScaleModeSelects(key, mode);
+    renderer.setAnnotationScaleMode(key, mode);
+    legendRenderer.draw();
+    saveSettings();
+  }
+
+  tipScaleModeSelect.addEventListener('change', () => {
+    _handleScaleModeChange(tipColourBy.value, tipScaleModeSelect.value);
+    rttChart?.notifyStyleChange?.();
+  });
+  nodeScaleModeSelect.addEventListener('change', () => {
+    _handleScaleModeChange(nodeColourBy.value, nodeScaleModeSelect.value);
+  });
+  labelScaleModeSelect.addEventListener('change', () => {
+    _handleScaleModeChange(labelColourBy.value, labelScaleModeSelect.value);
+  });
+  tipLabelShapeScaleModeSelect.addEventListener('change', () => {
+    _handleScaleModeChange(tipLabelShapeColourBy.value, tipLabelShapeScaleModeSelect.value);
+  });
+
   // ── Tip-label shape controls ───────────────────────────────────────────────
 
   function _resetExtraShapesFrom(startIdx) {
@@ -5687,6 +5825,7 @@ async function _initCore(root = document) {
   tipLabelShapeColourBy.addEventListener('change', () => {
     renderer.setTipLabelShapeColourBy(tipLabelShapeColourBy.value || null);
     _updatePaletteSelect(tipLabelShapePaletteSelect, tipLabelShapePaletteRow, tipLabelShapeColourBy.value);
+    _updateScaleModeSelect(tipLabelShapeScaleModeSelect, tipLabelShapeScaleModeRow, tipLabelShapeColourBy.value);
     saveSettings();
   });
 
@@ -5729,6 +5868,7 @@ async function _initCore(root = document) {
     tipLabelShapeExtraColourBys[_idx].addEventListener('change', () => {
       renderer.setTipLabelShapeExtraColourBy(_idx, tipLabelShapeExtraColourBys[_idx].value || null);
       _updatePaletteSelect(tipLabelShapeExtraPaletteSelects[_idx], tipLabelShapeExtraPaletteRows[_idx], tipLabelShapeExtraColourBys[_idx].value);
+      _updateScaleModeSelect(tipLabelShapeExtraScaleModeSelects[_idx], tipLabelShapeExtraScaleModeRows[_idx], tipLabelShapeExtraColourBys[_idx].value);
       saveSettings();
     });
     tipLabelShapeExtraPaletteSelects[_idx].addEventListener('change', () => {
@@ -5740,6 +5880,9 @@ async function _initCore(root = document) {
         legendRenderer.draw();
         saveSettings();
       }
+    });
+    tipLabelShapeExtraScaleModeSelects[_idx].addEventListener('change', () => {
+      _handleScaleModeChange(tipLabelShapeExtraColourBys[_idx].value, tipLabelShapeExtraScaleModeSelects[_idx].value);
     });
   }
 
