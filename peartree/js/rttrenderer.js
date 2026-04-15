@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { TreeCalibration } from './phylograph.js';
-import { ciHalfWidth }     from './regression.js';
+import { ciHalfWidth, tQuantile } from './regression.js';
 import { overlapsZones }   from './utils.js';
 import { buildFont, TYPEFACES } from './typefaces.js';
 
@@ -167,6 +167,8 @@ export class RTTRenderer {
     // ── Per-render point positions (hit-testing) ───────────────────────────
     /** @type {Array<{id:string, px:number, py:number}>} physical pixels */
     this._renderedPts = [];
+    // Deterministic vertical jitter for homochronous strip (id → float in [-1,+1])
+    this._jitterMap   = new Map();
 
     // ── Callbacks ──────────────────────────────────────────────────────────
     this.onSelectionChange       = null;  // (Set<id>) => void
@@ -185,6 +187,14 @@ export class RTTRenderer {
    *  owned by TreeCalibration — see rttchart.js recomputeCalibration(). */
   setPoints(pts) {
     this._points = pts;
+    // Precompute deterministic jitter in [-1,+1] for the homochronous strip.
+    // Uses a simple integer hash of the array index so values are stable
+    // across re-renders without storing anything on the point objects.
+    this._jitterMap = new Map();
+    for (let i = 0; i < pts.length; i++) {
+      const h = (Math.imul(i + 1, 0x9e3779b9) ^ Math.imul(i, 0x6c62272e)) >>> 0;
+      this._jitterMap.set(pts[i].id, (h % 20000) / 10000 - 1);  // → [-1, +1]
+    }
     this._computeBounds();
     this._dirty  = true;
   }
@@ -349,16 +359,35 @@ export class RTTRenderer {
 
     if (this._points.length === 0) { this._drawEmptyState(ctx, W, H); return; }
 
-    // ── Homochronous: no tip dates → divergence histogram ─────────────────
+    // ── Homochronous: no tip dates → divergence histogram + strip ─────────
     if (!this._points.some(p => p.x != null)) {
       const bins     = this._computeHistoBins(rect);
       const maxCount = bins.reduce((m, b) => Math.max(m, b.total), 0);
-      this._yMax = Math.max(1, maxCount) + Math.max(maxCount * 0.08, 0.5);
-      this._yMin = 0;
+      // Reserve headroom above the tallest bar for the jitter strip.
+      const headroom  = Math.max(maxCount * 0.40, 1.5);
+      this._yMax      = Math.max(1, maxCount) + headroom;
+      this._yMin      = 0;
+      // Strip is centred in the headroom zone with ±30% jitter amplitude.
+      const stripCenter = maxCount + headroom * 0.55;
+      const jitterAmp   = headroom * 0.30;
+      // Compute mean / sd for mean line and band.
+      const vals = this._points.map(p => p.y).filter(v => v != null && isFinite(v));
+      const n    = vals.length;
+      const mean = n > 0 ? vals.reduce((s, v) => s + v, 0) / n : null;
+      const sd   = (n > 1 && mean != null)
+        ? Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / n)
+        : null;
+      this._renderedPts = [];
       this._drawGrid(ctx, rect);
+      if (mean != null) this._drawHistoBand(ctx, rect, mean, sd, n);
       this._drawHistoBars(ctx, rect, bins);
+      if (mean != null) this._drawHistoMeanLine(ctx, rect, mean);
+      this._drawHistoPoints(ctx, rect, stripCenter, jitterAmp);
       this._drawHistoAxes(ctx, rect);
       this._drawHistoStatsBox(ctx, rect);
+      if (this._dragActive && this._dragStartPx && this._dragEndPx) {
+        this._drawDragRect(ctx);
+      }
       return;
     }
 
@@ -791,13 +820,30 @@ export class RTTRenderer {
   // ─── Scatter points ────────────────────────────────────────────────────────
 
   _drawPoints(ctx, rect) {
+    const ptCoords = this._points
+      .filter(p => p.x != null)
+      .map(p => ({
+        id:     p.id,
+        px:     this._xToScreen(p.x, rect),
+        py:     this._yToScreen(p.y, rect),
+        colour: p.colour,
+      }));
+    this._renderedPts = [];
+    this._drawTipCircles(ctx, rect, ptCoords);
+  }
+
+  // ─── Shared 4-pass tip-circle renderer ────────────────────────────────────
+
+  /**
+   * Draw tip dots in four passes (halos, fills, selection rings, hover).
+   * Appends hit-test entries to this._renderedPts.
+   * @param {Array<{id:string, px:number, py:number, colour?:string}>} pts
+   */
+  _drawTipCircles(ctx, rect, pts) {
     const d    = this._dpr;
-    const pts  = this._points.filter(p => p.x != null);
     const tipR = Math.max(1.5, this.tipRadius * d);
     const sel  = this._selectedTipIds;
     const hov  = this._hoveredTipId;
-
-    this._renderedPts = [];
 
     ctx.save();
     // Clip to a generous region around the plot area so halos near the edge show
@@ -810,63 +856,49 @@ export class RTTRenderer {
       ctx.lineWidth   = this.tipHaloSize * 2 * d;
       ctx.strokeStyle = this.tipShapeBgColor;
       for (const p of pts) {
-        const px = this._xToScreen(p.x, rect);
-        const py = this._yToScreen(p.y, rect);
-        ctx.beginPath();
-        ctx.arc(px, py, tipR, 0, 2 * Math.PI);
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.px, p.py, tipR, 0, 2 * Math.PI); ctx.stroke();
       }
     }
 
-    // Pass 2: fills
+    // Pass 2: fills + record for hit-testing
     for (const p of pts) {
-      const px = this._xToScreen(p.x, rect);
-      const py = this._yToScreen(p.y, rect);
       ctx.fillStyle   = p.colour ?? this.tipShapeColor;
       ctx.globalAlpha = 1;
-      ctx.beginPath();
-      ctx.arc(px, py, tipR, 0, 2 * Math.PI);
-      ctx.fill();
-      this._renderedPts.push({ id: p.id, px, py });
+      ctx.beginPath(); ctx.arc(p.px, p.py, tipR, 0, 2 * Math.PI); ctx.fill();
+      this._renderedPts.push({ id: p.id, px: p.px, py: p.py });
     }
 
     // Pass 3: selection indicators
     for (const p of pts) {
       if (!sel.has(p.id)) continue;
-      const px = this._xToScreen(p.x, rect);
-      const py = this._yToScreen(p.y, rect);
       const mr = Math.max(tipR * this.selectedTipGrowthFactor, this.selectedTipMinSize * d);
       ctx.globalAlpha = this.selectedTipStrokeOpacity;
       ctx.strokeStyle = this.selectedTipStrokeColor;
       ctx.lineWidth   = this.selectedTipStrokeWidth * d;
-      ctx.beginPath(); ctx.arc(px, py, mr, 0, 2 * Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.px, p.py, mr, 0, 2 * Math.PI); ctx.stroke();
       ctx.globalAlpha = this.selectedTipFillOpacity;
       ctx.fillStyle   = this.selectedTipFillColor;
-      ctx.beginPath(); ctx.arc(px, py, mr, 0, 2 * Math.PI); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.px, p.py, mr, 0, 2 * Math.PI); ctx.fill();
       // Re-draw the original dot on top of the selection ring
       ctx.globalAlpha = 1;
       ctx.fillStyle   = p.colour ?? this.tipShapeColor;
-      ctx.beginPath(); ctx.arc(px, py, tipR, 0, 2 * Math.PI); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.px, p.py, tipR, 0, 2 * Math.PI); ctx.fill();
     }
 
     // Pass 4: hover indicator
-    if (hov) {
-      const p = pts.find(pt => pt.id === hov);
-      if (p) {
-        const px = this._xToScreen(p.x, rect);
-        const py = this._yToScreen(p.y, rect);
-        const hr = Math.max(tipR * this.tipHoverGrowthFactor, this.tipHoverMinSize * d);
-        ctx.globalAlpha = this.tipHoverStrokeOpacity;
-        ctx.strokeStyle = this.tipHoverStrokeColor;
-        ctx.lineWidth   = this.tipHoverStrokeWidth * d;
-        ctx.beginPath(); ctx.arc(px, py, hr, 0, 2 * Math.PI); ctx.stroke();
-        ctx.globalAlpha = this.tipHoverFillOpacity;
-        ctx.fillStyle   = this.tipHoverFillColor;
-        ctx.beginPath(); ctx.arc(px, py, hr, 0, 2 * Math.PI); ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillStyle   = p.colour ?? this.tipShapeColor;
-        ctx.beginPath(); ctx.arc(px, py, tipR, 0, 2 * Math.PI); ctx.fill();
-      }
+    const hovPt = pts.find(p => p.id === hov);
+    if (hovPt) {
+      const hr = Math.max(tipR * this.tipHoverGrowthFactor, this.tipHoverMinSize * d);
+      ctx.globalAlpha = this.tipHoverStrokeOpacity;
+      ctx.strokeStyle = this.tipHoverStrokeColor;
+      ctx.lineWidth   = this.tipHoverStrokeWidth * d;
+      ctx.beginPath(); ctx.arc(hovPt.px, hovPt.py, hr, 0, 2 * Math.PI); ctx.stroke();
+      ctx.globalAlpha = this.tipHoverFillOpacity;
+      ctx.fillStyle   = this.tipHoverFillColor;
+      ctx.beginPath(); ctx.arc(hovPt.px, hovPt.py, hr, 0, 2 * Math.PI); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle   = hovPt.colour ?? this.tipShapeColor;
+      ctx.beginPath(); ctx.arc(hovPt.px, hovPt.py, tipR, 0, 2 * Math.PI); ctx.fill();
     }
 
     ctx.globalAlpha = 1;
@@ -948,7 +980,7 @@ export class RTTRenderer {
 
   _computeHistoBins(rect) {
     const d     = this._dpr;
-    const nBins = Math.max(5, Math.min(40, Math.round(rect.w / d / 20)));
+    const nBins = Math.max(8, Math.min(80, Math.round(rect.w / d / 8)));
     const range = this._xMax - this._xMin;
     const binW  = range / nBins;
     const bins  = Array.from({ length: nBins }, (_, i) => ({
@@ -969,11 +1001,111 @@ export class RTTRenderer {
     return bins;
   }
 
+  // ─── Homochronous: vertical mean line ──────────────────────────────────────
+
+  _drawHistoMeanLine(ctx, rect, mean) {
+    const d  = this._dpr;
+    const px = this._xToScreen(mean, rect);
+    if (px < rect.x - 1 || px > rect.x + rect.w + 1) return;
+    const color = this.regressionColor
+      ? this.regressionColor
+      : this._colorWithAlpha(this.axisColor, 0.65);
+    let dash;
+    switch (this.regressionStyle) {
+      case 'solid':   dash = [];                                                break;
+      case 'bigdash': dash = [Math.round(12 * d), Math.round(5 * d)];         break;
+      case 'dots':    dash = [0, Math.round(this.regressionWidth * 1.5 * d)]; break;
+      default:        dash = [Math.round(6 * d), Math.round(4 * d)];          break;
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = this.regressionWidth * d;
+    ctx.setLineDash(dash);
+    ctx.lineCap     = this.regressionStyle === 'dots' ? 'round' : 'butt';
+    ctx.beginPath();
+    ctx.moveTo(px, rect.y); ctx.lineTo(px, rect.y + rect.h);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ─── Homochronous: ±2σ / 95%-CI vertical band ────────────────────────────
+
+  _drawHistoBand(ctx, rect, mean, sd, n) {
+    const mode = this.residBandShow === 'on' ? 'residual' : this.residBandShow;
+    if (!mode || mode === 'off') return;
+    if (!sd || sd <= 0 || n < 2) return;
+
+    const d = this._dpr;
+    const lineColor = this.residBandColor
+      ? this.residBandColor
+      : (this.regressionColor || this._colorWithAlpha(this.axisColor, 0.55));
+    const fillColor = this.residBandFillColor || lineColor;
+
+    let xLo, xHi;
+    if (mode === 'residual') {
+      xLo = mean - 2 * sd;
+      xHi = mean + 2 * sd;
+    } else {
+      // 95% CI for the mean: t(n-1, 0.05) × sd / √n
+      const hw = tQuantile(n - 1) * sd / Math.sqrt(n);
+      xLo = mean - hw;
+      xHi = mean + hw;
+    }
+
+    const fillOpacity = parseFloat(this.residBandFillOpacity) || 0;
+    let dash;
+    switch (this.residBandStyle) {
+      case 'solid':   dash = [];                                                break;
+      case 'bigdash': dash = [Math.round(12 * d), Math.round(5 * d)];         break;
+      case 'dots':    dash = [0, Math.round(this.residBandWidth * 1.5 * d)];  break;
+      default:        dash = [Math.round(6 * d), Math.round(4 * d)];          break;
+    }
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
+
+    const pxLo = this._xToScreen(xLo, rect);
+    const pxHi = this._xToScreen(xHi, rect);
+    const bandW = pxHi - pxLo;
+
+    if (fillOpacity > 0) {
+      ctx.globalAlpha = fillOpacity;
+      ctx.fillStyle   = fillColor;
+      ctx.fillRect(pxLo, rect.y, bandW, rect.h);
+      ctx.globalAlpha = 1;
+    }
+    if (this.residBandWidth > 0) {
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth   = this.residBandWidth * d;
+      ctx.setLineDash(dash);
+      ctx.lineCap     = this.residBandStyle === 'dots' ? 'round' : 'butt';
+      ctx.beginPath(); ctx.moveTo(pxLo, rect.y); ctx.lineTo(pxLo, rect.y + rect.h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pxHi, rect.y); ctx.lineTo(pxHi, rect.y + rect.h); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ─── Homochronous: individual tip strip (with jitter) ────────────────────
+
+  _drawHistoPoints(ctx, rect, stripCenter, jitterAmp) {
+    const ptCoords = this._points
+      .filter(p => p.y != null && isFinite(p.y))
+      .map(p => ({
+        id:     p.id,
+        px:     this._xToScreen(p.y, rect),
+        py:     this._yToScreen(stripCenter + (this._jitterMap.get(p.id) ?? 0) * jitterAmp, rect),
+        colour: p.colour,
+      }));
+    this._drawTipCircles(ctx, rect, ptCoords);
+  }
+
   _drawHistoBars(ctx, rect, bins) {
-    const d      = this._dpr;
-    const tipC   = this.tipShapeColor;
-    const selIds = this._selectedTipIds;
-    const hovId  = this._hoveredTipId;
+    const d        = this._dpr;
+    const tipC     = this.tipShapeColor;
+    const selIds   = this._selectedTipIds;
+    const hovId    = this._hoveredTipId;
+    const outlineC = this._colorWithAlpha(this.axisColor, 0.40);
     ctx.save();
     for (const bin of bins) {
       if (bin.total === 0) continue;
@@ -1005,6 +1137,11 @@ export class RTTRenderer {
         ctx.fillStyle   = 'rgba(255,255,255,1)';
         ctx.fillRect(barL, barTop, barW, barH);
       }
+      // Thin axis-coloured outline on every bar
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = outlineC;
+      ctx.lineWidth   = d;
+      ctx.strokeRect(barL + 0.5, barTop + 0.5, barW - 1, barH - 1);
       if (hasSelected) {
         ctx.globalAlpha = 1;
         ctx.strokeStyle = this.selectedTipStrokeColor;
