@@ -208,6 +208,11 @@ async function _initCore(root = document) {
   const collapsedOpacitySlider = $('collapsed-opacity-slider');
   const collapsedHeightNSlider = $('collapsed-height-n-slider');
   const collapsedCladeFontSizeSlider = $('collapsed-clade-font-size-slider');
+  const collapsedCladeColourByEl   = $('collapsed-clade-colour-by');
+  const collapsedCladePaletteSelect = $('collapsed-clade-palette-select');
+  const collapsedCladePaletteRow   = $('collapsed-clade-palette-row');
+  const collapsedCladeScaleModeSelect = $('collapsed-clade-scale-mode-select');
+  const collapsedCladeScaleModeRow = $('collapsed-clade-scale-mode-row');
   const tipShapeDetailEl    = $('tip-shape-detail');
   const nodeShapeDetailEl   = $('node-shape-detail');
   const nodeLabelDetailEl   = $('node-label-detail');
@@ -486,6 +491,7 @@ async function _initCore(root = document) {
       [tipLabelShapeColourBy,  tipLabelShapeScaleModeSelect],
       ...tipLabelShapeExtraColourBys.map((cb, i) => [cb, tipLabelShapeExtraScaleModeSelects[i]]),
       [cladeHighlightColourByEl, cladeHighlightScaleModeSelect],
+      [collapsedCladeColourByEl, collapsedCladeScaleModeSelect],
     ];
     for (const [colourBy, sel] of pairs()) {
       if (!colourBy || !sel) continue;
@@ -538,6 +544,7 @@ async function _initCore(root = document) {
       [tipLabelShapeColourBy,  tipLabelShapePaletteSelect],
       ...tipLabelShapeExtraColourBys.map((cb, i) => [cb, tipLabelShapeExtraPaletteSelects[i]]),
       [cladeHighlightColourByEl, cladeHighlightPaletteSelect],
+      [collapsedCladeColourByEl, collapsedCladePaletteSelect],
     ];
     for (const [colourBy, sel] of pairs()) {
       if (!colourBy || !sel) continue;
@@ -3066,6 +3073,7 @@ async function _initCore(root = document) {
       _updatePaletteSelect(tipLabelShapeExtraPaletteSelects[i], tipLabelShapeExtraPaletteRows[i], tipLabelShapeExtraColourBys[i].value);
     }
     _updatePaletteSelect(cladeHighlightPaletteSelect, cladeHighlightPaletteRow, cladeHighlightColourByEl?.value ?? 'user_colour');
+    _updatePaletteSelect(collapsedCladePaletteSelect, collapsedCladePaletteRow, collapsedCladeColourByEl?.value ?? 'user_colour');
     // Sync clear-user-colour button: enabled only when at least one node has been coloured.
     if (btnClearUserColour) {
       commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
@@ -3332,6 +3340,36 @@ async function _initCore(root = document) {
         cladeHighlightColourByEl.value = 'user_colour';
       }
 
+      if (collapsedCladeColourByEl) {
+        while (collapsedCladeColourByEl.options.length > 0) collapsedCladeColourByEl.remove(0);
+        const _ccUc = document.createElement('option');
+        _ccUc.value = 'user_colour'; _ccUc.textContent = 'user colour';
+        collapsedCladeColourByEl.appendChild(_ccUc);
+        // Node annotations first
+        for (const [name, def] of schema) {
+          if (name === 'user_colour') continue;
+          if (def.dataType === 'list') continue;
+          if (def.groupMember) continue;
+          if (!def.onNodes) continue;
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = def.label ?? name;
+          collapsedCladeColourByEl.appendChild(opt);
+        }
+        // Then tip-only annotations (not on nodes)
+        for (const [name, def] of schema) {
+          if (name === 'user_colour') continue;
+          if (def.dataType === 'list') continue;
+          if (def.groupMember) continue;
+          if (def.onNodes) continue;
+          if (!def.onTips) continue;
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = def.label ?? name;
+          collapsedCladeColourByEl.appendChild(opt);
+        }
+        collapsedCladeColourByEl.disabled = false;
+        collapsedCladeColourByEl.value = 'user_colour';
+      }
+
       // Tip-label-show: option[0]='off', option[1]='names', then dynamic annotations.
       while (tipLabelShow.options.length > 2) tipLabelShow.remove(2);
       for (const [name, def] of schema) {
@@ -3498,6 +3536,7 @@ async function _initCore(root = document) {
       for (let _i = 0; _i < EXTRA_SHAPE_COUNT; _i++)
         _updateScaleModeSelect(tipLabelShapeExtraScaleModeSelects[_i], tipLabelShapeExtraScaleModeRows[_i], tipLabelShapeExtraColourBys[_i].value);
       _updateScaleModeSelect(cladeHighlightScaleModeSelect, cladeHighlightScaleModeRow, cladeHighlightColourByEl?.value ?? 'user_colour');
+      _updateScaleModeSelect(collapsedCladeScaleModeSelect, collapsedCladeScaleModeRow, collapsedCladeColourByEl?.value ?? 'user_colour');
       applyLegend();   // rebuild legend with new data (may clear it)
       renderer.setData(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       // setData() does not fire _onLayoutChange (unlike setDataAnimated), so
@@ -4551,6 +4590,10 @@ async function _initCore(root = document) {
 
       const layout = computeLayoutFromGraph(graph, renderer._viewSubtreeRootId, _layoutOptions());
       renderer.setDataAnimated(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
+      // If annotation-based colouring is active, colour the newly added clade.
+      if (collapsedCladeColourByEl?.value && collapsedCladeColourByEl.value !== 'user_colour') {
+        _recolourAllCollapsed();
+      }
       // Keep the collapsed node selected so commands remain meaningful.
       renderer._mrcaNodeId = nodeId;
       if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(true);
@@ -4703,6 +4746,61 @@ async function _initCore(root = document) {
         renderer.setCladeHighlightColour(nodeId, colour);
       }
       _refreshHighlightList();
+      saveSettings();
+    }
+
+    function _resolveCollapsedColour(nodeId) {
+      const colourBy = collapsedCladeColourByEl?.value ?? 'user_colour';
+      if (colourBy === 'user_colour') return null; // null → renderer uses tipShapeColor
+      const schema = renderer?._annotationSchema;
+      const def    = schema?.get(colourBy);
+      const node   = renderer.nodeMap?.get(nodeId);
+      if (!node) return null;
+
+      const scale = renderer._buildColourScale?.(colourBy);
+      if (!scale || scale.size === 0) return null;
+
+      let resolvedValue = null;
+
+      // For node annotations: try the collapsed root node's own value first.
+      if (def?.onNodes) {
+        const nVal = renderer._statValue?.(node, colourBy);
+        if (nVal != null && nVal !== '') resolvedValue = nVal;
+      }
+
+      // Fall back to aggregating tip values from collapsedTipNames.
+      if (resolvedValue == null) {
+        const lookupKey = def?.dataKey ?? colourBy;
+        const tipEntries = node.collapsedTipNames ?? [];
+        const vals = [];
+        for (const tip of tipEntries) {
+          const v = tip.annotations?.[lookupKey];
+          if (v != null && v !== '') vals.push(v);
+        }
+        if (vals.length === 0) return null;
+        if (def && isNumericType(def.dataType)) {
+          const nums = vals.map(Number).filter(v => !isNaN(v));
+          if (nums.length === 0) return null;
+          resolvedValue = nums.reduce((a, b) => a + b, 0) / nums.length;
+        } else {
+          const freq = new Map();
+          for (const v of vals) freq.set(v, (freq.get(v) ?? 0) + 1);
+          resolvedValue = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+        }
+      }
+
+      return renderer._colourFromScale?.(resolvedValue, scale) ?? null;
+    }
+
+    function _recolourAllCollapsed() {
+      if (!graph?.collapsedCladeIds?.size) return;
+      for (const [id, info] of graph.collapsedCladeIds) {
+        const colour = _resolveCollapsedColour(id);
+        graph.collapsedCladeIds.set(id, { ...info, colour });
+        const layoutNode = renderer.nodeMap?.get(id);
+        if (layoutNode) layoutNode.collapsedColour = colour;
+      }
+      renderer._dirty = true;
       saveSettings();
     }
 
@@ -4867,6 +4965,27 @@ async function _initCore(root = document) {
     cladeHighlightScaleModeSelect?.addEventListener('change', () => {
       _handleScaleModeChange(cladeHighlightColourByEl?.value, cladeHighlightScaleModeSelect.value);
       _recolourAllHighlights();
+    });
+
+    collapsedCladeColourByEl?.addEventListener('change', () => {
+      _updatePaletteSelect(collapsedCladePaletteSelect, collapsedCladePaletteRow, collapsedCladeColourByEl.value);
+      _updateScaleModeSelect(collapsedCladeScaleModeSelect, collapsedCladeScaleModeRow, collapsedCladeColourByEl.value);
+      _recolourAllCollapsed();
+    });
+
+    collapsedCladePaletteSelect?.addEventListener('change', () => {
+      const key = collapsedCladeColourByEl?.value;
+      if (key && key !== 'user_colour') {
+        annotationPalettes.set(key, collapsedCladePaletteSelect.value);
+        _syncPaletteSelects(key, collapsedCladePaletteSelect.value);
+        renderer.setAnnotationPalette(key, collapsedCladePaletteSelect.value);
+        _recolourAllCollapsed();
+      }
+    });
+
+    collapsedCladeScaleModeSelect?.addEventListener('change', () => {
+      _handleScaleModeChange(collapsedCladeColourByEl?.value, collapsedCladeScaleModeSelect.value);
+      _recolourAllCollapsed();
     });
 
     // Mode menu
