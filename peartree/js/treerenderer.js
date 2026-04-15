@@ -2396,10 +2396,17 @@ export class TreeRenderer {
       const tipNodes = allTipIds.map(id => this.nodeMap.get(id)).filter(Boolean);
       tipNodes.sort((a, b) => a.y - b.y);
 
-      const tipYs  = tipNodes.map(n => n.y);
-      const tipXs  = tipNodes.map(n => n.x); // world x for each tip (sorted by y)
-      const minTipY = tipYs[0];
-      const maxTipY = tipYs[tipYs.length - 1];
+      const tipYs  = tipNodes.map(n => n.y);  // centre y — still used for sorted order
+      // For collapsed clade nodes use collapsedMaxX (right tip of the triangle shape)
+      // rather than n.x (the root of the collapsed clade).
+      const tipXs  = tipNodes.map(n => n.collapsedMaxX ?? n.x);
+      // For collapsed clade nodes account for their full y-extent (the top and bottom
+      // corners of the triangle shape), not just the centre y of the node.
+      const _halfNY   = n => (n.isCollapsed && n.collapsedTipCount) ? n.collapsedTipCount / 2 : 0;
+      const _tipTopY  = n => n.y - _halfNY(n);
+      const _tipBotY  = n => n.y + _halfNY(n);
+      const minTipY = Math.min(...tipNodes.map(_tipTopY));
+      const maxTipY = Math.max(...tipNodes.map(_tipBotY));
       const maxTipX = Math.max(...tipXs);
 
       // Determine top/bottom screen y with padding.
@@ -2413,8 +2420,12 @@ export class TreeRenderer {
         for (const n of this.nodes) {
           if (!n.isTip) continue;
           if (allTipIds.includes(n.id)) continue;
-          if (n.y < minTipY && n.y > prevY) prevY = n.y;
-          if (n.y > maxTipY && n.y < nextY) nextY = n.y;
+          // Use effective extents so collapsed-clade neighbours are measured from
+          // their triangle bottom (for ones above the clade) or top (below).
+          const nBot = _tipBotY(n);
+          const nTop = _tipTopY(n);
+          if (nBot < minTipY && nBot > prevY) prevY = nBot;
+          if (nTop > maxTipY && nTop < nextY) nextY = nTop;
         }
         const gapAbove = prevY === -Infinity ? halfRowPx : (minTipY - prevY) * this.scaleY * 0.5;
         const gapBelow = nextY === Infinity  ? halfRowPx : (nextY - maxTipY) * this.scaleY * 0.5;
@@ -2636,17 +2647,23 @@ export class TreeRenderer {
   _addRightOutlinePath(ctx, tipNodes, startY, endY, pad, r, outlineR) {
     const tips = [...tipNodes]; // top to bottom (already sorted by y)
     // Pre-compute right-edge x for every tip.
-    const sxArr = tips.map(t => this._wx(t.x) + pad);
+    // For collapsed clade nodes use collapsedMaxX so the staircase reaches the
+    // right tip of the triangle shape, not just the clade-root node position.
+    const sxArr = tips.map(t => this._wx(t.collapsedMaxX ?? t.x) + pad);
+    // Helper: half the y-extent of a collapsed clade (0 for regular tips).
+    const _hN = t => (t.isCollapsed && t.collapsedTipCount) ? t.collapsedTipCount / 2 : 0;
 
     for (let i = 0; i < tips.length; i++) {
       const sx       = sxArr[i];
       const prevSX   = i > 0 ? sxArr[i - 1] : null;
       const nextSX   = i < tips.length - 1 ? sxArr[i + 1] : null;
+      // Use effective top/bottom extents for midpoint computation so the step
+      // for each collapsed clade spans its full triangle height.
       const prevMidY = i === 0
         ? startY
-        : (this._wy(tips[i - 1].y) + this._wy(tips[i].y)) / 2;
+        : (this._wy(tips[i - 1].y + _hN(tips[i - 1])) + this._wy(tips[i].y - _hN(tips[i]))) / 2;
       const nextMidY = i < tips.length - 1
-        ? (this._wy(tips[i].y) + this._wy(tips[i + 1].y)) / 2
+        ? (this._wy(tips[i].y + _hN(tips[i])) + this._wy(tips[i + 1].y - _hN(tips[i + 1]))) / 2
         : endY;
       const vd = nextMidY - prevMidY; // vertical span of this step (> 0)
 
