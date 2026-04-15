@@ -137,7 +137,12 @@ export const DEFAULT_SETTINGS = {
   axisMajorLabelFormat: 'partial',  // 'component' | 'partial' | 'full' | 'off'
   axisMinorLabelFormat: 'off',      // 'component' | 'partial' | 'full' | 'off'
 
-  // ── Root-to-tip ──────────────────────────────────────────────────────────────────────  rttResidBandShow:     'off',     // 'off' | 'on' — show ±2σ residual band  rttDateFormat:        'yyyy-MM-dd',
+  // ── Root-to-tip ──────────────────────────────────────────────────────────────────────
+  rttResidBandShow:     'residual',      // 'off' | 'residual' | 'ci'
+  rttXOrigin:           'root',     // 'data' | 'root'
+  rttGridLines:         'off',     // 'both' | 'horizontal' | 'vertical' | 'off'
+  rttAspectRatio:       'fit',      // 'fit' | '1:1' | '4:3' | '3:2' | '16:9'
+  rttDateFormat:        'yyyy-MM-dd',
   rttMajorInterval:     'auto',     // 'auto' | 'millennia' | 'centuries' | 'decades' | 'years' | 'quarters' | 'months' | 'weeks' | 'days'
   rttMinorInterval:     'off',      // 'off' | same values as rttMajorInterval (populated dynamically)
   rttMajorLabelFormat:  'partial',  // 'component' | 'partial' | 'full' | 'off'

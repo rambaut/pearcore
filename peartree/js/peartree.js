@@ -1258,6 +1258,9 @@ async function _initCore(root = document) {
     axisMinorLabelEl.value       = DEFAULT_SETTINGS.axisMinorLabelFormat;
     _updateMinorOptions(DEFAULT_SETTINGS.axisMajorInterval, DEFAULT_SETTINGS.axisMinorInterval);
     // RTT date/interval controls — visual RTT appearance is set by applyTheme(defaultTheme) above.
+    rttXOriginEl.value       = DEFAULT_SETTINGS.rttXOrigin;
+    rttGridLinesEl.value     = DEFAULT_SETTINGS.rttGridLines;
+    rttAspectRatioEl.value   = DEFAULT_SETTINGS.rttAspectRatio;
     rttDateFmtEl.value       = DEFAULT_SETTINGS.rttDateFormat;
     rttResidBandShowEl.value = DEFAULT_SETTINGS.rttResidBandShow;
     rttMajorIntervalEl.value = DEFAULT_SETTINGS.rttMajorInterval;

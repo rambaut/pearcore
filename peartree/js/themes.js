@@ -63,13 +63,13 @@ export const DEFAULT_THEME = {
         "axisTypefaceStyle": "",
         "axisLineWidth": "1",
         // Root-to-tip: regression line
-        "rttRegressionStyle": "dash",
+        "rttRegressionStyle": "bigdash",
         "rttRegressionColor": "#807e7c",
         "rttRegressionWidth": "1.5",
         // Root-to-tip: residual band (±2σ)
         "rttResidBandColor":       "#807e7c",
         "rttResidBandStyle":       "dash",
-        "rttResidBandWidth":       "1",
+        "rttResidBandWidth":       "0.5",
         "rttResidBandFillColor":   "#807e7c",
         "rttResidBandFillOpacity": "0.1",
         // Root-to-tip: statistics box

@@ -1,3 +1,5 @@
+import { computeOLS as _computeOLS } from './regression.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PhyloGraph  – unrooted adjacency-list tree with a stored root position
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1162,6 +1164,10 @@ function _buildRootOptState(graph, tipDates) {
  * would be non-positive are rejected (returns null) or clamped to the positive
  * region.  Pass false for the global search so score comparison is symmetric.
  * Returns { childOrigId, distFromParent, score } or null.
+ *
+ * Implements the same mathematics as regression.js optimalRootPosition(), but
+ * reuses DFS aggregate sums from _buildRootOptState() for O(1) per-branch cost
+ * rather than accumulating from raw tip arrays.
  * @private
  */
 function _evalBranch(childIdx, parentIdx, state, forcePositiveRate = true) {
@@ -1544,27 +1550,8 @@ export class TreeCalibration {
    * @param  {Array<{x:number, y:number}>} pts
    * @returns {{a:number,b:number,xInt:number,r:number,r2:number,cv:number,rmse:number,n:number}|null}
    */
-  static computeOLS(pts) {
-    const valid = pts.filter(p => p.x != null && !Number.isNaN(p.x));
-    const n = valid.length;
-    if (n < 2) return null;
-    let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
-    for (const { x, y } of valid) { sx += x; sy += y; sxx += x*x; sxy += x*y; syy += y*y; }
-    const xBar = sx / n, yBar = sy / n;
-    const ssxx = sxx - n * xBar * xBar;
-    const ssyy = syy - n * yBar * yBar;
-    const ssxy = sxy - n * xBar * yBar;
-    if (Math.abs(ssxx) < 1e-20) return null;
-    const a    = ssxy / ssxx;
-    const b    = yBar - a * xBar;
-    const xInt = Math.abs(a) > 1e-20 ? -b / a : null;
-    const r    = (ssxx > 0 && ssyy > 0) ? ssxy / Math.sqrt(ssxx * ssyy) : 0;
-    let sse = 0;
-    for (const { x, y } of valid) { const res = y - (a * x + b); sse += res * res; }
-    const rmse = Math.sqrt(sse / n);
-    const rms  = n > 2 ? sse / (n - 2) : null;   // residual mean squared (SSE / n-2), matching TempEst
-    return { a, b, xInt, r, r2: r * r, cv: yBar > 0 ? rmse / yBar : 0, rmse, rms, n };
-  }
+  /** Delegates to regression.js computeOLS — see that module for full docs. */
+  static computeOLS(pts) { return _computeOLS(pts); }
 
   /**
    * Convert a node height to a decimal year.

@@ -11,6 +11,7 @@
 
 import { RTTRenderer }      from './rttrenderer.js';
 import { TreeCalibration }  from './phylograph.js';
+import { computeOLS, ciHalfWidth } from './regression.js';
 import { downloadBlob, htmlEsc as esc, blobToBase64 } from './utils.js';
 
 /**
@@ -420,30 +421,63 @@ export function createRTTChart({
     // 7 ── Residual band + regression line (clipped to plot area)
     const reg = rtt._calibration?.regression;
     if (reg) {
-      // ── Residual band (±2σ) ──
-      if (rtt.residBandShow === 'on' && reg.rmse > 0) {
-        const rmse = reg.rmse;
-        const bx1 = xToS(xMin), bx2 = xToS(xMax);
-        const byHi1 = yToS(reg.a * xMin + reg.b + 2 * rmse);
-        const byHi2 = yToS(reg.a * xMax + reg.b + 2 * rmse);
-        const byLo1 = yToS(reg.a * xMin + reg.b - 2 * rmse);
-        const byLo2 = yToS(reg.a * xMax + reg.b - 2 * rmse);
+      // ── Band (±2σ residual or 95% CI) ──
+      const bandMode = rtt.residBandShow === 'on' ? 'residual' : rtt.residBandShow;
+      if (bandMode && bandMode !== 'off') {
         const bandLineColor = rtt.residBandColor || rtt.regressionColor || axisC;
         const bandFillColor = rtt.residBandFillColor || bandLineColor;
-        const fillOp = parseFloat(rtt.residBandFillOpacity) || 0;
-        if (fillOp > 0) {
-          parts.push(
-            `<g clip-path="url(#rp)">` +
-            `<polygon points="${f(bx1)},${f(byHi1)} ${f(bx2)},${f(byHi2)} ${f(bx2)},${f(byLo2)} ${f(bx1)},${f(byLo1)}"` +
-            ` fill="${esc(bandFillColor)}" fill-opacity="${f(fillOp)}" stroke="none"/>` +
-            `</g>`);
-        }
+        const fillOp  = parseFloat(rtt.residBandFillOpacity) || 0;
         const bandDash = rtt.residBandStyle === 'solid' ? '' : rtt.residBandStyle === 'bigdash' ? '12 5' : '6 4';
-        parts.push(
-          `<g clip-path="url(#rp)" stroke="${esc(bandLineColor)}" stroke-width="${rtt.residBandWidth}" fill="none"${bandDash ? ` stroke-dasharray="${bandDash}"` : ''}>` +
-          `<line x1="${f(bx1)}" y1="${f(byHi1)}" x2="${f(bx2)}" y2="${f(byHi2)}"/>` +
-          `<line x1="${f(bx1)}" y1="${f(byLo1)}" x2="${f(bx2)}" y2="${f(byLo2)}"/>` +
-          `</g>`);
+        const dashAttr = bandDash ? ` stroke-dasharray="${bandDash}"` : '';
+
+        if (bandMode === 'residual' && reg.rmse > 0) {
+          // Straight parallel lines at ±2·rmse
+          const rmse = reg.rmse;
+          const bx1 = xToS(xMin), bx2 = xToS(xMax);
+          const byHi1 = yToS(reg.a * xMin + reg.b + 2 * rmse);
+          const byHi2 = yToS(reg.a * xMax + reg.b + 2 * rmse);
+          const byLo1 = yToS(reg.a * xMin + reg.b - 2 * rmse);
+          const byLo2 = yToS(reg.a * xMax + reg.b - 2 * rmse);
+          if (fillOp > 0) {
+            parts.push(
+              `<g clip-path="url(#rp)">` +
+              `<polygon points="${f(bx1)},${f(byHi1)} ${f(bx2)},${f(byHi2)} ${f(bx2)},${f(byLo2)} ${f(bx1)},${f(byLo1)}"` +
+              ` fill="${esc(bandFillColor)}" fill-opacity="${f(fillOp)}" stroke="none"/>` +
+              `</g>`);
+          }
+          if (rtt.residBandWidth > 0)
+            parts.push(
+              `<g clip-path="url(#rp)" stroke="${esc(bandLineColor)}" stroke-width="${rtt.residBandWidth}" fill="none"${dashAttr}>` +
+              `<line x1="${f(bx1)}" y1="${f(byHi1)}" x2="${f(bx2)}" y2="${f(byHi2)}"/>` +
+              `<line x1="${f(bx1)}" y1="${f(byLo1)}" x2="${f(bx2)}" y2="${f(byLo2)}"/>` +
+              `</g>`);
+
+        } else if (bandMode === 'ci' && reg.rms != null && reg.ssxx > 0 && reg.n >= 3) {
+          // Curved CI envelope — sample along x axis
+          const N = 60;
+          const dx = (xMax - xMin) / N;
+          const upperPts = [], lowerPts = [];
+          for (let i = 0; i <= N; i++) {
+            const xv  = xMin + i * dx;
+            const hw  = ciHalfWidth(xv, reg);
+            const mid = reg.a * xv + reg.b;
+            upperPts.push(`${f(xToS(xv))},${f(yToS(mid + hw))}`);
+            lowerPts.push(`${f(xToS(xv))},${f(yToS(mid - hw))}`);
+          }
+          if (fillOp > 0) {
+            const allPts = upperPts.concat([...lowerPts].reverse()).join(' ');
+            parts.push(
+              `<g clip-path="url(#rp)">` +
+              `<polygon points="${allPts}" fill="${esc(bandFillColor)}" fill-opacity="${f(fillOp)}" stroke="none"/>` +
+              `</g>`);
+          }
+          if (rtt.residBandWidth > 0)
+            parts.push(
+              `<g clip-path="url(#rp)" stroke="${esc(bandLineColor)}" stroke-width="${rtt.residBandWidth}" fill="none"${dashAttr}>` +
+              `<polyline points="${upperPts.join(' ')}"/>` +
+              `<polyline points="${lowerPts.join(' ')}"/>` +
+              `</g>`);
+        }
       }
       // ── Regression line ──
       const rx1 = xToS(xMin), ry1 = yToS(reg.a * xMin + reg.b);
@@ -711,7 +745,7 @@ export function createRTTChart({
       }
     }
     if (!isFinite(minTipH)) minTipH = 0;
-    const reg = TreeCalibration.computeOLS(pts);
+    const reg = computeOLS(pts);
     if (getIsTimedTree?.()) {
       cal.setAnchor(key, tr.nodeMap, tr.maxX);
       cal.setRegression(reg);

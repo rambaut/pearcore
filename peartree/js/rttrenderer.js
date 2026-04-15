@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { TreeCalibration } from './phylograph.js';
+import { ciHalfWidth }     from './regression.js';
 import { overlapsZones }   from './utils.js';
 import { buildFont, TYPEFACES } from './typefaces.js';
 
@@ -643,73 +644,106 @@ export class RTTRenderer {
 
   _drawResidBand(ctx, rect) {
     const reg = this._calibration?.regression;
-    if (!reg || this.residBandShow !== 'on') return;
-    const rmse = reg.rmse;
-    if (!rmse || rmse <= 0) return;
+    if (!reg) return;
+    // 'on' is the legacy value; treat as 'residual' for backward compat.
+    const mode = this.residBandShow === 'on' ? 'residual' : this.residBandShow;
+    if (!mode || mode === 'off') return;
+
     const d = this._dpr;
     const { a, b } = reg;
 
-    // Resolve line colour: explicit setting, or fall back to regressionColor, then axisColor at 55%
+    // ── Common style resolution ────────────────────────────────────────────
     const lineColor = this.residBandColor
       ? this.residBandColor
       : (this.regressionColor || this._colorWithAlpha(this.axisColor, 0.55));
-    // Resolve fill colour: explicit setting, or fall back to line colour
     const fillColor = this.residBandFillColor || lineColor;
 
-    // Resolve dash pattern (same logic as _drawRegression)
-    const u = d;
     let dash;
     switch (this.residBandStyle) {
       case 'solid':   dash = [];                                                break;
-      case 'bigdash': dash = [Math.round(12 * u), Math.round(5 * u)];         break;
+      case 'bigdash': dash = [Math.round(12 * d), Math.round(5 * d)];         break;
       case 'dots':    dash = [0, Math.round(this.residBandWidth * 1.5 * d)];  break;
-      default:        dash = [Math.round(6 * u), Math.round(4 * u)];          break;
+      default:        dash = [Math.round(6 * d), Math.round(4 * d)];          break;
     }
-
-    const x1 = this._xMin, x2 = this._xMax;
-    const yHi1 = a * x1 + b + 2 * rmse,  yHi2 = a * x2 + b + 2 * rmse;
-    const yLo1 = a * x1 + b - 2 * rmse,  yLo2 = a * x2 + b - 2 * rmse;
-
-    const sx1   = this._xToScreen(x1,   rect);
-    const sx2   = this._xToScreen(x2,   rect);
-    const syHi1 = this._yToScreen(yHi1, rect);
-    const syHi2 = this._yToScreen(yHi2, rect);
-    const syLo1 = this._yToScreen(yLo1, rect);
-    const syLo2 = this._yToScreen(yLo2, rect);
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
 
-    // ── Fill the band area ────────────────────────────────────────────────
     const fillOpacity = parseFloat(this.residBandFillOpacity) || 0;
-    if (fillOpacity > 0) {
-      ctx.beginPath();
-      ctx.moveTo(sx1, syHi1);
-      ctx.lineTo(sx2, syHi2);
-      ctx.lineTo(sx2, syLo2);
-      ctx.lineTo(sx1, syLo1);
-      ctx.closePath();
-      ctx.fillStyle   = fillColor;
-      ctx.globalAlpha = fillOpacity;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
 
-    // ── Draw the two boundary lines ──────────────────────────────────────
-    ctx.strokeStyle = lineColor;
-    ctx.lineWidth   = this.residBandWidth * d;
-    ctx.setLineDash(dash);
-    ctx.lineCap = (this.residBandStyle === 'dots') ? 'round' : 'butt';
-    ctx.beginPath();
-    ctx.moveTo(sx1, syHi1);
-    ctx.lineTo(sx2, syHi2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(sx1, syLo1);
-    ctx.lineTo(sx2, syLo2);
-    ctx.stroke();
+    if (mode === 'residual') {
+      // ── ±2σ residual band — two parallel straight lines ─────────────────
+      const rmse = reg.rmse;
+      if (!rmse || rmse <= 0) { ctx.restore(); return; }
+
+      const x1 = this._xMin, x2 = this._xMax;
+      const yHi1 = a * x1 + b + 2 * rmse,  yHi2 = a * x2 + b + 2 * rmse;
+      const yLo1 = a * x1 + b - 2 * rmse,  yLo2 = a * x2 + b - 2 * rmse;
+      const sx1   = this._xToScreen(x1,   rect);
+      const sx2   = this._xToScreen(x2,   rect);
+      const syHi1 = this._yToScreen(yHi1, rect);
+      const syHi2 = this._yToScreen(yHi2, rect);
+      const syLo1 = this._yToScreen(yLo1, rect);
+      const syLo2 = this._yToScreen(yLo2, rect);
+
+      if (fillOpacity > 0) {
+        ctx.beginPath();
+        ctx.moveTo(sx1, syHi1); ctx.lineTo(sx2, syHi2);
+        ctx.lineTo(sx2, syLo2); ctx.lineTo(sx1, syLo1);
+        ctx.closePath();
+        ctx.fillStyle = fillColor; ctx.globalAlpha = fillOpacity;
+        ctx.fill(); ctx.globalAlpha = 1;
+      }
+      if (this.residBandWidth > 0) {
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth   = this.residBandWidth * d;
+        ctx.setLineDash(dash);
+        ctx.lineCap = (this.residBandStyle === 'dots') ? 'round' : 'butt';
+        ctx.beginPath(); ctx.moveTo(sx1, syHi1); ctx.lineTo(sx2, syHi2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx1, syLo1); ctx.lineTo(sx2, syLo2); ctx.stroke();
+      }
+
+    } else if (mode === 'ci') {
+      // ── 95% confidence interval for the mean — curved (hyperbolic) envelope
+      if (reg.rms == null || !reg.ssxx || reg.ssxx <= 0 || reg.n < 3) { ctx.restore(); return; }
+
+      const N  = 60;
+      const dx = (this._xMax - this._xMin) / N;
+      const upper = [], lower = [];
+      for (let i = 0; i <= N; i++) {
+        const xv = this._xMin + i * dx;
+        const hw = ciHalfWidth(xv, reg);
+        const mid = a * xv + b;
+        upper.push([this._xToScreen(xv, rect), this._yToScreen(mid + hw, rect)]);
+        lower.push([this._xToScreen(xv, rect), this._yToScreen(mid - hw, rect)]);
+      }
+
+      if (fillOpacity > 0) {
+        ctx.beginPath();
+        ctx.moveTo(upper[0][0], upper[0][1]);
+        for (let i = 1; i < upper.length; i++) ctx.lineTo(upper[i][0], upper[i][1]);
+        for (let i = lower.length - 1; i >= 0; i--) ctx.lineTo(lower[i][0], lower[i][1]);
+        ctx.closePath();
+        ctx.fillStyle = fillColor; ctx.globalAlpha = fillOpacity;
+        ctx.fill(); ctx.globalAlpha = 1;
+      }
+      if (this.residBandWidth > 0) {
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth   = this.residBandWidth * d;
+        ctx.setLineDash(dash);
+        ctx.lineCap = (this.residBandStyle === 'dots') ? 'round' : 'butt';
+        ctx.beginPath();
+        ctx.moveTo(upper[0][0], upper[0][1]);
+        for (let i = 1; i < upper.length; i++) ctx.lineTo(upper[i][0], upper[i][1]);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(lower[0][0], lower[0][1]);
+        for (let i = 1; i < lower.length; i++) ctx.lineTo(lower[i][0], lower[i][1]);
+        ctx.stroke();
+      }
+    }
 
     ctx.restore();
   }
