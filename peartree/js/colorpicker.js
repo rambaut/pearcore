@@ -306,6 +306,19 @@ export function createPaletteColourPicker(inputEl, { palettes }) {
   // Hide the raw input but keep it in the DOM
   inputEl.style.cssText = 'position:absolute;width:0;height:0;opacity:0;pointer-events:none';
 
+  // ── Intercept programmatic .value = … so the swatch stays in sync ────────
+  // applyTheme() (and similar) sets el.value directly without calling setValue(),
+  // so we override the property descriptor to mirror any assignment to the swatch.
+  const _nativeValueDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  Object.defineProperty(inputEl, 'value', {
+    get() { return _nativeValueDesc.get.call(this); },
+    set(v) {
+      _nativeValueDesc.set.call(this, v);
+      if (swatch) swatch.style.background = v || '#888888';
+    },
+    configurable: true,
+  });
+
   // ── Build the trigger button ──────────────────────────────────────────────
   const btn = document.createElement('button');
   btn.type = 'button';
