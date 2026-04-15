@@ -3297,6 +3297,57 @@ async function _initCore(root = document) {
       currentOrder    = null;
       renderer.clearCladeHighlights();
 
+      // ── Restore PearTree-specific node annotations (_pt_*) ──────────────
+      // These are written during NEXUS export to preserve collapsed clades and
+      // clade highlights. Strip them from the graph here so they never appear
+      // as user-visible annotation columns in the schema.
+      {
+        const _ptHighlights = [];
+        for (const node of graph.nodes) {
+          if (node.annotations._pt_collapsed === 'true' || node.annotations._pt_collapsed === true) {
+            const colour = typeof node.annotations._pt_collapsed_colour === 'string'
+              ? node.annotations._pt_collapsed_colour : null;
+            // Count descendant tips via graph traversal.
+            const _parentIdx = node.adjacents.length > 0 ? node.adjacents[0] : -1;
+            let tipCount = 0;
+            const _tipStack = node.adjacents.filter(i => i !== _parentIdx);
+            while (_tipStack.length) {
+              const ci = _tipStack.pop();
+              const cn = graph.nodes[ci];
+              const cp = cn.adjacents.length > 0 ? cn.adjacents[0] : -1;
+              const cc = cn.adjacents.filter(i => i !== cp);
+              if (cc.length === 0) tipCount++;
+              else _tipStack.push(...cc);
+            }
+            graph.collapsedCladeIds.set(node.origId, { colour, tipCount: Math.max(1, tipCount) });
+          }
+          if (typeof node.annotations._pt_highlight === 'string') {
+            _ptHighlights.push({ id: node.origId, colour: node.annotations._pt_highlight });
+          }
+          delete node.annotations._pt_collapsed;
+          delete node.annotations._pt_collapsed_colour;
+          delete node.annotations._pt_highlight;
+        }
+        // Remove _pt_* keys from the schema so they don't appear in dropdowns or export grids.
+        graph.annotationSchema.delete('_pt_collapsed');
+        graph.annotationSchema.delete('_pt_collapsed_colour');
+        graph.annotationSchema.delete('_pt_highlight');
+        if (_ptHighlights.length > 0) {
+          renderer.setCladeHighlightsData(_ptHighlights);
+        }
+        // Ensure the slider max accommodates the largest restored collapsed clade.
+        if (graph.collapsedCladeIds.size > 0 && collapsedHeightNSlider) {
+          let _maxTips = 1;
+          for (const [, info] of graph.collapsedCladeIds) _maxTips = Math.max(_maxTips, info.tipCount || 1);
+          if (parseInt(collapsedHeightNSlider.max) < _maxTips) {
+            collapsedHeightNSlider.max = _maxTips;
+            collapsedHeightNSlider.value = Math.min(parseInt(collapsedHeightNSlider.value) || 1, _maxTips);
+            const _el = $('collapsed-height-n-value');
+            if (_el) _el.textContent = collapsedHeightNSlider.value;
+          }
+        }
+      }
+
       // Apply any visual settings embedded in the file immediately, before
       // annotation dropdowns are populated (annotation-dependent settings
       // are handled below after the dropdowns exist).

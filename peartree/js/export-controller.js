@@ -121,6 +121,12 @@ export function createExportController({
           <span>Embed current visual settings in file</span>
         </label>
       </div>
+      <div class="exp-section" id="exp-state-row">
+        <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;cursor:pointer">
+          <input type="checkbox" id="exp-store-state" checked>
+          <span>Embed view state (collapsed clades, highlights)</span>
+        </label>
+      </div>
       <div class="exp-section">
         <span class="exp-section-label">Scope</span>
         <div class="exp-radio-group">
@@ -176,13 +182,15 @@ export function createExportController({
     $('exp-cancel-btn').addEventListener('click', _closeExportDialog);
     $('exp-download-btn').addEventListener('click', _doExport);
 
-    // Always wire up the format radios to toggle the Store-settings row,
+    // Always wire up the format radios to toggle the Store-settings / state rows,
     // regardless of whether annotations are present.
     root.querySelectorAll('input[name="exp-format"]').forEach(radio =>
       radio.addEventListener('change', () => {
         const fmt         = root.querySelector('input[name="exp-format"]:checked')?.value;
         const settingsRow = $('exp-settings-row');
+        const stateRow    = $('exp-state-row');
         if (settingsRow) settingsRow.style.display = fmt === 'nexus' ? '' : 'none';
+        if (stateRow)    stateRow.style.display    = fmt === 'nexus' ? '' : 'none';
       }));
 
     if (annotKeys.length > 0) {
@@ -201,6 +209,7 @@ export function createExportController({
       const _syncAnnotSection = () => {
         const fmt = root.querySelector('input[name="exp-format"]:checked')?.value;
         const settingsRow    = $('exp-settings-row');
+        const stateRow       = $('exp-state-row');
         const nodeLabelRow   = $('exp-node-label-section');
         $('exp-newick-warn')?.remove();
         if (fmt === 'csv') {
@@ -208,18 +217,21 @@ export function createExportController({
           csvGrid.style.display  = '';
           csvGrid.querySelectorAll('.exp-annot-cb').forEach(cb => { cb.checked = true; });
           if (settingsRow)  settingsRow.style.display  = 'none';
+          if (stateRow)     stateRow.style.display     = 'none';
           if (nodeLabelRow) nodeLabelRow.style.display = 'none';
         } else if (fmt === 'newick') {
           treeGrid.style.display = '';
           csvGrid.style.display  = 'none';
           treeGrid.querySelectorAll('.exp-annot-cb').forEach(cb => { cb.checked = false; });
           if (settingsRow)  settingsRow.style.display  = 'none';
+          if (stateRow)     stateRow.style.display     = 'none';
           if (nodeLabelRow) nodeLabelRow.style.display = '';
         } else {
           treeGrid.style.display = '';
           csvGrid.style.display  = 'none';
           treeGrid.querySelectorAll('.exp-annot-cb').forEach(cb => { cb.checked = true; });
           if (settingsRow)  settingsRow.style.display  = '';
+          if (stateRow)     stateRow.style.display     = '';
           if (nodeLabelRow) nodeLabelRow.style.display = '';
         }
       };
@@ -328,7 +340,39 @@ export function createExportController({
       return;
     }
 
-    const newick = graphToNewick(graph, subtreeId, annotKeys, nodeLabelKey);
+    const newick = (() => {
+      // Optionally inject _pt_ state annotations for collapsed clades and highlights.
+      const storeState = format === 'nexus' && $('exp-store-state')?.checked;
+      let finalAnnotKeys = annotKeys;
+      const _ptInjected = []; // { node, keys[] } to clean up after
+      if (storeState) {
+        for (const [nodeId, info] of graph.collapsedCladeIds) {
+          const idx = graph.origIdToIdx.get(nodeId);
+          if (idx === undefined) continue;
+          const node = graph.nodes[idx];
+          node.annotations._pt_collapsed = 'true';
+          const keys = ['_pt_collapsed'];
+          if (info.colour) { node.annotations._pt_collapsed_colour = info.colour; keys.push('_pt_collapsed_colour'); }
+          _ptInjected.push({ node, keys });
+        }
+        for (const { id, colour } of renderer.getCladeHighlightsData()) {
+          const idx = graph.origIdToIdx.get(id);
+          if (idx === undefined) continue;
+          const node = graph.nodes[idx];
+          node.annotations._pt_highlight = colour ?? 'true';
+          _ptInjected.push({ node, keys: ['_pt_highlight'] });
+        }
+        if (_ptInjected.length > 0) {
+          finalAnnotKeys = [...annotKeys, '_pt_collapsed', '_pt_collapsed_colour', '_pt_highlight'];
+        }
+      }
+      const result = graphToNewick(graph, subtreeId, finalAnnotKeys, nodeLabelKey);
+      // Always clean up, even on error, to leave the graph annotations unchanged.
+      for (const { node, keys } of _ptInjected) {
+        for (const k of keys) delete node.annotations[k];
+      }
+      return result;
+    })();
     if (!newick) return;
 
     let content, ext;

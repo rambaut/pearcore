@@ -280,7 +280,7 @@ function newickNode(nodeIdx, parentIdx, g, annotKeys, nodeLabelKey) {
     const lenStr = len != null ? `:${fmtLen(len)}` : '';
     return `${cStr}${lenStr}`;
   });
-  let nodeLabel = safeName;
+  let nodeLabel = node.name ? newickEsc(node.name) : '';
   if (nodeLabelKey) {
     const val = node.annotations?.[nodeLabelKey];
     if (val != null && val !== '') nodeLabel = String(parseFloat(Number(val).toPrecision(6)));
