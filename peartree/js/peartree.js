@@ -2529,6 +2529,7 @@ async function _initCore(root = document) {
       _resizeDuringTransition();
       saveSettings();
     },
+    onAutoResize: () => _resizeDuringTransition(),
     onRowSelect: (selectedIds) => {
       renderer._selectedTipIds = new Set(selectedIds);
       renderer._updateMRCA();

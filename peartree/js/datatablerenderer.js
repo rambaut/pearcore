@@ -46,7 +46,7 @@ const HEADER_H = 24;
  * @param {HTMLElement} opts.numBodyEl      – #dt-num-body   (number cells go here)
  */
 export function createDataTableRenderer({
-  getRenderer, onEditCommit, onRowSelect, onPinChange, onClose,
+  getRenderer, onEditCommit, onRowSelect, onPinChange, onClose, onAutoResize,
   panel, headerEl, bodyEl, numHeaderEl, numBodyEl,
 }) {
   let _columns        = [];       // annotation keys to display (never '__names__')
@@ -416,9 +416,12 @@ export function createDataTableRenderer({
       if (!(_pinned && _userResized)) {
         panel.style.width = panelW + 'px';
         document.documentElement.style.setProperty('--dt-panel-w', panelW + 'px');
-        // When pinned the canvas width changes — defer _resize() until after
-        // the browser has applied the new flex layout.
-        if (_pinned) requestAnimationFrame(() => renderer._resize());
+        // When pinned the canvas width changes — drive _resize() through the
+        // full flex-basis CSS transition so the canvas tracks the panel smoothly.
+        if (_pinned) {
+          if (onAutoResize) onAutoResize();
+          else requestAnimationFrame(() => renderer._resize());
+        }
       }
     }
 
