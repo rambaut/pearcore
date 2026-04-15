@@ -1246,9 +1246,8 @@ async function _initCore(root = document) {
     legend4HeightPctSlider.value = DEFAULT_SETTINGS.legendHeightPct4;
     $('legend4-height-pct-value').textContent = DEFAULT_SETTINGS.legendHeightPct4 + '%';
     // legendTextColor is set by applyTheme(defaultTheme) above — do not override with a hardcoded default.
-    axisShowEl.value         = DEFAULT_SETTINGS.axisShow;  // 'off'
-    axisDateAnnotEl.value    = '';
-    calibration.setAnchor(null, new Map(), 0);
+    axisShowEl.value         = DEFAULT_SETTINGS.axisShow;
+    // Calibrate (axisDateAnnotation) is tree-specific / auto-set — not reset here.
     axisDateFmtRow.style.display = 'none';
     axisDateFmtEl.value      = DEFAULT_SETTINGS.axisDateFormat;
     _updateTimeOption();
