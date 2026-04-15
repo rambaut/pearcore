@@ -2915,7 +2915,7 @@ async function _initCore(root = document) {
 
       let html = '';
       // Node name / label header
-      const headerText = node.name || node.id || '';
+      const headerText = node.name || node.annotations?.['Name'] || node.id || '';
       if (headerText) html += `<div class="pt-tt-name">${headerText}</div>`;
 
       // ── Shape-specific tooltip: just the shape's colour-by trait ──────────
