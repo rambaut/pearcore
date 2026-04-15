@@ -1622,15 +1622,36 @@ body.palette-pinned #canvas-container {
   gap: 0.5rem;
 }
 /* Example panel */
-.pt-example-center {
-  text-align: center;
-  padding: 1.25rem 0 0.5rem;
+.pt-example-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0 0.25rem;
 }
-.pt-example-center p {
-  font-size: 0.875rem;
+.pt-example-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--pt-divider);
+  border-radius: 0.35rem;
+  background: var(--pt-surface);
+}
+.pt-example-item:hover {
+  background: var(--pt-surface-hover);
+}
+.pt-example-desc {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
   color: var(--bs-secondary-color);
-  margin: 0 0 1rem;
-  line-height: 1.55;
+  line-height: 1.4;
+}
+.pt-example-desc strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--pt-text-bright);
+  margin-bottom: 0.1rem;
 }
 /* ── Import Annotations dialog ── */
 .imp-section { margin-bottom: 0.85rem; }

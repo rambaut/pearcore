@@ -733,10 +733,7 @@ function _buildModals() {
         </div>
       </div>
       <div class="pt-tab-panel" id="tab-panel-example">
-        <div class="pt-example-center">
-          <p>Load the example <strong>Ebola virus (EBOV)</strong> phylogenetic tree<br/>from the 2014–2016 West Africa epidemic.</p>
-          <button class="btn btn-sm btn-outline-success" id="btn-load-example"><i class="bi bi-tree me-1"></i>Load Example Data</button>
-        </div>
+        <div id="example-dataset-list" class="pt-example-list"></div>
       </div>
       <div class="pt-modal-loading" id="modal-loading" style="display:none"><div class="pt-spinner"></div>Loading&hellip;</div>
       <div class="pt-modal-error" id="modal-error" style="display:none"></div>

@@ -1,5 +1,31 @@
-/** Path to the bundled example tree, relative to the peartree/ directory. */
+/** Path to the bundled example tree, relative to the peartree/ directory.
+ *  @deprecated Use EXAMPLE_DATASETS[0].path instead. */
 export const EXAMPLE_TREE_PATH = 'data/ebov.tree';
+
+/**
+ * Example datasets shown in the "Example" tab of the Open Tree dialog.
+ * Each entry has:
+ *   title   {string}  Short name shown on the load button.
+ *   description {string}  One-line description shown above the button.
+ *   path    {string}  Path to the tree file, relative to the peartree/ directory.
+ */
+export const EXAMPLE_DATASETS = [
+  {
+    title:       'Ebola virus (EBOV)',
+    description: 'Phylogenetic tree from the 2014–2016 West Africa epidemic.',
+    path:        'data/ebov.tree',
+  },
+  {
+    title:       'SARS-CoV-2 (15K)',
+    description: 'Large SARS-CoV-2 tree with ~15,000 sequences.',
+    path:        'data/SARS-CoV-2_15K.tree',
+  },
+  {
+    title:       'Variola virus (VARV)',
+    description: 'Smallpox virus (variola) phylogeny.',
+    path:        'data/VARV.tree',
+  },
+];
 
 /** Root URL of the deployed site — used as a fallback when a relative path
  *  fails (e.g. when the HTML file is opened directly from disk). */

@@ -16,7 +16,7 @@ import { createDataTableRenderer } from './datatablerenderer.js';
 import { createRTTChart          } from './rttchart.js';
 import { createCommands } from './commands.js';
 import { createExportController } from './export-controller.js';
-import { EXAMPLE_TREE_PATH, PEARTREE_BASE_URL, DEFAULT_SETTINGS, REQUIRED_THEME_KEYS } from './config.js';
+import { EXAMPLE_TREE_PATH, EXAMPLE_DATASETS, PEARTREE_BASE_URL, DEFAULT_SETTINGS, REQUIRED_THEME_KEYS } from './config.js';
 import { createToolbarColourPicker, upgradeAllPaletteColourPickers } from './colorpicker.js';
 
 /**
@@ -2491,20 +2491,39 @@ async function _initCore(root = document) {
 
   // ── Example tab ───────────────────────────────────────────────────────────
 
-  async function loadExampleTree(onError) {
+  async function loadExampleByPath(path, onError) {
     try {
-      const text = await fetchExampleTree();
-      await loadTree(text, EXAMPLE_TREE_PATH);
+      const text = await fetchWithFallback(path);
+      await loadTree(text, path);
     } catch (err) {
       onError(err.message);
     }
   }
 
-  $('btn-load-example').addEventListener('click', () => {
-    setModalLoading(true);
-    setModalError(null);
-    loadExampleTree(msg => { setModalError(msg); setModalLoading(false); });
-  });
+  // Build the example dataset list.
+  {
+    const listEl = $('example-dataset-list');
+    if (listEl) {
+      for (const ds of EXAMPLE_DATASETS) {
+        const item = document.createElement('div');
+        item.className = 'pt-example-item';
+        const desc = document.createElement('div');
+        desc.className = 'pt-example-desc';
+        desc.innerHTML = `<strong>${_esc(ds.title)}</strong>${_esc(ds.description)}`;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-success flex-shrink-0';
+        btn.innerHTML = '<i class="bi bi-tree me-1"></i>Load';
+        btn.addEventListener('click', () => {
+          setModalLoading(true);
+          setModalError(null);
+          loadExampleByPath(ds.path, msg => { setModalError(msg); setModalLoading(false); });
+        });
+        item.appendChild(desc);
+        item.appendChild(btn);
+        listEl.appendChild(item);
+      }
+    }
+  }
 
   // ── Empty-state overlay (shown until first tree load) ──────────────────
   const emptyStateEl = $('empty-state');
@@ -2521,7 +2540,8 @@ async function _initCore(root = document) {
   $('empty-state-open-btn').addEventListener('click', () => pickTreeFile());
   $('empty-state-example-btn').addEventListener('click', () => {
     hideEmptyState();
-    loadExampleTree(msg => { showEmptyState(); showErrorDialog(msg); });
+    loadExampleByPath(EXAMPLE_DATASETS[0]?.path ?? EXAMPLE_TREE_PATH,
+                      msg => { showEmptyState(); showErrorDialog(msg); });
   });
   _wireDropZone(emptyStateEl, file => { if (file) { openModal(); handleFile(file); } }, { checkContains: true });
 
