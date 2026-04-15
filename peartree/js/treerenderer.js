@@ -3042,7 +3042,7 @@ export class TreeRenderer {
       ctx.lineWidth   = nodeHalo * 2;
       ctx.beginPath();
       for (const node of this.nodes) {
-        if (node.isTip) continue;
+        if (node.isTip && !node.isCollapsed) continue;
         if (node.y < yWorldMin || node.y > yWorldMax) continue;
         ctx.moveTo(this._wx(node.x) + nodeR, this._wy(node.y));
         ctx.arc(this._wx(node.x), this._wy(node.y), nodeR, 0, Math.PI * 2);
@@ -3070,7 +3070,7 @@ export class TreeRenderer {
       if (this._nodeColourBy && this._nodeColourScale) {
         const key = this._nodeColourBy;
         for (const node of this.nodes) {
-          if (node.isTip) continue;
+          if (node.isTip && !node.isCollapsed) continue;
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           const val = this._statValue(node, key);
           ctx.fillStyle = this._nodeColourForValue(val) ?? this.nodeShapeColor;
@@ -3082,7 +3082,7 @@ export class TreeRenderer {
         ctx.fillStyle = this.nodeShapeColor;
         ctx.beginPath();
         for (const node of this.nodes) {
-          if (node.isTip) continue;
+          if (node.isTip && !node.isCollapsed) continue;
           if (node.y < yWorldMin || node.y > yWorldMax) continue;
           ctx.moveTo(this._wx(node.x) + nodeR, this._wy(node.y));
           ctx.arc(this._wx(node.x), this._wy(node.y), nodeR, 0, Math.PI * 2);
