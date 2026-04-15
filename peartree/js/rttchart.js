@@ -267,11 +267,18 @@ export function createRTTChart({
     if (!rtt._points.some(p => p.x != null)) return null;
 
     const dpr  = rtt._dpr;
-    const W    = rtt._canvas.clientWidth;
-    const H    = rtt._canvas.clientHeight;
-    // Convert physical-px plot rect to CSS px by dividing by DPR.
+    // Fixed padding (CSS px) — same values as _plotRect() margins.
+    const mL = 62, mR = 14, mT = 14, mB = 52;
+
+    // Use the actual plot-area size from the live canvas (already aspect-ratio-corrected)
+    // but build an SVG canvas that is exactly the plot area + fixed margins, so the
+    // output never inherits the arbitrary current panel size.
     const pr   = rtt._plotRect();
-    const rect = { x: pr.x / dpr, y: pr.y / dpr, w: pr.w / dpr, h: pr.h / dpr };
+    const plotW = pr.w / dpr;   // CSS px
+    const plotH = pr.h / dpr;
+    const W = Math.round(plotW + mL + mR);
+    const H = Math.round(plotH + mT + mB);
+    const rect = { x: mL, y: mT, w: plotW, h: plotH };
 
     const xMin = rtt._xMin, xMax = rtt._xMax;
     const yMin = rtt._yMin, yMax = rtt._yMax;
@@ -320,7 +327,7 @@ export function createRTTChart({
         }
       }
       if (drawV) {
-        for (const v of rtt._xTicksInfo().majorTicks) {
+        for (const v of rtt._xTicksInfo(pr).majorTicks) {
           const px = xToS(v);
           if (px < rect.x - 1 || px > rect.x + rect.w + 1) continue;
           gridParts.push(`<line x1="${f(px)}" y1="${f(rect.y)}" x2="${f(px)}" y2="${f(rect.y + rect.h)}"/>`);
@@ -367,7 +374,7 @@ export function createRTTChart({
     const fmt  = rtt._dateFormat;
     const opts = rtt.tickOptions ?? {};
     const ty   = rect.y + rect.h;
-    const { majorTicks: xMajor, minorTicks: xMinor, step: xStep, majorInterval } = rtt._xTicksInfo();
+    const { majorTicks: xMajor, minorTicks: xMinor, step: xStep, majorInterval } = rtt._xTicksInfo(pr);
     const majorLabelFmt = opts.majorLabelFormat || 'auto';
     const minorLabelFmt = opts.minorLabelFormat || 'off';
 
