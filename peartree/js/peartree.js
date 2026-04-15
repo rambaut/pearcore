@@ -354,6 +354,10 @@ async function _initCore(root = document) {
   const rttMinorLabelRow       = $('rtt-minor-label-row');
   // Clade highlight controls
   const cladeHighlightColourByEl         = $('clade-highlight-colour-by');
+  const cladeHighlightPaletteSelect      = $('clade-highlight-palette-select');
+  const cladeHighlightPaletteRow         = $('clade-highlight-palette-row');
+  const cladeHighlightScaleModeSelect    = $('clade-highlight-scale-mode-select');
+  const cladeHighlightScaleModeRow       = $('clade-highlight-scale-mode-row');
   const cladeHighlightDefaultColourEl    = $('clade-highlight-default-colour');
   const btnPaintHighlight                = $('btn-paint-highlight');
   const cladeHighlightLeftEdgeEl         = $('clade-highlight-left-edge');
@@ -481,8 +485,10 @@ async function _initCore(root = document) {
       [labelColourBy,          labelScaleModeSelect],
       [tipLabelShapeColourBy,  tipLabelShapeScaleModeSelect],
       ...tipLabelShapeExtraColourBys.map((cb, i) => [cb, tipLabelShapeExtraScaleModeSelects[i]]),
+      [cladeHighlightColourByEl, cladeHighlightScaleModeSelect],
     ];
     for (const [colourBy, sel] of pairs()) {
+      if (!colourBy || !sel) continue;
       if (colourBy.value === key && sel.value !== mode) {
         if ([...sel.options].some(o => o.value === mode)) sel.value = mode;
       }
@@ -531,8 +537,10 @@ async function _initCore(root = document) {
       [labelColourBy,          labelPaletteSelect],
       [tipLabelShapeColourBy,  tipLabelShapePaletteSelect],
       ...tipLabelShapeExtraColourBys.map((cb, i) => [cb, tipLabelShapeExtraPaletteSelects[i]]),
+      [cladeHighlightColourByEl, cladeHighlightPaletteSelect],
     ];
     for (const [colourBy, sel] of pairs()) {
+      if (!colourBy || !sel) continue;
       if (colourBy.value === key && sel.value !== paletteName) {
         if ([...sel.options].some(o => o.value === paletteName)) sel.value = paletteName;
       }
@@ -3057,6 +3065,7 @@ async function _initCore(root = document) {
     for (let i = 0; i < EXTRA_SHAPE_COUNT; i++) {
       _updatePaletteSelect(tipLabelShapeExtraPaletteSelects[i], tipLabelShapeExtraPaletteRows[i], tipLabelShapeExtraColourBys[i].value);
     }
+    _updatePaletteSelect(cladeHighlightPaletteSelect, cladeHighlightPaletteRow, cladeHighlightColourByEl?.value ?? 'user_colour');
     // Sync clear-user-colour button: enabled only when at least one node has been coloured.
     if (btnClearUserColour) {
       commands.setEnabled('tree-clear-colours', schema.has('user_colour'));
@@ -3293,7 +3302,35 @@ async function _initCore(root = document) {
       _populateColourBy(labelColourBy,        'tips');
       _populateColourBy(tipLabelShapeColourBy, 'tips');
       for (let _i = 0; _i < EXTRA_SHAPE_COUNT; _i++) _populateColourBy(tipLabelShapeExtraColourBys[_i], 'tips');
-      if (cladeHighlightColourByEl) _populateColourBy(cladeHighlightColourByEl, 'tips');
+      if (cladeHighlightColourByEl) {
+        while (cladeHighlightColourByEl.options.length > 0) cladeHighlightColourByEl.remove(0);
+        const _chUc = document.createElement('option');
+        _chUc.value = 'user_colour'; _chUc.textContent = 'user colour';
+        cladeHighlightColourByEl.appendChild(_chUc);
+        // Node annotations first
+        for (const [name, def] of schema) {
+          if (name === 'user_colour') continue;
+          if (def.dataType === 'list') continue;
+          if (def.groupMember) continue;
+          if (!def.onNodes) continue;
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = def.label ?? name;
+          cladeHighlightColourByEl.appendChild(opt);
+        }
+        // Then tip-only annotations (not on nodes)
+        for (const [name, def] of schema) {
+          if (name === 'user_colour') continue;
+          if (def.dataType === 'list') continue;
+          if (def.groupMember) continue;
+          if (def.onNodes) continue;
+          if (!def.onTips) continue;
+          const opt = document.createElement('option');
+          opt.value = name; opt.textContent = def.label ?? name;
+          cladeHighlightColourByEl.appendChild(opt);
+        }
+        cladeHighlightColourByEl.disabled = false;
+        cladeHighlightColourByEl.value = 'user_colour';
+      }
 
       // Tip-label-show: option[0]='off', option[1]='names', then dynamic annotations.
       while (tipLabelShow.options.length > 2) tipLabelShow.remove(2);
@@ -3460,6 +3497,7 @@ async function _initCore(root = document) {
       _updateScaleModeSelect(tipLabelShapeScaleModeSelect, tipLabelShapeScaleModeRow, tipLabelShapeColourBy.value);
       for (let _i = 0; _i < EXTRA_SHAPE_COUNT; _i++)
         _updateScaleModeSelect(tipLabelShapeExtraScaleModeSelects[_i], tipLabelShapeExtraScaleModeRows[_i], tipLabelShapeExtraColourBys[_i].value);
+      _updateScaleModeSelect(cladeHighlightScaleModeSelect, cladeHighlightScaleModeRow, cladeHighlightColourByEl?.value ?? 'user_colour');
       applyLegend();   // rebuild legend with new data (may clear it)
       renderer.setData(layout.nodes, layout.nodeMap, layout.maxX, layout.maxY);
       // setData() does not fire _onLayoutChange (unlike setDataAnimated), so
@@ -4608,26 +4646,64 @@ async function _initCore(root = document) {
 
     // ── Clade Highlights ─────────────────────────────────────────────────────
 
-    function _resolveHighlightColour() {
+    function _resolveHighlightColour(nodeId = renderer._mrcaNodeId) {
       const colourBy = cladeHighlightColourByEl?.value ?? 'user_colour';
       if (colourBy === 'user_colour') {
         return paintColourPickerEl?.value ?? '#ffaa00';
       }
-      // Attribute-based colour: find most-frequent categorical value among descendant tips.
-      const nodeId = renderer._mrcaNodeId;
-      if (!nodeId || !renderer.nodeMap) return paintColourPickerEl?.value ?? '#ffaa00';
-      const tipIds = renderer._getDescendantTipIds(nodeId);
-      const freq = new Map();
-      for (const tipId of tipIds) {
-        const node = renderer.nodeMap.get(tipId);
-        const val  = node?.annotations?.[colourBy];
-        if (val != null && val !== '') freq.set(val, (freq.get(val) ?? 0) + 1);
+      const fallback = paintColourPickerEl?.value ?? '#ffaa00';
+      const schema = renderer?._annotationSchema;
+      const def    = schema?.get(colourBy);
+      if (!nodeId || !renderer.nodeMap) return fallback;
+
+      // Build colour scale using current palette/scale-mode overrides.
+      const scale = renderer._buildColourScale?.(colourBy);
+      if (!scale || scale.size === 0) return fallback;
+
+      let resolvedValue = null;
+
+      // For node annotations: try the MRCA node's own value first.
+      if (def?.onNodes) {
+        const node = renderer.nodeMap.get(nodeId);
+        const nVal = renderer._statValue?.(node, colourBy);
+        if (nVal != null && nVal !== '') resolvedValue = nVal;
       }
-      if (freq.size === 0) return paintColourPickerEl?.value ?? '#ffaa00';
-      const mostCommon = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
-      // Try to find the colour for this value via the renderer's colour scale.
-      const colour = renderer._getAnnotationColour?.(colourBy, mostCommon);
-      return colour ?? paintColourPickerEl?.value ?? '#ffaa00';
+
+      // Fall back to aggregating descendant tip values.
+      if (resolvedValue == null) {
+        const tipIds = renderer._getDescendantTipIds?.(nodeId) ?? [];
+        const vals = [];
+        for (const tipId of tipIds) {
+          const n = renderer.nodeMap.get(tipId);
+          const v = renderer._statValue?.(n, colourBy) ?? n?.annotations?.[colourBy];
+          if (v != null && v !== '') vals.push(v);
+        }
+        if (vals.length === 0) return fallback;
+        if (def && isNumericType(def.dataType)) {
+          // Mean for numeric annotations.
+          const nums = vals.map(Number).filter(v => !isNaN(v));
+          if (nums.length === 0) return fallback;
+          resolvedValue = nums.reduce((a, b) => a + b, 0) / nums.length;
+        } else {
+          // Modal value for categorical/other annotations.
+          const freq = new Map();
+          for (const v of vals) freq.set(v, (freq.get(v) ?? 0) + 1);
+          resolvedValue = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+        }
+      }
+
+      const colour = renderer._colourFromScale?.(resolvedValue, scale);
+      return colour ?? fallback;
+    }
+
+    function _recolourAllHighlights() {
+      if (!renderer._cladeHighlights?.size) return;
+      for (const nodeId of renderer._cladeHighlights.keys()) {
+        const colour = _resolveHighlightColour(nodeId);
+        renderer.setCladeHighlightColour(nodeId, colour);
+      }
+      _refreshHighlightList();
+      saveSettings();
     }
 
     function _refreshHighlightList() {
@@ -4770,6 +4846,27 @@ async function _initCore(root = document) {
       if (valEl) valEl.textContent = v;
       renderer?.setCladeHighlightStyle({ cladeHighlightStrokeWidth: parseFloat(v) });
       saveSettings();
+    });
+
+    cladeHighlightColourByEl?.addEventListener('change', () => {
+      _updatePaletteSelect(cladeHighlightPaletteSelect, cladeHighlightPaletteRow, cladeHighlightColourByEl.value);
+      _updateScaleModeSelect(cladeHighlightScaleModeSelect, cladeHighlightScaleModeRow, cladeHighlightColourByEl.value);
+      _recolourAllHighlights();
+    });
+
+    cladeHighlightPaletteSelect?.addEventListener('change', () => {
+      const key = cladeHighlightColourByEl?.value;
+      if (key && key !== 'user_colour') {
+        annotationPalettes.set(key, cladeHighlightPaletteSelect.value);
+        _syncPaletteSelects(key, cladeHighlightPaletteSelect.value);
+        renderer.setAnnotationPalette(key, cladeHighlightPaletteSelect.value);
+        _recolourAllHighlights();
+      }
+    });
+
+    cladeHighlightScaleModeSelect?.addEventListener('change', () => {
+      _handleScaleModeChange(cladeHighlightColourByEl?.value, cladeHighlightScaleModeSelect.value);
+      _recolourAllHighlights();
     });
 
     // Mode menu
