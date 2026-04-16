@@ -152,6 +152,9 @@ export class RTTRenderer {
     this._statsBoxDragCss    = null;           // {x,y} CSS-px box-TL position during drag
     this._lastStatsRect      = null;           // last-drawn box rect (physical px)
     this._lastStatsCloseRect = null;           // last-drawn close-button rect (physical px)
+    this._lastStatsCopyRect  = null;           // last-drawn copy-button rect (physical px)
+    this._lastStatsLines     = null;           // last-drawn stats lines array (for clipboard)
+    this._statsCopyFlash     = 0;             // frames remaining for copy flash feedback
 
     // ── Selection / hover — kept in sync with TreeRenderer ────────────────
     this._selectedTipIds = new Set();
@@ -946,7 +949,8 @@ export class RTTRenderer {
     }
 
     // Store for hit-testing (physical px)
-    this._lastStatsRect = { x: bx, y: by, w: boxW, h: boxH };
+    this._lastStatsRect  = { x: bx, y: by, w: boxW, h: boxH };
+    this._lastStatsLines = lines;
 
     ctx.save();
     // Box background
@@ -972,6 +976,9 @@ export class RTTRenderer {
       ctx.textAlign = 'right';
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }
+
+    // Copy button
+    this._drawStatsCopyButton(ctx, bx, by, boxW, pad, d);
 
     ctx.restore();
   }
@@ -1269,7 +1276,8 @@ export class RTTRenderer {
       bx = (c === 'tl' || c === 'bl') ? rect.x + margin : rect.x + rect.w - boxW - margin;
       by = (c === 'tl' || c === 'tr') ? rect.y + margin : rect.y + rect.h - boxH - margin;
     }
-    this._lastStatsRect = { x: bx, y: by, w: boxW, h: boxH };
+    this._lastStatsRect  = { x: bx, y: by, w: boxW, h: boxH };
+    this._lastStatsLines = lines;
     ctx.save();
     ctx.globalAlpha = 0.88;
     ctx.fillStyle   = this.statsBoxBgColor;
@@ -1291,7 +1299,55 @@ export class RTTRenderer {
       ctx.textAlign    = 'right';
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }
+    // Copy button
+    this._drawStatsCopyButton(ctx, bx, by, boxW, pad, d);
+
     ctx.restore();
+  }
+
+  // ─── Copy button shared draw helper ──────────────────────────────────────
+
+  _drawStatsCopyButton(ctx, bx, by, boxW, pad, d) {
+    const btnSz   = Math.round(13 * d);
+    const margin  = Math.round(3 * d);
+    const cx      = bx + boxW - btnSz - margin;
+    const cy      = by + margin;
+    this._lastStatsCopyRect = { x: cx, y: cy, w: btnSz, h: btnSz };
+
+    const flashing = this._statsCopyFlash > 0;
+    if (flashing) this._statsCopyFlash--;
+
+    const alpha = flashing ? 0.90 : 0.35;
+    ctx.save();
+    ctx.strokeStyle = this._colorWithAlpha(this.statsBoxTextColor, alpha);
+    ctx.fillStyle   = flashing
+      ? this._colorWithAlpha(this.statsBoxTextColor, 0.20)
+      : 'transparent';
+    ctx.lineWidth   = Math.max(1, Math.round(d * 0.8));
+    // Draw two small overlapping rectangles (classic copy icon)
+    const s  = Math.round(btnSz * 0.52);
+    const off = Math.round(btnSz * 0.22);
+    // Back page
+    ctx.beginPath();
+    ctx.rect(cx + off, cy, s, s);
+    ctx.fill(); ctx.stroke();
+    // Front page
+    ctx.fillStyle = flashing
+      ? this._colorWithAlpha(this.statsBoxTextColor, 0.25)
+      : this._colorWithAlpha(this.statsBoxBgColor, 0.85);
+    ctx.beginPath();
+    ctx.rect(cx, cy + off, s, s);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    if (flashing) this._dirty = true;  // keep repainting until flash done
+  }
+
+  _copyStatsToClipboard(lines) {
+    const tsv = lines.map(([k, v]) => `${k}\t${v}`).join('\n');
+    navigator.clipboard?.writeText(tsv).catch(() => {});
+    this._statsCopyFlash = 6;
+    this._dirty = true;
   }
 
   // ─── Drag-select rectangle ────────────────────────────────────────────────
@@ -1417,6 +1473,14 @@ export class RTTRenderer {
       // Stats box body takes cursor priority
       if (this.statsBoxVisible) {
         const d = this._dpr;
+        if (this._lastStatsCopyRect) {
+          const cr = this._lastStatsCopyRect;
+          if (cssX >= cr.x/d && cssX <= (cr.x+cr.w)/d &&
+              cssY >= cr.y/d && cssY <= (cr.y+cr.h)/d) {
+            canvas.style.cursor = 'pointer';
+            return;
+          }
+        }
         if (this._lastStatsRect) {
           const sr = this._lastStatsRect;
           const d2 = this._dpr;
@@ -1461,6 +1525,18 @@ export class RTTRenderer {
       // Stats box interaction takes priority over scatter drag-select
       if (this.statsBoxVisible && this._lastStatsRect) {
         const d = this._dpr;
+        // Copy button — copy lines TSV to clipboard
+        if (this._lastStatsCopyRect) {
+          const cr = this._lastStatsCopyRect;
+          if (cssX >= cr.x/d && cssX <= (cr.x+cr.w)/d &&
+              cssY >= cr.y/d && cssY <= (cr.y+cr.h)/d) {
+            // Build lines from whichever box was last drawn
+            const linesEl = this._lastStatsLines;
+            if (linesEl) this._copyStatsToClipboard(linesEl);
+            e.preventDefault();
+            return;
+          }
+        }
         // Box body — start drag
         const sr = this._lastStatsRect;
         if (cssX >= sr.x/d && cssX <= (sr.x+sr.w)/d &&
