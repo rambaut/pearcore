@@ -19,7 +19,7 @@ permalink: /tutorials/temporal-analysis/
 
 ## Overview
 
-A fundamental step when analysing virus evolution is checking whether a phylogeny contains a **clock-like temporal signal** — that is, whether more-recently sampled genomes are consistently more diverged from the root than older ones. If they are, the divergence is accumulating at a roughly constant rate over time and the tree can be used as the basis for a molecular clock analysis.
+A critical step when analysing virus evolution, in particular when planning to use time-calibrated approaches like BEAST, is checking whether a phylogeny contains a **temporal signal** — that is, whether more-recently sampled genomes are consistently more diverged from the root than older ones. This can be useful for 
 
 This tutorial walks through that check using PearTree's built-in **Root-to-Tip (RTT) regression panel** and the built-in Variola virus (smallpox, VARV) dataset. Along the way we will also explore how the choice of root position dominates the apparent signal, and how PearTree's **Local** and **Global Temporal Root** tools can find the root that maximises the clock-like behaviour automatically.
 
