@@ -2222,3 +2222,17 @@ body.palette-pinned #canvas-container {
   margin-right: 3px;
   flex-shrink: 0;
 }
+
+/* ── Bootstrap Icons rotation / flip utilities ───────────────────────── */
+.bi-rotate-90,
+.bi-rotate-180,
+.bi-rotate-270,
+.bi-flip-horizontal,
+.bi-flip-vertical { display: inline-block; }
+.bi-rotate-90          { transform: rotate(90deg); }
+.bi-rotate-180         { transform: rotate(180deg); }
+.bi-rotate-270         { transform: rotate(270deg); }
+.bi-flip-horizontal    { transform: scaleX(-1); }
+.bi-flip-vertical      { transform: scaleY(-1); }
+/* compound: rotate + flip (used for tick-interval icons) */
+.bi-rotate-90.bi-flip-vertical { transform: rotate(90deg) scaleY(-1); }
