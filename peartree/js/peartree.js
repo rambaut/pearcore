@@ -5637,6 +5637,35 @@ async function _initCore(root = document) {
       $('node-info-overlay').classList.remove('open');
     });
 
+    $('node-info-copy')?.addEventListener('click', () => {
+      const body = $('node-info-body');
+      if (!body) return;
+      const lines = [];
+      const title = $('node-info-title')?.textContent;
+      if (title) lines.push(title);
+      for (const tr of body.querySelectorAll('tr')) {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length === 1 && cells[0].colSpan > 1) {
+          // Divider row — use its text as a section header
+          const label = cells[0].textContent.trim();
+          if (label) lines.push('', `[${label}]`);
+        } else if (cells.length >= 2) {
+          const key = cells[0].textContent.trim();
+          const input = cells[1].querySelector('input');
+          const val = input ? input.value : cells[1].textContent.trim();
+          if (key || val) lines.push(`${key}\t${val}`);
+        }
+      }
+      const tsv = lines.join('\n');
+      navigator.clipboard?.writeText(tsv).catch(() => {});
+      // Brief icon feedback
+      const btn = $('node-info-copy');
+      if (btn) {
+        btn.innerHTML = '<i class="bi bi-clipboard-check"></i>';
+        setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1200);
+      }
+    });
+
     $('node-info-overlay').addEventListener('click', e => {
       if (e.target === $('node-info-overlay')) {
         $('node-info-overlay').classList.remove('open');
