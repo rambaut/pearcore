@@ -988,18 +988,21 @@ export class TreeRenderer {
   setTipColourBy(key) {
     this._tipColourBy    = key || null;
     this._tipColourScale = this._tipColourBy ? this._buildColourScale(this._tipColourBy) : null;
+    this._aggregateTipValueCache?.clear();
     this._dirty = true;
   }
 
   setNodeColourBy(key) {
     this._nodeColourBy    = key || null;
     this._nodeColourScale = this._nodeColourBy ? this._buildColourScale(this._nodeColourBy) : null;
+    this._aggregateTipValueCache?.clear();
     this._dirty = true;
   }
 
   setLabelColourBy(key) {
     this._labelColourBy    = key || null;
     this._labelColourScale = this._labelColourBy ? this._buildColourScale(this._labelColourBy) : null;
+    this._aggregateTipValueCache?.clear();
     this._dirty = true;
   }
 
@@ -1033,6 +1036,7 @@ export class TreeRenderer {
     this._tipLabelShapeColourBy    = key || null;
     this._tipLabelShapeColourScale = this._tipLabelShapeColourBy
       ? this._buildColourScale(this._tipLabelShapeColourBy) : null;
+    this._aggregateTipValueCache?.clear();
     this._dirty = true;
   }
 
@@ -1070,6 +1074,7 @@ export class TreeRenderer {
     this._tipLabelShapeExtraColourBys[i]    = key || null;
     this._tipLabelShapeExtraColourScales[i] = this._tipLabelShapeExtraColourBys[i]
       ? this._buildColourScale(this._tipLabelShapeExtraColourBys[i]) : null;
+    this._aggregateTipValueCache?.clear();
     this._dirty = true;
   }
 
@@ -1282,6 +1287,13 @@ export class TreeRenderer {
    * Returns the mean (numeric) or modal (categorical) value, or null if none.
    */
   _aggregateTipValue(node, key) {
+    // Per-node-per-key aggregate is expensive (DFS walk); cache between frames.
+    // Cache is cleared on layout change and on colour-key change.
+    if (this._aggregateTipValueCache) {
+      const cacheKey = node.id + '|' + key;
+      if (this._aggregateTipValueCache.has(cacheKey))
+        return this._aggregateTipValueCache.get(cacheKey);
+    }
     const def  = this._annotationSchema?.get(key);
     const vals = [];
 
@@ -1300,15 +1312,21 @@ export class TreeRenderer {
       }
     }
 
-    if (vals.length === 0) return null;
+    if (vals.length === 0) {
+      this._aggregateTipValueCache?.set(node.id + '|' + key, null);
+      return null;
+    }
+    let result;
     if (def && isNumericType(def.dataType)) {
       const nums = vals.map(Number).filter(v => !isNaN(v));
-      if (nums.length === 0) return null;
-      return nums.reduce((a, b) => a + b, 0) / nums.length;
+      result = nums.length === 0 ? null : nums.reduce((a, b) => a + b, 0) / nums.length;
+    } else {
+      const freq = new Map();
+      for (const v of vals) freq.set(v, (freq.get(v) ?? 0) + 1);
+      result = [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
     }
-    const freq = new Map();
-    for (const v of vals) freq.set(v, (freq.get(v) ?? 0) + 1);
-    return [...freq.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    this._aggregateTipValueCache?.set(node.id + '|' + key, result);
+    return result;
   }
 
   /** Pixel size of tip-label shape swatches, relative to the current inter-tip spacing (scaleY).
@@ -2297,6 +2315,22 @@ export class TreeRenderer {
     const yWorldMin = this._worldYfromScreen(-this.fontSize * 2);
     const yWorldMax = this._worldYfromScreen(H + this.fontSize * 2);
 
+    // Pre-filter to visible nodes once per frame so sub-functions avoid
+    // iterating the full tree on every draw pass.
+    //   _vAll   – every node in the Y viewport (any type)
+    //   _vTips  – non-collapsed tips in viewport
+    //   _vInner – internal nodes + collapsed nodes in viewport
+    const _vAll = [], _vTips = [], _vInner = [];
+    for (const n of this.nodes) {
+      if (n.y < yWorldMin || n.y > yWorldMax) continue;
+      _vAll.push(n);
+      if (n.isTip && !n.isCollapsed) _vTips.push(n);
+      else                           _vInner.push(n);
+    }
+    this._vAll   = _vAll;
+    this._vTips  = _vTips;
+    this._vInner = _vInner;
+
     this._drawCladeHighlights(yWorldMin, yWorldMax);
     this._drawNodeBars(yWorldMin, yWorldMax);
     this._drawBranches(yWorldMin, yWorldMax);
@@ -2778,9 +2812,7 @@ export class TreeRenderer {
     // ── Pass 1: filled HPD rectangle (translucent) ──────────────────────────
     ctx.fillStyle   = col;
     ctx.globalAlpha = this.nodeBarsFillOpacity;
-    for (const node of this.nodes) {
-      if (node.isTip) continue;
-      if (node.y < yWorldMin || node.y > yWorldMax) continue;
+    for (const node of this._vInner) {
       const hpd = node.annotations?.[hpdKey];
       if (!Array.isArray(hpd) || hpd.length < 2) continue;
       // larger height → closer to root → further left on screen
@@ -2796,9 +2828,7 @@ export class TreeRenderer {
     ctx.lineWidth   = 1;
     ctx.globalAlpha = this.nodeBarsStrokeOpacity;
     ctx.beginPath();
-    for (const node of this.nodes) {
-      if (node.isTip) continue;
-      if (node.y < yWorldMin || node.y > yWorldMax) continue;
+    for (const node of this._vInner) {
       const hpd = node.annotations?.[hpdKey];
       if (!Array.isArray(hpd) || hpd.length < 2) continue;
       const xLeft  = this._wx(maxX - hpd[1]);
@@ -2817,9 +2847,7 @@ export class TreeRenderer {
       ctx.lineWidth   = 2;
       ctx.globalAlpha = this.nodeBarsStrokeOpacity;
       ctx.beginPath();
-      for (const node of this.nodes) {
-        if (node.isTip) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vInner) {
         const hpd = node.annotations?.[hpdKey];
         if (!Array.isArray(hpd) || hpd.length < 2) continue;
         let xLine;
@@ -2850,9 +2878,7 @@ export class TreeRenderer {
       ctx.lineWidth   = 1;
       ctx.globalAlpha = this.nodeBarsStrokeOpacity;
       ctx.beginPath();
-      for (const node of this.nodes) {
-        if (node.isTip) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vInner) {
         const hpd   = node.annotations?.[hpdKey];
         const range = node.annotations?.[rangeKey];
         if (!Array.isArray(hpd) || hpd.length < 2) continue;
@@ -2891,9 +2917,8 @@ export class TreeRenderer {
     // Draw branches: horizontal segments.  Start each one 'er' px away from the
     // corner (in the branch direction) so the arc pass can fill the gap.
     ctx.beginPath();
-    for (const node of this.nodes) {
+    for (const node of this._vAll) {
       if (!node.parentId) continue;
-      if (node.y < yWorldMin || node.y > yWorldMax) continue;
 
       const parent = nodeMap.get(node.parentId);
       if (!parent) continue;
@@ -2916,9 +2941,8 @@ export class TreeRenderer {
     // Draw rounded-elbow arcs at each branch corner.
     if (er > 0) {
       ctx.beginPath();
-      for (const node of this.nodes) {
+      for (const node of this._vAll) {
         if (!node.parentId) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
 
         const parent = nodeMap.get(node.parentId);
         if (!parent) continue;
@@ -3095,9 +3119,7 @@ export class TreeRenderer {
       ctx.strokeStyle = this.nodeShapeBgColor;
       ctx.lineWidth   = nodeHalo * 2;
       ctx.beginPath();
-      for (const node of this.nodes) {
-        if (node.isTip && !node.isCollapsed) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vInner) {
         ctx.moveTo(this._wx(node.x) + nodeR, this._wy(node.y));
         ctx.arc(this._wx(node.x), this._wy(node.y), nodeR, 0, Math.PI * 2);
       }
@@ -3110,10 +3132,7 @@ export class TreeRenderer {
       ctx.strokeStyle = this.tipShapeBgColor;
       ctx.lineWidth   = tipHalo * 2;
       ctx.beginPath();
-      for (const node of this.nodes) {
-        if (!node.isTip) continue;
-        if (node.isCollapsed) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vTips) {
         ctx.moveTo(this._wx(node.x) + r, this._wy(node.y));
         ctx.arc(this._wx(node.x), this._wy(node.y), r, 0, Math.PI * 2);
       }
@@ -3125,9 +3144,7 @@ export class TreeRenderer {
         const key    = this._nodeColourBy;
         const def    = this._annotationSchema?.get(key);
         const tipOnly = def && !def.onNodes && def.onTips;
-        for (const node of this.nodes) {
-          if (node.isTip && !node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vInner) {
           const val = tipOnly
             ? this._aggregateTipValue(node, key)
             : this._statValue(node, key);
@@ -3139,9 +3156,7 @@ export class TreeRenderer {
       } else {
         ctx.fillStyle = this.nodeShapeColor;
         ctx.beginPath();
-        for (const node of this.nodes) {
-          if (node.isTip && !node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vInner) {
           ctx.moveTo(this._wx(node.x) + nodeR, this._wy(node.y));
           ctx.arc(this._wx(node.x), this._wy(node.y), nodeR, 0, Math.PI * 2);
         }
@@ -3154,10 +3169,7 @@ export class TreeRenderer {
       if (this._tipColourBy && this._tipColourScale) {
         // Per-tip colour: draw each circle individually.
         const key = this._tipColourBy;
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
           const val   = this._statValue(node, key);
           const col   = this._tipColourForValue(val) ?? this.tipShapeColor;
           ctx.fillStyle = col;
@@ -3168,10 +3180,7 @@ export class TreeRenderer {
       } else {
         ctx.fillStyle = this.tipShapeColor;
         ctx.beginPath();
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
           ctx.moveTo(this._wx(node.x) + r, this._wy(node.y));
           ctx.arc(this._wx(node.x), this._wy(node.y), r, 0, Math.PI * 2);
         }
@@ -3271,10 +3280,8 @@ export class TreeRenderer {
       if (hasSelection) {
         // Sub-pass 3a: unselected labels in dim grey
         ctx.fillStyle = dimColor;
-        for (const node of this.nodes) {
-          if (!node.isTip || this._selectedTipIds.has(node.id)) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
+          if (this._selectedTipIds.has(node.id)) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
           const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
@@ -3283,10 +3290,8 @@ export class TreeRenderer {
         // Sub-pass 3b: selected labels in bold + selected colour
         ctx.fillStyle = this.selectedLabelColor;
         ctx.font = this._selectedFont(this.fontSize);
-        for (const node of this.nodes) {
-          if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
+          if (!this._selectedTipIds.has(node.id)) continue;
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
           const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
@@ -3295,10 +3300,7 @@ export class TreeRenderer {
         ctx.font = this._tipFont(this.fontSize);
       } else if (this._labelColourBy && this._labelColourScale) {
         const key = this._labelColourBy;
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
           if (!_t) continue;
@@ -3309,10 +3311,7 @@ export class TreeRenderer {
         }
       } else {
         ctx.fillStyle = this.labelColor;
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
           if (!this._showLabelAt(node.y)) continue;
           const _t = this._tipLabelText(node);
           const _bX = alignLabelX ?? (this._wx(node.x) + outlineR);
@@ -3431,10 +3430,7 @@ export class TreeRenderer {
       const _shScl  = this._tipLabelShapeColourScale;
       const _hasSc  = !!(_shKey && _shScl);
       const halfSz  = _shSz / 2;
-      for (const node of this.nodes) {
-        if (!node.isTip) continue;
-        if (node.isCollapsed) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vTips) {
         const sy     = this._wy(node.y);
         const baseX  = alignLabelX ?? (this._wx(node.x) + outlineR);
         const shapeX = baseX + _shML;
@@ -3465,10 +3461,7 @@ export class TreeRenderer {
         const _shXKey = this._tipLabelShapeExtraColourBys[i];
         const _shXScl = this._tipLabelShapeExtraColourScales[i];
         const _hasXSc = !!(_shXKey && _shXScl);
-        for (const node of this.nodes) {
-          if (!node.isTip) continue;
-          if (node.isCollapsed) continue;
-          if (node.y < yWorldMin || node.y > yWorldMax) continue;
+        for (const node of this._vTips) {
           const baseX   = alignLabelX ?? (this._wx(node.x) + outlineR);
           const shapeXX = baseX + extraOff;
           const sy      = this._wy(node.y);
@@ -3509,9 +3502,8 @@ export class TreeRenderer {
       ctx.strokeStyle = this.selectedTipStrokeColor;
       ctx.lineWidth   = sw;
       ctx.beginPath();
-      for (const node of this.nodes) {
-        if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vTips) {
+        if (!this._selectedTipIds.has(node.id)) continue;
         ctx.moveTo(this._wx(node.x) + markerR, this._wy(node.y));
         ctx.arc(this._wx(node.x), this._wy(node.y), markerR, 0, Math.PI * 2);
       }
@@ -3523,9 +3515,8 @@ export class TreeRenderer {
       if (r > 0) {
         if (this._tipColourBy && this._tipColourScale) {
           const key = this._tipColourBy;
-          for (const node of this.nodes) {
-            if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-            if (node.y < yWorldMin || node.y > yWorldMax) continue;
+          for (const node of this._vTips) {
+            if (!this._selectedTipIds.has(node.id)) continue;
             const val = this._statValue(node, key);
             ctx.fillStyle = this._tipColourForValue(val) ?? this.tipShapeColor;
             ctx.beginPath();
@@ -3535,9 +3526,8 @@ export class TreeRenderer {
         } else {
           ctx.fillStyle = this.tipShapeColor;
           ctx.beginPath();
-          for (const node of this.nodes) {
-            if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-            if (node.y < yWorldMin || node.y > yWorldMax) continue;
+          for (const node of this._vTips) {
+            if (!this._selectedTipIds.has(node.id)) continue;
             ctx.moveTo(this._wx(node.x) + r, this._wy(node.y));
             ctx.arc(this._wx(node.x), this._wy(node.y), r, 0, Math.PI * 2);
           }
@@ -3549,9 +3539,8 @@ export class TreeRenderer {
       ctx.globalAlpha = this.selectedTipFillOpacity;
       ctx.fillStyle   = this.selectedTipFillColor;
       ctx.beginPath();
-      for (const node of this.nodes) {
-        if (!node.isTip || !this._selectedTipIds.has(node.id)) continue;
-        if (node.y < yWorldMin || node.y > yWorldMax) continue;
+      for (const node of this._vTips) {
+        if (!this._selectedTipIds.has(node.id)) continue;
         ctx.moveTo(this._wx(node.x) + markerR, this._wy(node.y));
         ctx.arc(this._wx(node.x), this._wy(node.y), markerR, 0, Math.PI * 2);
       }
@@ -3738,9 +3727,7 @@ export class TreeRenderer {
       ctx.textAlign    = 'right';
     }
 
-    for (const node of this.nodes) {
-      if (node.isTip) continue;
-      if (node.y < yWorldMin || node.y > yWorldMax) continue;
+    for (const node of this._vInner) {
       const label = this._nodeLabelText(node);
       if (!label) continue;
       const nx = this._wx(node.x);
@@ -3809,8 +3796,13 @@ export class TreeRenderer {
       : null;
   }
 
-  /** Collect all descendant tip ids of the node with the given id. */
+  /** Collect all descendant tip ids of the node with the given id.
+   *  Results are cached in _descendantTipsCache (cleared on layout change). */
   _getDescendantTipIds(nodeId) {
+    if (this._descendantTipsCache) {
+      const hit = this._descendantTipsCache.get(nodeId);
+      if (hit !== undefined) return hit;
+    }
     const result = [];
     const stack  = [nodeId];
     while (stack.length) {
@@ -3820,6 +3812,7 @@ export class TreeRenderer {
       if (node.isTip) { result.push(id); }
       else            { for (const cid of node.children) stack.push(cid); }
     }
+    this._descendantTipsCache?.set(nodeId, result);
     return result;
   }
 
@@ -4464,6 +4457,10 @@ export class TreeRenderer {
   _buildGlobalHeightMap(nodes, maxX) {
     this._globalHeightMap = new Map();
     for (const n of nodes) this._globalHeightMap.set(n.id, maxX - n.x);
+    // Lazy caches — cleared on every layout change so sub-tree navigation
+    // and re-rooting always produce fresh results.
+    this._descendantTipsCache    = new Map();
+    this._aggregateTipValueCache = new Map();
     this._buildTipsBelowMap(nodes);
   }
 
