@@ -933,7 +933,8 @@ export class RTTRenderer {
     lines.push(['Res. mean sq.', reg.rms != null ? reg.rms.toExponential(3) : '—']);
     lines.push(['CV',   reg.cv.toFixed(4)]);
 
-    const boxH   = lines.length * lh + pad;
+    const btnRowH = Math.round(20 * d);
+    const boxH   = lines.length * lh + pad + btnRowH;
     const br     = Math.round(4 * d);
     const margin = Math.round(6 * d);
 
@@ -977,8 +978,8 @@ export class RTTRenderer {
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }
 
-    // Copy button
-    this._drawStatsCopyButton(ctx, bx, by, boxW, pad, d);
+    // Copy button — own row at the bottom
+    this._drawStatsCopyButton(ctx, bx, by, boxW, boxH, pad, d);
 
     ctx.restore();
   }
@@ -1264,7 +1265,8 @@ export class RTTRenderer {
       ['Min',      fmt(vals[0])],
       ['Max',      fmt(vals[n - 1])],
     ];
-    const boxH   = lines.length * lh + pad;
+    const btnRowH = Math.round(20 * d);
+    const boxH   = lines.length * lh + pad + btnRowH;
     const br     = Math.round(4 * d);
     const margin = Math.round(6 * d);
     let bx, by;
@@ -1299,19 +1301,48 @@ export class RTTRenderer {
       ctx.textAlign    = 'right';
       ctx.fillText(lines[i][1], bx + boxW - pad * 0.7, ty);
     }
-    // Copy button
-    this._drawStatsCopyButton(ctx, bx, by, boxW, pad, d);
+    // Copy button — own row at the bottom
+    this._drawStatsCopyButton(ctx, bx, by, boxW, boxH, pad, d);
 
     ctx.restore();
   }
 
   // ─── Copy button shared draw helper ──────────────────────────────────────
 
-  _drawStatsCopyButton(ctx, bx, by, boxW, pad, d) {
+  _drawStatsCopyButton(ctx, bx, by, boxW, boxH, pad, d) {
     const btnSz   = Math.round(13 * d);
     const margin  = Math.round(3 * d);
-    const cx      = bx + boxW - btnSz - margin;
-    const cy      = by + margin;
+    // Separator line above the button row
+    const sepY = by + boxH - Math.round(20 * d);
+    ctx.save();
+    ctx.strokeStyle = this._colorWithAlpha(this.statsBoxTextColor, 0.15);
+    ctx.lineWidth   = d;
+    ctx.beginPath();
+    ctx.moveTo(bx + margin, sepY);
+    ctx.lineTo(bx + boxW - margin, sepY);
+    ctx.stroke();
+    ctx.restore();
+    const cy      = by + boxH - btnSz - margin;
+
+    // ── Close button (left) ──
+    const closeCx = bx + margin;
+    const closeCy = cy;
+    this._lastStatsCloseRect = { x: closeCx, y: closeCy, w: btnSz, h: btnSz };
+    ctx.save();
+    ctx.strokeStyle = this._colorWithAlpha(this.statsBoxTextColor, 0.35);
+    ctx.lineWidth   = Math.max(1, Math.round(d * 0.9));
+    ctx.lineCap     = 'round';
+    const xInset = Math.round(btnSz * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(closeCx + xInset,        closeCy + xInset);
+    ctx.lineTo(closeCx + btnSz - xInset, closeCy + btnSz - xInset);
+    ctx.moveTo(closeCx + btnSz - xInset, closeCy + xInset);
+    ctx.lineTo(closeCx + xInset,        closeCy + btnSz - xInset);
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Copy button (right) ──
+    const cx = bx + boxW - btnSz - margin;
     this._lastStatsCopyRect = { x: cx, y: cy, w: btnSz, h: btnSz };
 
     const flashing = this._statsCopyFlash > 0;
@@ -1473,6 +1504,14 @@ export class RTTRenderer {
       // Stats box body takes cursor priority
       if (this.statsBoxVisible) {
         const d = this._dpr;
+        if (this._lastStatsCloseRect) {
+          const xr = this._lastStatsCloseRect;
+          if (cssX >= xr.x/d && cssX <= (xr.x+xr.w)/d &&
+              cssY >= xr.y/d && cssY <= (xr.y+xr.h)/d) {
+            canvas.style.cursor = 'pointer';
+            return;
+          }
+        }
         if (this._lastStatsCopyRect) {
           const cr = this._lastStatsCopyRect;
           if (cssX >= cr.x/d && cssX <= (cr.x+cr.w)/d &&
@@ -1525,6 +1564,18 @@ export class RTTRenderer {
       // Stats box interaction takes priority over scatter drag-select
       if (this.statsBoxVisible && this._lastStatsRect) {
         const d = this._dpr;
+        // Close button — hide the stats box
+        if (this._lastStatsCloseRect) {
+          const xr = this._lastStatsCloseRect;
+          if (cssX >= xr.x/d && cssX <= (xr.x+xr.w)/d &&
+              cssY >= xr.y/d && cssY <= (xr.y+xr.h)/d) {
+            this.statsBoxVisible = false;
+            this._dirty = true;
+            if (this.onStatsBoxVisibleChange) this.onStatsBoxVisibleChange(false);
+            e.preventDefault();
+            return;
+          }
+        }
         // Copy button — copy lines TSV to clipboard
         if (this._lastStatsCopyRect) {
           const cr = this._lastStatsCopyRect;

@@ -886,12 +886,12 @@ function _buildModals() {
   <div class="pt-modal">
     <div class="pt-modal-header">
       <h5 id="node-info-title" class="modal-title"></h5>
-      <div style="display:flex;gap:4px;align-items:center;">
-        <button id="node-info-copy" class="btn btn-sm btn-outline-secondary" title="Copy as TSV"><i class="bi bi-clipboard"></i></button>
-        <button id="node-info-close" class="pt-modal-close-btn" title="Close">&times;</button>
-      </div>
+      <button id="node-info-close" class="pt-modal-close-btn" title="Close">&times;</button>
     </div>
     <div id="node-info-body" class="pt-modal-body"></div>
+    <div class="pt-modal-footer">
+      <button id="node-info-copy" class="btn btn-sm btn-outline-secondary" title="Copy as TSV"><i class="bi bi-clipboard me-1"></i>Copy as TSV</button>
+    </div>
   </div>
 </div>
 <div id="annot-config-overlay" class="pt-modal-overlay">
