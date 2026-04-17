@@ -3143,7 +3143,10 @@ export class TreeRenderer {
       if (this._nodeColourBy && this._nodeColourScale) {
         const key    = this._nodeColourBy;
         const def    = this._annotationSchema?.get(key);
-        const tipOnly = def && !def.onNodes && def.onTips;
+        // user_colour is a direct brush colour assigned per-node; never aggregate
+        // tip colours up to ancestors – internal nodes without an explicit value
+        // should stay at the default nodeShapeColor.
+        const tipOnly = def && !def.onNodes && def.onTips && key !== 'user_colour';
         for (const node of this._vInner) {
           const val = tipOnly
             ? this._aggregateTipValue(node, key)
