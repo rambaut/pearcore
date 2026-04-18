@@ -11,9 +11,9 @@
 
 import { RTTRenderer }      from './rttrenderer.js';
 import { TreeCalibration }  from './phylograph.js';
-import { computeOLS, ciHalfWidth } from '../../pearcore/js/regression.js';
-import { downloadBlob, htmlEsc as esc } from '../../pearcore/js/utils.js';
-import { createGraphicsExporter } from '../../pearcore/js/graphics-export.js';
+import { computeOLS, ciHalfWidth } from '@artic-network/pearcore/regression.js';
+import { downloadBlob, htmlEsc as esc } from '@artic-network/pearcore/utils.js';
+import { createGraphicsExporter } from '@artic-network/pearcore/graphics-export.js';
 
 /**
  * Create the Root-to-Tip panel controller.

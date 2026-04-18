@@ -2,11 +2,11 @@
 // Extracted from peartree.js to keep the app controller focused.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { htmlEsc as esc, downloadBlob } from '../../pearcore/js/utils.js';
+import { htmlEsc as esc, downloadBlob } from '@artic-network/pearcore/utils.js';
 import { isNumericType } from './phylograph.js';
 import { graphToNewick } from './treeio.js';
 import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
-import { createGraphicsExporter } from '../../pearcore/js/graphics-export.js';
+import { createGraphicsExporter } from '@artic-network/pearcore/graphics-export.js';
 
 /**
  * Create the export controller — manages tree export and graphics export

@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Re-export parseDelimited from pearcore so existing consumers continue to work.
-export { parseDelimited } from '../../pearcore/js/annotation-utils.js';
+export { parseDelimited } from '@artic-network/pearcore/annotation-utils.js';
 
 /**
  * Parse a Newick string into a lightweight nested node object.

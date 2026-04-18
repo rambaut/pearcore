@@ -1,25 +1,27 @@
 import { parseNexus, parseNewick, graphToNewick, parseDelimited } from './treeio.js';
 import { computeLayoutFromGraph, graphVisibleTipCount, graphSubtreeHasHidden } from './treeutils.js';
 import { fromNestedRoot, rerootOnGraph, reorderGraph, rotateNodeGraph, midpointRootGraph, temporalRootGraph, optimiseRootEdge, buildAnnotationSchema, injectBuiltinStats, isNumericType, TreeCalibration, computeTemporalResiduals } from './phylograph.js';
-import { htmlEsc as _esc, downloadBlob as _downloadBlob, wireDropZone as _wireDropZone } from '../../pearcore/js/utils.js';
+import { htmlEsc as _esc, downloadBlob as _downloadBlob, wireDropZone as _wireDropZone } from '@artic-network/pearcore/utils.js';
 import { TreeRenderer, CAL_DATE_KEY, CAL_DATE_HPD_KEY, CAL_DATE_HPD_ONLY_KEY } from './treerenderer.js';
 import { LegendRenderer } from './legendrenderer.js';
 import { AxisRenderer  } from './axisrenderer.js';
 import { THEMES, DEFAULT_THEME, SETTINGS_KEY, USER_THEMES_KEY } from './themes.js';
-import { TYPEFACES, buildFont } from '../../pearcore/js/typefaces.js';
+import { TYPEFACES, buildFont } from '@artic-network/pearcore/typefaces.js';
 import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
-         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from '../../pearcore/js/palettes.js';
-import { createAnnotImporter } from '../../pearcore/js/annotation-io.js';
-import { createAnnotCurator  } from '../../pearcore/js/annotation-manager.js';
+         DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from '@artic-network/pearcore/palettes.js';
+import { createAnnotImporter } from '@artic-network/pearcore/annotation-io.js';
+import { createAnnotCurator  } from '@artic-network/pearcore/annotation-manager.js';
+import { createFilterControl } from './filter-control.js';
+import { createFilterManager } from './filter-manager.js';
 import { createDataTableRenderer } from './datatablerenderer.js';
 import { createRTTChart          } from './rttchart.js';
-import { createCommands } from '../../pearcore/js/commands.js';
+import { createCommands } from '@artic-network/pearcore/commands.js';
 import { COMMAND_DEFS } from './peartree-commands.js';
 import { createExportController } from './export-controller.js';
 import { EXAMPLE_TREE_PATH, EXAMPLE_DATASETS, PEARTREE_BASE_URL, DEFAULT_SETTINGS, REQUIRED_THEME_KEYS, NODE_TOOLTIP_FIELDS } from './config.js';
-import { createToolbarColourPicker, upgradeAllPaletteColourPickers } from '../../pearcore/js/colorpicker.js';
+import { createToolbarColourPicker, upgradeAllPaletteColourPickers } from '@artic-network/pearcore/colorpicker.js';
 import { createThemeManager, resolveEmbedConfig, initSectionAccordion,
-         ensureStylesheet, loadScript, resolveAssetBases } from '../../pearcore/js/pearcore-app.js';
+         ensureStylesheet, loadScript, resolveAssetBases } from '@artic-network/pearcore/pearcore-app.js';
 
 /**
  * Fetch a file by relative path, falling back to the absolute GitHub Pages URL
@@ -372,6 +374,14 @@ async function _initCore(root = document) {
   const btnResetSettings       = $('btn-reset-settings');
   const btnImportAnnot         = $('btn-import-annot');
   const btnCurateAnnot         = $('btn-curate-annot');
+  const btnManageFilters       = $('btn-manage-filters');
+  let filterManager            = null;  // assigned after renderer is created
+  const nodeBarsFilterEl      = $('node-bars-filter');
+  const nodeLabelsFilterEl    = $('node-labels-filter');
+  const branchLabelsFilterEl  = $('branch-labels-filter');
+  const tipLabelsFilterEl     = $('tip-labels-filter');
+  const nodeShapesFilterEl    = $('node-shapes-filter');
+  const tipShapesFilterEl     = $('tip-shapes-filter');
   const btnDataTable           = $('btn-data-table');
   const btnRtt                 = $('btn-rtt');
   const btnExportTree          = $('btn-export-tree');
@@ -392,25 +402,7 @@ async function _initCore(root = document) {
 
   // Upgrade all side-panel <input type="color" class="pt-palette-color"> to swatch pickers
   upgradeAllPaletteColourPickers(root, { palettes: CATEGORICAL_PALETTES });
-  const tipFilterEl            = $('tip-filter');
-  const btnFilterColEl         = $('btn-filter-col');
-  const btnFilterRegexEl       = $('btn-filter-regex');
-  const filterColPopupEl       = $('filter-col-popup');
-  let   _filterCol             = '__name__';  // currently active filter column
-  let   _filterRegex           = false;       // regex mode toggle
-
-  // Close filter-column popup on outside click or Escape
-  document.addEventListener('click', (e) => {
-    if (!root.contains(e.target)) return;
-    if (filterColPopupEl?.classList.contains('open') &&
-        !filterColPopupEl.contains(e.target) &&
-        e.target !== btnFilterColEl) {
-      filterColPopupEl.classList.remove('open');
-    }
-  });
-  if (_cfg.enableKeyboard) document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && (root === document || root.contains(document.activeElement))) filterColPopupEl?.classList.remove('open');
-  });
+  let filterControl = null;  // managed by filter-control.js; set in bindControls()
 
   // ── Settings persistence ──────────────────────────────────────────────────
   // SETTINGS_KEY, USER_THEMES_KEY, THEMES, DEFAULT_SETTINGS imported from ./themes.js
@@ -721,6 +713,13 @@ async function _initCore(root = document) {
       cladeHighlightStrokeOpacity: cladeHighlightStrokeOpacitySlider?.value ?? '0.7',
       cladeHighlightColour:        cladeHighlightDefaultColourEl?.value    ?? '#ffaa00',
       cladeHighlights:             renderer?.getCladeHighlightsData() ?? [],
+      filters:                     filterManager ? JSON.stringify([...filterManager.getAll().values()]) : '[]',
+      nodeBarsFilter:              nodeBarsFilterEl?.value     || null,
+      nodeLabelsFilter:            nodeLabelsFilterEl?.value   || null,
+      branchLabelsFilter:          branchLabelsFilterEl?.value || null,
+      tipLabelsFilter:             tipLabelsFilterEl?.value    || null,
+      nodeShapesFilter:            nodeShapesFilterEl?.value   || null,
+      tipShapesFilter:             tipShapesFilterEl?.value    || null,
     };
   }
 
@@ -1358,6 +1357,13 @@ async function _initCore(root = document) {
       cladeHighlightFillOpacity:   parseFloat(cladeHighlightFillOpacitySlider?.value ?? '0.15'),
       cladeHighlightStrokeOpacity: parseFloat(cladeHighlightStrokeOpacitySlider?.value ?? '0.7'),
       cladeHighlightColour:        cladeHighlightDefaultColourEl?.value ?? '#ffaa00',
+      _filterDefinitions:          filterManager?.getAll() ?? new Map(),
+      nodeBarsFilter:              nodeBarsFilterEl?.value     || null,
+      nodeLabelsFilter:            nodeLabelsFilterEl?.value   || null,
+      branchLabelsFilter:          branchLabelsFilterEl?.value || null,
+      tipLabelsFilter:             tipLabelsFilterEl?.value    || null,
+      nodeShapesFilter:            nodeShapesFilterEl?.value   || null,
+      tipShapesFilter:             tipShapesFilterEl?.value    || null,
     };
   }
 
@@ -1875,6 +1881,16 @@ async function _initCore(root = document) {
     cladeHighlightStrokeWidthSlider.value = _saved.cladeHighlightStrokeWidth;
     $('clade-highlight-stroke-width-value') && ($('clade-highlight-stroke-width-value').textContent = _saved.cladeHighlightStrokeWidth);
   }
+
+  // Restore filter manager state
+  // (only select values here — filterManager itself is created later;
+  //  the definitions are loaded into it after creation below)
+  const _filterSelectIds = ['nodeBarsFilter', 'nodeLabelsFilter', 'branchLabelsFilter', 'tipLabelsFilter', 'nodeShapesFilter', 'tipShapesFilter'];
+  const _filterSelectEls = [nodeBarsFilterEl, nodeLabelsFilterEl, branchLabelsFilterEl, tipLabelsFilterEl, nodeShapesFilterEl, tipShapesFilterEl];
+  for (let i = 0; i < _filterSelectIds.length; i++) {
+    const val = _saved[_filterSelectIds[i]];
+    if (val && _filterSelectEls[i]) _filterSelectEls[i].value = val;
+  }
   const container = canvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
   canvas.style.width  = container.clientWidth  + 'px';
@@ -2251,6 +2267,7 @@ async function _initCore(root = document) {
       if ($('export-tree-overlay')?.classList.contains('open'))    { exportCtrl.closeExportDialog();   return; }
       if (annotConfigOverlay?.classList.contains('open')) { annotConfigOverlay.classList.remove('open'); return; }
       if ($('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
+      if ($('manage-filters-overlay')?.classList.contains('open')) { filterManager.close(); return; }
       if ($('import-annot-overlay')?.classList.contains('open'))  { annotImporter.close(); return; }
       const nodeInfoOv = $('node-info-overlay');
       if (nodeInfoOv && nodeInfoOv.classList.contains('open')) { nodeInfoOv.classList.remove('open'); return; }
@@ -2456,6 +2473,76 @@ async function _initCore(root = document) {
     onConfigureClick: (key) => openAnnotConfig(key),
   });
   btnCurateAnnot?.addEventListener('click', () => commands.execute('curate-annot'));
+
+  // ── Filter Manager ───────────────────────────────────────────────────────
+  filterManager = createFilterManager({
+    getSchema: () => graph?.annotationSchema ?? null,
+    onFiltersChange: (map) => {
+      renderer?.setFilterDefinitions(map);
+      _refreshFilterUIs(map);
+      saveSettings();
+    },
+    showConfirm: (t, m, opts) => showConfirmDialog(t, m, { okLabel: 'OK', cancelLabel: 'Cancel', ...opts }),
+  });
+  // Restore saved filter definitions now that filterManager exists
+  if (_saved.filters) {
+    try {
+      const arr = JSON.parse(_saved.filters);
+      if (Array.isArray(arr)) {
+        const map = new Map(arr.map(f => [f.id, f]));
+        filterManager.setAll(map);
+        _refreshFilterUIs(map);
+        // Re-apply saved select values (dropdowns now have the filter options)
+        for (let i = 0; i < _filterSelectIds.length; i++) {
+          const val = _saved[_filterSelectIds[i]];
+          if (val && _filterSelectEls[i]) _filterSelectEls[i].value = val;
+        }
+        renderer?.setFilterDefinitions(map);
+      }
+    } catch (_) { /* corrupt saved data — silently skip */ }
+  }
+  btnManageFilters?.addEventListener('click', () => commands.execute('manage-filters'));
+
+  /** Repopulate all 6 filter <select> elements from the current filter map. */
+  function _refreshFilterUIs(filterMap) {
+    const selects = [
+      nodeBarsFilterEl, nodeLabelsFilterEl, branchLabelsFilterEl,
+      tipLabelsFilterEl, nodeShapesFilterEl, tipShapesFilterEl,
+    ];
+    for (const sel of selects) {
+      if (!sel) continue;
+      const current = sel.value;
+      // Keep only the '— always —' placeholder, then re-add filters
+      sel.innerHTML = '<option value="">— always —</option>';
+      for (const [id, f] of filterMap) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = f.name || id;
+        sel.appendChild(opt);
+      }
+      // Restore previous selection if still available
+      if (current && [...filterMap.keys()].includes(current)) sel.value = current;
+      else sel.value = '';
+      sel.disabled = filterMap.size === 0;
+    }
+    filterControl?.setNamedFilters(filterMap);
+  }
+
+  // Wire filter dropdown change events
+  function _onFilterSelectChange() { _applyFilterSelects(); saveSettings(); }
+
+  nodeBarsFilterEl?.addEventListener('change',     _onFilterSelectChange);
+  nodeLabelsFilterEl?.addEventListener('change',   _onFilterSelectChange);
+  branchLabelsFilterEl?.addEventListener('change', _onFilterSelectChange);
+  tipLabelsFilterEl?.addEventListener('change',    _onFilterSelectChange);
+  nodeShapesFilterEl?.addEventListener('change',   _onFilterSelectChange);
+  tipShapesFilterEl?.addEventListener('change',    _onFilterSelectChange);
+
+  function _applyFilterSelects() {
+    if (!renderer) return;
+    renderer.setSettings(_buildRendererSettings());
+    renderer._dirty = true;
+  }
 
   // ── Data Table Panel ─────────────────────────────────────────────────────
   dataTableRenderer = createDataTableRenderer({
@@ -2988,29 +3075,7 @@ async function _initCore(root = document) {
     if (collapsedCladeColourByEl)  repopulate(collapsedCladeColourByEl,  { filter: 'nodesAndTipAvg' });
     if (nodeLabelColourBy)   repopulate(nodeLabelColourBy,   { filter: 'nodesAndTipAvg' });
     if (branchLabelColourBy) repopulate(branchLabelColourBy, { filter: 'nodesAndTipAvg' });
-    // Rebuild filter-column popup: 'Name' first, then categorical/ordinal/date tip annotations only.
-    {
-      const items = [{ value: '__name__', label: 'Name' }];
-      for (const [name, def] of schema) {
-        if (!def.onTips) continue;
-        if (def.groupMember) continue;
-        const dt = def.dataType;
-        if (dt !== 'categorical' && dt !== 'ordinal' && dt !== 'date') continue;
-        items.push({ value: name, label: def.label ?? name });
-      }
-      if (!items.some(i => i.value === _filterCol)) _filterCol = '__name__';
-      if (filterColPopupEl) {
-        filterColPopupEl.innerHTML = '';
-        for (const { value, label } of items) {
-          const btn = document.createElement('button');
-          btn.className = 'pt-fcp-item' + (value === _filterCol ? ' active' : '');
-          btn.textContent = label;
-          btn.dataset.value = value;
-          filterColPopupEl.appendChild(btn);
-        }
-      }
-      if (btnFilterColEl) btnFilterColEl.title = `Search in: ${items.find(i => i.value === _filterCol)?.label ?? 'Name'}`;
-    }
+    filterControl?.setSchema(schema);
     repopulate(tipLabelShapeColourBy, { filter: 'tips' });
     for (let i = 0; i < EXTRA_SHAPE_COUNT; i++) {
       repopulate(tipLabelShapeExtraColourBys[i], { filter: 'tips' });
@@ -3748,21 +3813,8 @@ async function _initCore(root = document) {
       renderer._mrcaNodeId       = null;
 
       // Reset tip filter for each tree load
-      if (tipFilterEl) tipFilterEl.value   = '';
-      if (tipFilterEl) tipFilterEl.placeholder = 'Filter tips…';
+      filterControl?.reset();
       _updateStatusSelect(0);
-      _filterCol   = '__name__';
-      _filterRegex = false;
-      btnFilterRegexEl?.classList.remove('active');
-      tipFilterEl?.closest('.pt-filter-group')?.classList.remove('regex-error');
-      // Seed the popup with Name immediately so it is never blank before _refreshAnnotationUIs runs.
-      if (filterColPopupEl && !filterColPopupEl.hasChildNodes()) {
-        const _seed = document.createElement('button');
-        _seed.className = 'pt-fcp-item active';
-        _seed.textContent = 'Name';
-        _seed.dataset.value = '__name__';
-        filterColPopupEl.appendChild(_seed);
-      }
 
       if (!treeLoaded) {
         treeLoaded = true;
@@ -3770,9 +3822,7 @@ async function _initCore(root = document) {
         _sectionAccordion.unlock();
         // Now that a tree is loaded, stamp the theme background onto the canvas wrappers.
         _syncCanvasWrapperBg(canvasBgColorEl.value);
-        if (tipFilterEl)     tipFilterEl.disabled      = false;
-        if (btnFilterColEl)  btnFilterColEl.disabled   = false;
-        if (btnFilterRegexEl) btnFilterRegexEl.disabled = false;
+        filterControl?.enable();
         $('btn-colour-trigger')?.removeAttribute('disabled');
         // Buttons with no command equivalent
         const _btnHypUp   = $('btn-hyp-up');
@@ -3816,6 +3866,7 @@ async function _initCore(root = document) {
         commands.setEnabled('view-hyp-down',  true);
         commands.setEnabled('tree-order-up',   true);
         commands.setEnabled('tree-order-down', true);
+        commands.setEnabled('manage-filters',  true);
       }
 
       // Restore interaction mode (file settings take priority).
@@ -3827,6 +3878,17 @@ async function _initCore(root = document) {
       if (!controlsBound) {
         bindControls();
         controlsBound = true;
+      }
+
+      // Now that filterControl exists, enable it and replay filter-select values
+      filterControl?.enable();
+      // Push the latest filter definitions into the renderer
+      if (filterManager) {
+        const fm = filterManager.getAll();
+        if (fm.size > 0) {
+          renderer.setFilterDefinitions(fm);
+          _applyFilterSelects();
+        }
       }
 
       // Sync button states through callbacks now that bindControls() is guaranteed to have run.
@@ -3988,107 +4050,32 @@ async function _initCore(root = document) {
     const btnNodeInfo     = $('btn-node-info');
 
     // ── Tip filter ────────────────────────────────────────────────────────────
-    let _filterTimer = null;
-
-    function _applyTipFilter() {
-      clearTimeout(_filterTimer);
-      _filterTimer = null;
-      const raw = tipFilterEl.value.trim();
-      const col = _filterCol; // '__name__' or an annotation key
-      const filterGroup = tipFilterEl.closest('.pt-filter-group');
-
-      if (!raw) {
-        filterGroup?.classList.remove('regex-error');
-        renderer._selectedTipIds.clear();
+    filterControl = createFilterControl($('tip-filter-mount'), {
+      getNodeMap:            () => renderer?.nodeMap ?? null,
+      getNodeAnnotationValue: (n, col) => col === '__name__' ? (n.name ?? '') : (n.annotations?.[col] ?? null),
+      passesNamedFilter:     (id, node) => renderer?._passesFilter(id, node) ?? true,
+      onMatchChange:         (matches) => {
+        if (!matches) {
+          renderer._selectedTipIds.clear();
+          renderer._mrcaNodeId = null;
+          if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(false);
+          _updateStatusSelect(0);
+          renderer._dirty = true;
+          return;
+        }
+        renderer._selectedTipIds = new Set(matches.map(n => n.id));
         renderer._mrcaNodeId = null;
-        if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(false);
-        _updateStatusSelect(0);
+        if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(matches.length > 0);
+        _updateStatusSelect(matches.length);
         renderer._dirty = true;
-        return;
-      }
-
-      // Build matcher — regex or plain substring
-      let matcher;
-      if (_filterRegex) {
-        try {
-          const re = new RegExp(raw, 'i');
-          matcher = s => re.test(s);
-          filterGroup?.classList.remove('regex-error');
-        } catch {
-          filterGroup?.classList.add('regex-error');
-          return; // invalid pattern — don't update selection
+        // Scroll topmost matching tip into view when tree is zoomed
+        if (matches.length > 0 && renderer._targetScaleY > renderer.minScaleY * 1.01) {
+          const top = matches.reduce((a, b) => a.y < b.y ? a : b);
+          const newOffsetY = renderer.paddingTop + 10 - top.y * renderer._targetScaleY;
+          renderer._setTarget(newOffsetY, renderer._targetScaleY, false);
         }
-      } else {
-        const q = raw.toLowerCase();
-        matcher = s => s.toLowerCase().includes(q);
-        filterGroup?.classList.remove('regex-error');
-      }
-
-      const matches = [];
-      if (renderer.nodeMap) {
-        for (const [id, n] of renderer.nodeMap) {
-          if (!n.isTip) continue;
-          let label;
-          if (col === '__name__') {
-            label = n.name ?? '';
-          } else {
-            const v = n.annotations?.[col];
-            label = v == null ? '' : String(v);
-          }
-          if (matcher(label)) matches.push(n);
-        }
-      }
-
-      renderer._selectedTipIds = new Set(matches.map(n => n.id));
-      renderer._mrcaNodeId = null;
-      if (renderer._onNodeSelectChange) renderer._onNodeSelectChange(matches.length > 0);
-      _updateStatusSelect(matches.length);
-      renderer._dirty = true;
-
-      // Scroll topmost matching tip into view when tree is zoomed
-      if (matches.length > 0 && renderer._targetScaleY > renderer.minScaleY * 1.01) {
-        const top = matches.reduce((a, b) => a.y < b.y ? a : b);
-        const newOffsetY = renderer.paddingTop + 10 - top.y * renderer._targetScaleY;
-        renderer._setTarget(newOffsetY, renderer._targetScaleY, false);
-      }
-    }
-
-    tipFilterEl?.addEventListener('input', () => {
-      clearTimeout(_filterTimer);
-      _filterTimer = setTimeout(_applyTipFilter, 300);
-    });
-    tipFilterEl?.addEventListener('blur', () => {
-      clearTimeout(_filterTimer);
-      _applyTipFilter();
-    });
-    // Native clear button in <input type="search"> fires 'search' event
-    tipFilterEl?.addEventListener('search', _applyTipFilter);
-
-    // Regex toggle
-    btnFilterRegexEl?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      _filterRegex = !_filterRegex;
-      btnFilterRegexEl.classList.toggle('active', _filterRegex);
-      tipFilterEl.placeholder = _filterRegex ? 'Regex filter…' : 'Filter tips…';
-      _applyTipFilter();
-    });
-
-    // ── Filter column popup ──────────────────────────────────────────────────────
-    btnFilterColEl?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      filterColPopupEl.classList.toggle('open');
-    });
-    filterColPopupEl?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const item = e.target.closest('.pt-fcp-item');
-      if (!item) return;
-      _filterCol = item.dataset.value;
-      for (const el of filterColPopupEl.querySelectorAll('.pt-fcp-item')) {
-        el.classList.toggle('active', el === item);
-      }
-      btnFilterColEl.title = `Search in: ${item.textContent}`;
-      filterColPopupEl.classList.remove('open');
-      if (tipFilterEl.value.trim()) _applyTipFilter();
+      },
+      getFilterManager:      () => filterManager,
     });
 
     // ── Hide/Show helpers ─────────────────────────────────────────────────────
@@ -4252,8 +4239,8 @@ async function _initCore(root = document) {
       commands.setEnabled('tree-highlight-clade',  hasMrca);
       commands.setEnabled('tree-clear-highlights', renderer._cladeHighlights.size > 0);
       // Update status-bar selection count for canvas-click selections.
-      // Filter-driven selections update it directly in _applyTipFilter.
-      if (!tipFilterEl?.value?.trim()) {
+      // Filter-driven selections update it directly in filterControl.
+      if (!filterControl?.getInputValue()?.trim()) {
         _updateStatusSelect(hasSelection ? renderer._selectedTipIds.size : 0);
       }
       // Keep the data table in sync with the canvas selection
@@ -6723,6 +6710,7 @@ async function _initCore(root = document) {
   commands.get('open-tree').exec  = () => openModal();
   commands.get('import-annot').exec = () => annotImporter.open();
   commands.get('curate-annot').exec  = () => annotCurator.open();
+  commands.get('manage-filters').exec = () => filterManager.open();
   commands.get('select-all').exec = () => {
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) {

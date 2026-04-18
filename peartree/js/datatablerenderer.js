@@ -22,7 +22,7 @@
 //   padding-right via body.dt-pinned, shrinking the canvas.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { htmlEsc as _esc } from '../../pearcore/js/utils.js';
+import { htmlEsc as _esc } from '@artic-network/pearcore/utils.js';
 
 /** Shared offscreen canvas used only for text measurement. */
 const _measureCanvas = document.createElement('canvas');

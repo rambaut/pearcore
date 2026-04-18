@@ -12,7 +12,7 @@
  * window.__TAURI__ so it is silently inert in a plain browser.
  */
 
-import { setupTauriAdapter } from '../../pearcore/js/pearcore-tauri.js';
+import { setupTauriAdapter } from '@artic-network/pearcore/pearcore-tauri.js';
 
 (async () => {
   if (!window.__TAURI__) return;

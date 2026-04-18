@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "identifier": "network.artic.peartree",
   "build": {
-    "frontendDist": ".."
+    "beforeBuildCommand": "bash scripts/stage-tauri.sh",
+    "beforeDevCommand": "bash scripts/stage-tauri.sh",
+    "frontendDist": "../dist-tauri"
   },
   "app": {
     "withGlobalTauri": true,

@@ -1,6 +1,6 @@
 import { TreeCalibration } from './phylograph.js';
-import { overlapsZones }   from '../../pearcore/js/utils.js';
-import { buildFont, TYPEFACES } from '../../pearcore/js/typefaces.js';
+import { overlapsZones }   from '@artic-network/pearcore/utils.js';
+import { buildFont, TYPEFACES } from '@artic-network/pearcore/typefaces.js';
 
 /**
  * AxisRenderer — draws an x-axis below the tree canvas.

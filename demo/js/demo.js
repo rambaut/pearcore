@@ -9,10 +9,10 @@
  * - help/about panels, dark/light mode, settings persistence
  */
 
-import { downloadBlob, wireDropZone } from '../../pearcore/js/utils.js';
-import { createCommands } from '../../pearcore/js/commands.js';
-import { createGraphicsExporter } from '../../pearcore/js/graphics-export.js';
-import { loadSettings, saveSettings as _saveSettings } from '../../pearcore/js/pearcore-app.js';
+import { downloadBlob, wireDropZone } from '@artic-network/pearcore/utils.js';
+import { createCommands } from '@artic-network/pearcore/commands.js';
+import { createGraphicsExporter } from '@artic-network/pearcore/graphics-export.js';
+import { loadSettings, saveSettings as _saveSettings } from '@artic-network/pearcore/pearcore-app.js';
 
 // ── Command definitions ──────────────────────────────────────────────────
 

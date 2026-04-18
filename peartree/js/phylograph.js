@@ -1,4 +1,4 @@
-import { computeOLS as _computeOLS } from '../../pearcore/js/regression.js';
+import { computeOLS as _computeOLS } from '@artic-network/pearcore/regression.js';
 import {
   KNOWN_ANNOTATION_BOUNDS,
   KNOWN_BRANCH_ANNOTATIONS,
@@ -10,7 +10,7 @@ import {
   makeAnnotationFormatter,
   inferAnnotationType,
   buildAnnotationSchema as _buildAnnotationSchemaCore,
-} from '../../pearcore/js/annotation-utils.js';
+} from '@artic-network/pearcore/annotation-utils.js';
 
 // Re-export so existing consumers of phylograph.js continue to work.
 export { KNOWN_ANNOTATION_BOUNDS, KNOWN_BRANCH_ANNOTATIONS, isNumericType, makeAnnotationFormatter };
