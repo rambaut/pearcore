@@ -6,7 +6,7 @@
  *   • Native file-open dialog         (pick_tree_file command)
  *   • New window creation             (new_window command, Cmd+N)
  *   • File open via drag / dbl-click  (open-file event, routes to focused window)
- *   • Native menu → command dispatch  (menu-event event, targeted at this window)
+ *   • Native menu → command dispatch  (menu-event event, routed by Rust)
  *   • Native menu enabled-state sync  (set_menu_item_enabled, re-synced on focus)
  *
  * Loaded unconditionally from peartree.html; self-guards on window.__TAURI__
@@ -25,6 +25,7 @@
   const { invoke }        = window.__TAURI__.core;
   const { listen }         = window.__TAURI__.event;
   const { getCurrentWindow } = window.__TAURI__.window;
+  const currentWindow      = getCurrentWindow();
   const app                = window.peartree;
   const registry           = app.commands;
 
@@ -124,10 +125,10 @@
   });
 
   // ── Re-sync menu when this window gains focus ────────────────────────
-  // macOS has a single global menu bar. When the user switches windows the
-  // menu must reflect the newly focused window's command state, so we push
-  // the full registry state to Rust whenever this window gets focus.
-  window.addEventListener('focus', () => {
+  // On macOS there is one global app menu.  Re-sync item states whenever
+  // this window gains OS focus so the menu reflects the active window.
+  await currentWindow.onFocusChanged(({ payload: focused }) => {
+    if (!focused) return;
     for (const cmd of registry.getAll().values()) {
       invoke('set_menu_item_enabled', { id: cmd.id, enabled: cmd.enabled }).catch(() => {});
       if (cmd.label) invoke('set_menu_item_text', { id: cmd.id, text: cmd.label }).catch(() => {});
@@ -167,9 +168,9 @@
   }
 
   // ── File opened via drag-to-icon / double-click / file association ─────
-  // Rust emits this only to the focused window. If this window already has a
-  // tree open, delegate to a new window instead of overwriting.
-  await listen('open-file', async (event) => {
+  // Rust emits this only to the focused window. Use getCurrentWindow().listen
+  // so each window only handles events targeted at it (not all windows).
+  await getCurrentWindow().listen('open-file', async (event) => {
     const filePath = event.payload;
     if (!filePath) return;
 
@@ -197,8 +198,9 @@
   });
 
   // ── Native menu → command dispatch ───────────────────────────────────────
-  // Rust emits this only to the focused window so we can safely execute here.
-  await listen('menu-event', ({ payload: id }) => {
+  // Rust emits a per-window event name so only this window ever receives it,
+  // regardless of Tauri's broadcast semantics for the global listen().
+  await listen(`menu-event-${currentWindow.label}`, ({ payload: id }) => {
     registry.execute(id);
   });
 

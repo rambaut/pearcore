@@ -2460,8 +2460,8 @@ async function _initCore(root = document) {
       if ($('parse-tips-overlay')?.classList.contains('open'))    { /* handled by annotations-manager */ return; }
       if ($('export-graphic-overlay')?.classList.contains('open')) { exportCtrl.closeGraphicsDialog(); return; }
       if ($('export-tree-overlay')?.classList.contains('open'))    { exportCtrl.closeExportDialog();   return; }
-      if ($('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
       if (annotConfigOverlay?.classList.contains('open')) { annotConfigOverlay.classList.remove('open'); return; }
+      if ($('curate-annot-overlay')?.classList.contains('open')) { annotCurator.close(); return; }
       if ($('import-annot-overlay')?.classList.contains('open'))  { annotImporter.close(); return; }
       const nodeInfoOv = $('node-info-overlay');
       if (nodeInfoOv && nodeInfoOv.classList.contains('open')) { nodeInfoOv.classList.remove('open'); return; }
