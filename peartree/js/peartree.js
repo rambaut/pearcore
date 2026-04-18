@@ -9,7 +9,6 @@ import { THEMES, DEFAULT_THEME, SETTINGS_KEY, USER_THEMES_KEY } from './themes.j
 import { TYPEFACES, buildFont } from '../../pearcore/js/typefaces.js';
 import { CATEGORICAL_PALETTES, SEQUENTIAL_PALETTES,
          DEFAULT_CATEGORICAL_PALETTE, DEFAULT_SEQUENTIAL_PALETTE } from '../../pearcore/js/palettes.js';
-import { viewportDims, compositeViewPng, buildGraphicSVG } from './graphicsio.js';
 import { createAnnotImporter } from '../../pearcore/js/annotation-io.js';
 import { createAnnotCurator  } from '../../pearcore/js/annotation-manager.js';
 import { createDataTableRenderer } from './datatablerenderer.js';
