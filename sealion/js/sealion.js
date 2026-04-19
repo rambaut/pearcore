@@ -103,7 +103,7 @@ const Alignment = window.Alignment;
       findNext:   () => { try { if (viewer && viewer.nextMatch)       viewer.nextMatch();        } catch (_) {} },
       findPrev:   () => { try { if (viewer && viewer.previousMatch)   viewer.previousMatch();    } catch (_) {} },
 
-      showErrorDialog(msg) { alert(msg); },
+      showErrorDialog(msg) { showAlertDialog('Error', msg); },
       closeModal() {
         // Will be overwritten once dialogs are initialized
       },
@@ -123,7 +123,7 @@ const Alignment = window.Alignment;
         const refStr = (window && window.reference) ? String(window.reference) : null;
         if (!refStr) {
           console.warn('No reference set. Please set a reference first.');
-          alert('No reference set. Please set a reference sequence first using "Set consensus as reference" or "Set selected as reference".');
+          showAlertDialog('No reference', 'No reference set. Please set a reference sequence first using \u201cSet consensus as reference\u201d or \u201cSet selected as reference\u201d.');
           return;
         }
         
@@ -148,7 +148,7 @@ const Alignment = window.Alignment;
         const refStr = (window && window.reference) ? String(window.reference) : null;
         if (!refStr) {
           console.warn('No reference set. Please set a reference first.');
-          alert('No reference set. Please set a reference sequence first using "Set consensus as reference" or "Set selected as reference".');
+          showAlertDialog('No reference', 'No reference set. Please set a reference sequence first using \u201cSet consensus as reference\u201d or \u201cSet selected as reference\u201d.');
           return;
         }
         
@@ -765,7 +765,7 @@ const Alignment = window.Alignment;
             if (!viewer || !viewer.alignment) return;
             const selectedCols = viewer.getSelectedCols ? viewer.getSelectedCols() : (viewer.selectedCols || new Set());
             if (selectedCols.size === 0) {
-              alert('Please select a column first');
+              showAlertDialog('No column selected', 'Please select a column first.');
               return;
             }
             const col = Array.from(selectedCols)[0];
@@ -781,7 +781,7 @@ const Alignment = window.Alignment;
             if (!viewer || !viewer.alignment) return;
             const selectedCols = viewer.getSelectedCols ? viewer.getSelectedCols() : (viewer.selectedCols || new Set());
             if (selectedCols.size === 0) {
-              alert('Please select a column first');
+              showAlertDialog('No column selected', 'Please select a column first.');
               return;
             }
             const col = Array.from(selectedCols)[0];
@@ -1605,7 +1605,7 @@ const Alignment = window.Alignment;
       selectedCols = Array.from(selectedCols);
 
       if (selectedCols.length === 0) {
-        alert('No column selected. Please select a column first by clicking on a column in the alignment.');
+        showAlertDialog('No column selected', 'Please select a column first by clicking on a column in the alignment.');
         return;
       }
 
@@ -1644,7 +1644,7 @@ const Alignment = window.Alignment;
       selectedCols = Array.from(selectedCols);
 
       if (selectedCols.length === 0) {
-        alert('No column selected. Please select a column first by clicking on a column in the alignment.');
+        showAlertDialog('No column selected', 'Please select a column first by clicking on a column in the alignment.');
         return;
       }
 
@@ -2539,7 +2539,7 @@ const Alignment = window.Alignment;
         if (len > maxLen) maxLen = len;
       }
       if (minLen !== maxLen) {
-        const ok = confirm(`Sequences are not all the same length (range: ${minLen.toLocaleString()}–${maxLen.toLocaleString()}). Shorter sequences will be padded with gaps at the end.\n\nLoad anyway?`);
+        const ok = await showConfirmDialog('Sequence length mismatch', `Sequences are not all the same length (range: ${minLen.toLocaleString()}\u2013${maxLen.toLocaleString()}). Shorter sequences will be padded with gaps at the end.`, { okLabel: 'Load anyway', cancelLabel: 'Cancel' });
         if (!ok) return;
         // Pad shorter sequences to maxLen
         for (const s of sequences) {
@@ -2663,7 +2663,7 @@ const Alignment = window.Alignment;
                   const refData = parseGenBankFile(refText);
                   if (refData) {
                     if (!refData.name) refData.name = ds.reference.replace(/^.*\//, '').replace(/\.[^.]+$/, '');
-                    addReferenceGenome(refData);
+                    await addReferenceGenome(refData);
                     console.info('Reference genome loaded:', refData.accession);
                   }
                 }
@@ -2726,7 +2726,7 @@ const Alignment = window.Alignment;
   // ── Reference Genome Dialog (pearcore generic dialog) ──────────────────
 
   // Shared: validate and add reference genome to alignment
-  function addReferenceGenome(referenceGenomeData) {
+  async function addReferenceGenome(referenceGenomeData) {
     if (!referenceGenomeData || typeof referenceGenomeData !== 'object') {
       throw new Error('Invalid reference genome format');
     }
@@ -2745,7 +2745,7 @@ const Alignment = window.Alignment;
       const refLen = referenceGenomeData.sequence.length;
       const alignLen = window.alignment.getMaxSeqLen ? window.alignment.getMaxSeqLen() : 0;
       if (alignLen > 0 && refLen !== alignLen) {
-        const ok = confirm(`Reference genome "${referenceGenomeData.accession}" length (${refLen.toLocaleString()}) differs from alignment length (${alignLen.toLocaleString()}). Colouring differences may not align correctly.\n\nLoad anyway?`);
+        const ok = await showConfirmDialog('Reference length mismatch', `Reference genome \u201c${referenceGenomeData.accession}\u201d length (${refLen.toLocaleString()}) differs from alignment length (${alignLen.toLocaleString()}). Colouring differences may not align correctly.`, { okLabel: 'Load anyway', cancelLabel: 'Cancel' });
         if (!ok) return;
       }
     }
@@ -2785,7 +2785,7 @@ const Alignment = window.Alignment;
       try {
         const text = await file.text();
         const data = parseReferenceText(text, file.name);
-        addReferenceGenome(data);
+        await addReferenceGenome(data);
         refGenomeDialog.close();
       } catch (err) {
         refGenomeDialog.setError(err.message || 'Failed to load reference genome');
@@ -2801,7 +2801,7 @@ const Alignment = window.Alignment;
         const text = await resp.text();
         const filename = url.split('/').pop() || 'reference';
         const data = parseReferenceText(text, filename);
-        addReferenceGenome(data);
+        await addReferenceGenome(data);
         refGenomeDialog.close();
       } catch (err) {
         refGenomeDialog.setError(err.message || 'Failed to load reference genome from URL');
@@ -2819,7 +2819,7 @@ const Alignment = window.Alignment;
   // Expose for Tauri adapter
   window.sealion.loadReferenceFromText = async (content, name) => {
     const data = parseReferenceText(content, name);
-    addReferenceGenome(data);
+    await addReferenceGenome(data);
   };
 
   // Populate local maskStr
