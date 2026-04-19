@@ -172,7 +172,7 @@ export function createExportController({
           ${treeAnnotKeys.map(k => `
             <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.82rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               <input type="checkbox" class="exp-annot-cb" value="${esc(k)}" checked>
-              <code style="font-size:0.78rem;background:#02292e;padding:0 3px;border-radius:3px">${esc(k)}</code>
+              <code class="pt-code-tag">${esc(k)}</code>
             </label>`).join('')}
         </div>
         <div class="imp-col-grid" id="exp-annot-grid-csv" style="margin-top:0.35rem;display:none">
@@ -181,7 +181,7 @@ export function createExportController({
                 const def = schema.get(k);
                 return `<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.82rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                   <input type="checkbox" class="exp-annot-cb" value="${esc(k)}" checked>
-                  <code style="font-size:0.78rem;background:#02292e;padding:0 3px;border-radius:3px">${esc(def?.label ?? k)}</code>
+                  <code class="pt-code-tag">${esc(def?.label ?? k)}</code>
                 </label>`;}).join('')
             : '<div style="font-size:0.82rem;color:rgba(255,255,255,0.4);font-style:italic">No tip annotations found</div>'}
         </div>
