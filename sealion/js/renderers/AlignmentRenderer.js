@@ -288,6 +288,11 @@ export class AlignmentRenderer extends CanvasRenderer {
           const isSameRef  = refModeEnabled && refStr && refChar === base;
           const isRefRow   = (typeof refIndex === 'number' && refIndex === r);
           color = isRefRow ? (baseColors[base] || defaultBaseColor) : (isSameRef ? paleRefColor : (baseColors[base] || defaultBaseColor));
+          // DEBUG: log first row, first 5 cols
+          if (refModeEnabled && r === vis.firstRow && c < vis.firstCol + 5 && !this._debugLogged) {
+            console.info('AlignRenderer debug:', { r, c, base, refChar, isSameRef, refStrLen: refStr ? refStr.length : null, seqLen: seq.length, refModeEnabled });
+            if (c === vis.firstCol + 4) this._debugLogged = true;
+          }
         }
 
         // Common rendering for codon-mode and nucleotide mode

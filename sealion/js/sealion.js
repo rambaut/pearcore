@@ -1151,7 +1151,10 @@ const Alignment = window.Alignment;
 
       // Store the displayed sequence for rendering
       if (type === 'consensus') {
-        window.displayedSequence = window.consensusSequence || (viewer && viewer.alignment ? viewer.alignment.computeConsensusSequence() : null);
+        const cons = window.consensusSequence || (viewer && viewer.alignment ? viewer.alignment.computeConsensusSequence() : null);
+        window.displayedSequence = cons;
+        // Also set this as the reference for coloring differences
+        try { window.reference = cons; } catch (_) { }
       } else if (type === 'selected') {
         // Get the selected sequence
         if (!viewer || !viewer.alignment) {
