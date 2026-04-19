@@ -45,20 +45,21 @@
 html, body { height:100%; margin:0; padding:0; overflow:hidden; }
 #app { height:100%; display:flex; flex-direction:column; overflow:hidden; }
 
-/* Navbar stays at top, sealion container fills remaining space */
-.navbar { flex-shrink: 0; }
+/* Toolbar stays at top, status bar at bottom, sealion fills remaining space */
+.pt-toolbar { flex-shrink: 0; }
 #sealion { flex: 1; min-height: 0; overflow:hidden; }
+#status-bar { flex-shrink: 0; }
 
-/* Dark mode navbar and UI */
-.dark-mode .navbar-light {
+/* Dark mode toolbar and UI */
+.dark-mode .pt-toolbar {
   background-color: #2d2d2d !important;
   border-bottom-color: #404040 !important;
 }
 
-.dark-mode .navbar-brand,
-.dark-mode .nav-link,
-.dark-mode .navbar-text {
-  color: #d4d4d4 !important;
+.dark-mode #status-bar {
+  background-color: #2d2d2d !important;
+  border-top-color: #404040 !important;
+  color: #d4d4d4;
 }
 
 .dark-mode .btn-outline-secondary {

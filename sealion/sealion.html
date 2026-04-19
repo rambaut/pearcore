@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sealion</title>
 
-    <!-- CSS: bootstrap → app styles -->
+    <!-- CSS: bootstrap → pearcore → app styles -->
     <link rel="stylesheet" href="../pearcore/vendor/bootstrap.min-artic.css">
     <link rel="stylesheet" href="../pearcore/vendor/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="../pearcore/css/pearcore.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/sealion.css">
     <link rel="stylesheet" href="css/docs.css">
@@ -27,7 +28,8 @@
     <!-- Bootstrap JS Bundle (includes Popper) — vendored -->
     <script src="../pearcore/vendor/bootstrap.bundle.min.js"></script>
 
-    <!-- UI builders (classic scripts — must run before the module) -->
+    <!-- UI builders (classic scripts — pearcore-ui.js first, then app-specific) -->
+    <script src="../pearcore/js/pearcore-ui.js"></script>
     <script src="js/sealion-ui.js"></script>
 
     <!-- Sealion-specific non-module scripts -->

@@ -3,6 +3,7 @@
 
 import { SealionViewer } from './sealionviewer.js';
 import { COMMAND_DEFS } from './sealion-commands.js';
+import { EXAMPLE_DATASETS } from './config.js';
 import { createCommands } from '@artic-network/pearcore/commands.js';
 import {
   andMasks, parseGenBankFile, fetchWithFallback,
@@ -77,8 +78,6 @@ const Alignment = window.Alignment;
   // ── Forward declarations (used by window.sealion interface below) ──────────
   let viewer = null;
   let alignment = null;
-  let fileModal = null;
-  let refGenomeModal = null;
 
   // ── Sealion app interface (for sealion-tauri.js and the command registry) ────
   // window.sealion is set up here with stub implementations; concrete methods
@@ -106,8 +105,7 @@ const Alignment = window.Alignment;
 
       showErrorDialog(msg) { alert(msg); },
       closeModal() {
-        try { if (fileModal)       fileModal.hide();       } catch (_) {}
-        try { if (refGenomeModal)  refGenomeModal.hide();  } catch (_) {}
+        // Will be overwritten once dialogs are initialized
       },
       setSaveHandler(fn) { window.sealion._saveHandler = fn; },
       _saveHandler: null,
@@ -322,30 +320,23 @@ const Alignment = window.Alignment;
         console.info('Loading FASTA from URL parameter:', fastaUrl);
         setStatus('Loading FASTA from URL...');
         
-        // Wait for the page to finish loading and modal to be set up, then trigger auto-load
+        // Wait for the page to finish loading and dialog to be set up, then trigger auto-load
         setTimeout(() => {
           console.info('Attempting to auto-load FASTA from URL');
           if (typeof window.loadFastaFromUrl === 'function') {
             console.info('Triggering auto-load');
-            // Do NOT call fileModal.show() — the modal should not open for a URL auto-load.
-            // loadFastaFromUrl will call fileModal.show() itself if an error occurs.
             window.loadFastaFromUrl(fastaUrl);
           } else {
             console.error('Auto-load failed: loadFastaFromUrl not available');
-            if (fileModal) fileModal.show();
           }
-        }, 100); // Small delay to ensure modal setup completes
-      } else if (fileModal) {
-        // Reset modal state
-        fileDropZone.style.display = 'block';
-        fileLoading.style.display = 'none';
-        fileError.style.display = 'none';
-        if (fileUploadInput) fileUploadInput.value = '';
-        
-        fileModal.show();
-        console.info('Showing file upload modal - waiting for user data choice');
+        }, 100); // Small delay to ensure dialog setup completes
       } else {
-        console.warn('File modal not available');
+        // No URL param — show the open file dialog for user to pick data
+        setTimeout(() => {
+          const fastaOverlay = document.getElementById('fasta-open-modal');
+          if (fastaOverlay) fastaOverlay.classList.add('active');
+        }, 0);
+        console.info('Showing file open dialog - waiting for user data choice');
       }
 
       // NOTE: The rest of initialization (dark mode, custom names, etc.)
@@ -657,13 +648,10 @@ const Alignment = window.Alignment;
         const darkModePref = localStorage.getItem('sealion_dark_mode');
         if (darkModePref === 'true' && !viewer.darkMode) {
           viewer.toggleDarkMode();
-          // Update button icon
-          const darkModeBtn = document.getElementById('toggle-dark-mode-btn');
-          if (darkModeBtn) {
-            const icon = darkModeBtn.querySelector('i');
-            if (icon) {
-              icon.className = 'bi bi-sun-fill';
-            }
+          const _themeBtn = document.getElementById('btn-theme');
+          if (_themeBtn) {
+            const icon = _themeBtn.querySelector('i');
+            if (icon) icon.className = 'bi bi-sun';
           }
           console.info('Dark mode loaded from localStorage');
         }
@@ -1898,38 +1886,16 @@ const Alignment = window.Alignment;
     });
   }
 
-  // Dark mode toggle
-  const toggleDarkModeBtn = document.getElementById('toggle-dark-mode-btn');
-  console.info('Dark mode button found:', !!toggleDarkModeBtn);
-
-  if (toggleDarkModeBtn) {
-    toggleDarkModeBtn.addEventListener('click', (e) => {
-      console.info('Dark mode toggle clicked - button event fired');
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Access viewer from window or the closure variable
+  // Dark mode toggle (status bar #btn-theme from pearcore)
+  const btnTheme = document.getElementById('btn-theme');
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
       const v = window.viewer || viewer;
-      console.info('Viewer found:', !!v);
-      console.info('toggleDarkMode method exists:', v && typeof v.toggleDarkMode === 'function');
-      
       if (v && typeof v.toggleDarkMode === 'function') {
-        console.info('Calling toggleDarkMode...');
         v.toggleDarkMode();
-        console.info('toggleDarkMode completed, darkMode is now:', v.darkMode);
-        
-        // Update button icon
-        const icon = toggleDarkModeBtn.querySelector('i');
-        if (icon) {
-          if (v.darkMode) {
-            icon.className = 'bi bi-sun-fill';
-          } else {
-            icon.className = 'bi bi-moon-fill';
-          }
-          console.info('Button icon updated to:', icon.className);
-        }
-      } else {
-        console.error('Viewer not ready or toggleDarkMode method missing');
+        const icon = btnTheme.querySelector('i');
+        if (icon) icon.className = v.darkMode ? 'bi bi-sun' : 'bi bi-moon-stars';
+        try { localStorage.setItem('sealion_dark_mode', v.darkMode); } catch (_) {}
       }
     });
   }
@@ -2455,159 +2421,15 @@ const Alignment = window.Alignment;
     });
   }
 
-  // Help button - load and display instructions
-  const helpBtn = document.getElementById('help-btn');
-  if (helpBtn) {
-    helpBtn.addEventListener('click', async () => {
-      try {
-        const helpModal = document.getElementById('helpModal');
-        const helpContent = document.getElementById('help-content');
-
-        if (!helpModal || !helpContent) return;
-
-        // Show the modal
-        const modal = new bootstrap.Modal(helpModal);
-        modal.show();
-
-        // Load the markdown content if not already loaded
-        if (helpContent.querySelector('.spinner-border')) {
-          try {
-            const response = await fetchWithFallback('instructions.md');
-            const markdown = await response.text();
-
-            // Use marked.js to convert markdown to HTML if available
-            if (typeof marked !== 'undefined') {
-              // Configure marked for GFM (GitHub Flavored Markdown) with tables
-              marked.setOptions({
-                gfm: true,
-                breaks: true,
-                headerIds: true,
-                mangle: false
-              });
-              
-              const html = marked.parse(markdown);
-              helpContent.innerHTML = html;
-            } else {
-              // Fallback to basic conversion if marked.js is not available
-              let html = markdown
-                // Headers
-                .replace(/^### (.*$)/gim, '<h4>$1</h4>')
-                .replace(/^## (.*$)/gim, '<h3>$1</h3>')
-                .replace(/^# (.*$)/gim, '<h2>$1</h2>')
-                // Bold
-                .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-                // Italic
-                .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-                // Code inline
-                .replace(/`([^`]+)`/gim, '<code>$1</code>')
-                // Lists
-                .replace(/^\- (.*$)/gim, '<li>$1</li>')
-                .replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>')
-                // Paragraphs
-                .replace(/\n\n/g, '</p><p>')
-                // Line breaks
-                .replace(/\n/g, '<br>');
-
-              // Wrap in paragraph tags
-              html = '<p>' + html + '</p>';
-
-              // Clean up list formatting
-              html = html.replace(/(<li>.*?<\/li>)/gis, (match) => {
-                return '<ul>' + match.replace(/<br>/g, '') + '</ul>';
-              });
-
-              // Clean up consecutive ul tags
-              html = html.replace(/<\/ul><ul>/g, '');
-
-              helpContent.innerHTML = html;
-            }
-          } catch (e) {
-            helpContent.innerHTML = '<div class="alert alert-warning">Failed to load help content. Please see instructions.md in the repository.</div>';
-            console.error('Failed to load help content', e);
-          }
-        }
-      } catch (e) { console.warn('Help button failed', e); }
-    });
-  }
-
-  // About button functionality
-  const aboutBtn = document.getElementById('about-btn');
-  if (aboutBtn) {
-    aboutBtn.addEventListener('click', async () => {
-      try {
-        const aboutModal = document.getElementById('aboutModal');
-        const aboutContent = document.getElementById('about-content');
-
-        if (!aboutModal || !aboutContent) return;
-
-        // Show the modal
-        const modal = new bootstrap.Modal(aboutModal);
-        modal.show();
-
-        // Load the markdown content if not already loaded
-        if (aboutContent.querySelector('.spinner-border')) {
-          try {
-            const response = await fetchWithFallback('about.md');
-            const markdown = await response.text();
-
-            // Use marked.js to convert markdown to HTML if available
-            if (typeof marked !== 'undefined') {
-              // Configure marked for GFM (GitHub Flavored Markdown)
-              marked.setOptions({
-                gfm: true,
-                breaks: true,
-                headerIds: true,
-                mangle: false
-              });
-              
-              const html = marked.parse(markdown);
-              aboutContent.innerHTML = html;
-            } else {
-              // Fallback to basic conversion if marked.js is not available
-              let html = markdown
-                // Headers
-                .replace(/^### (.*$)/gim, '<h4>$1</h4>')
-                .replace(/^## (.*$)/gim, '<h3>$1</h3>')
-                .replace(/^# (.*$)/gim, '<h2>$1</h2>')
-                // Bold
-                .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-                // Italic
-                .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-                // Code inline
-                .replace(/`([^`]+)`/gim, '<code>$1</code>')
-                // Links
-                .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
-                // Lists
-                .replace(/^\- (.*$)/gim, '<li>$1</li>')
-                .replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>')
-                // Paragraphs
-                .replace(/\n\n/g, '</p><p>')
-                // Line breaks
-                .replace(/\n/g, '<br>');
-
-              // Wrap in paragraph tags
-              html = '<p>' + html + '</p>';
-
-              // Clean up list formatting
-              html = html.replace(/(<li>.*?<\/li>)/gis, (match) => {
-                return '<ul>' + match.replace(/<br>/g, '') + '</ul>';
-              });
-
-              // Clean up consecutive ul tags
-              html = html.replace(/<\/ul><ul>/g, '');
-
-              aboutContent.innerHTML = html;
-            }
-          } catch (error) {
-            console.error('Error loading about.md:', error);
-            aboutContent.innerHTML = '<div class="alert alert-danger">Failed to load about information.</div>';
-          }
-        }
-      } catch (error) {
-        console.error('Error showing about modal:', error);
-      }
-    });
-  }
+  // Help / About panels (pearcore slide-out panels)
+  initHelpAbout(document, {
+    fetchContent: async (filename) => {
+      const resp = await fetchWithFallback(filename);
+      return resp.text();
+    },
+    helpFile: 'instructions.md',
+    aboutFile: 'about.md',
+  });
 
   // Export button functionality
   const exportBtn = document.getElementById('export-btn');
@@ -2704,786 +2526,298 @@ const Alignment = window.Alignment;
     });
   }
 
-  // File upload modal functionality
-  const openFileBtn = document.getElementById('open-file-btn');
-  const fileUploadModal = document.getElementById('fileUploadModal');
-  const fileDropZone = document.getElementById('file-drop-zone');
-  const fileUploadInput = document.getElementById('file-upload-input');
-  const fileSelectBtn = document.getElementById('file-select-btn');
-  const fileLoading = document.getElementById('file-loading');
-  const fileError = document.getElementById('file-error');
-  const fileErrorText = document.getElementById('file-error-text');
-  
-  if (openFileBtn && fileUploadModal) {
-    try {
-      fileModal = new bootstrap.Modal(fileUploadModal);
-      
-      // Reset modal state when hidden to prevent layout issues on reopen
-      fileUploadModal.addEventListener('hidden.bs.modal', () => {
-        // Remove inline styles that may have been added during loading
-        const urlPanel = document.getElementById('fasta-url-panel');
-        const filePanel = document.getElementById('fasta-file-panel');
-        const examplePanel = document.getElementById('fasta-example-panel');
-        
-        if (urlPanel) urlPanel.style.display = '';
-        if (filePanel) filePanel.style.display = '';
-        if (examplePanel) examplePanel.style.display = '';
-        
-        // Hide loading and error states
-        if (fileLoading) fileLoading.style.display = 'none';
-        if (fileError) fileError.style.display = 'none';
-      });
-      
-      // Function to parse FASTA file
-      function parseFasta(text) {
-        const sequences = [];
-        const lines = text.split('\n');
-        let currentLabel = null;
-        let currentSequence = '';
-        
-        for (let line of lines) {
-          line = line.trim();
-          if (line.startsWith('>')) {
-            // Save previous sequence if exists
-            if (currentLabel !== null) {
-              sequences.push({
-                label: currentLabel,
-                sequence: currentSequence.toUpperCase()
-              });
-            }
-            // Start new sequence
-            currentLabel = line.substring(1).trim();
-            currentSequence = '';
-          } else if (line.length > 0) {
-            currentSequence += line;
-          }
-        }
-        
-        // Save last sequence
+  // ── FASTA Open File Dialog (pearcore generic dialog) ─────────────────────
+
+  // Function to parse FASTA file
+  function parseFasta(text) {
+    const sequences = [];
+    const lines = text.split('\n');
+    let currentLabel = null;
+    let currentSequence = '';
+
+    for (let line of lines) {
+      line = line.trim();
+      if (line.startsWith('>')) {
         if (currentLabel !== null) {
-          sequences.push({
-            label: currentLabel,
-            sequence: currentSequence.toUpperCase()
-          });
+          sequences.push({ label: currentLabel, sequence: currentSequence.toUpperCase() });
         }
-        
-        return sequences;
+        currentLabel = line.substring(1).trim();
+        currentSequence = '';
+      } else if (line.length > 0) {
+        currentSequence += line;
       }
-      
-      // Function to handle file upload
-      async function handleFileUpload(file) {
-        try {
-          // Validate file type
-          const validExtensions = ['.fasta', '.fa', '.fna', '.ffn', '.faa', '.frn'];
-          const fileName = file.name.toLowerCase();
-          const isValid = validExtensions.some(ext => fileName.endsWith(ext));
-          
-          if (!isValid) {
-            fileErrorText.textContent = 'Invalid file type. Please select a FASTA file (.fasta, .fa, .fna, etc.)';
-            fileError.style.display = 'block';
-            return;
-          }
-          
-          // Show loading state
-          document.getElementById('fasta-url-panel').style.display = 'none';
-          document.getElementById('fasta-file-panel').style.display = 'none';
-          document.getElementById('fasta-example-panel').style.display = 'none';
-          fileError.style.display = 'none';
-          fileLoading.style.display = 'block';
-          
-          // Read file
-          const text = await file.text();
-          
-          // Parse FASTA
-          const newAlignment = parseFasta(text);
-          
-          if (newAlignment.length === 0) {
-            throw new Error('No sequences found in file');
-          }
-          
-          console.log(`Loaded ${newAlignment.length} sequences from ${file.name}`);
-          
-          // Wrap the parsed sequences in an Alignment class instance
-          let alignmentInstance;
+    }
+    if (currentLabel !== null) {
+      sequences.push({ label: currentLabel, sequence: currentSequence.toUpperCase() });
+    }
+    return sequences;
+  }
+
+  // Shared: load parsed FASTA sequences into viewer
+  async function loadFastaSequences(sequences, name) {
+    if (!sequences || sequences.length === 0) throw new Error('No sequences found in file');
+    console.log(`Loaded ${sequences.length} sequences from ${name}`);
+
+    const alignmentInstance = new Alignment(sequences);
+    window.alignment = alignmentInstance;
+
+    if (!viewer || typeof viewer.setData !== 'function') throw new Error('Viewer not available');
+
+    // Reset viewer state
+    if (viewer.selectedRows?.clear) viewer.selectedRows.clear();
+    if (viewer.selectedCols?.clear) viewer.selectedCols.clear();
+    if (viewer.labelTags?.clear) viewer.labelTags.clear();
+    if (viewer.siteBookmarks?.clear) viewer.siteBookmarks.clear();
+    window.refRow = null;
+
+    // Rebuild column offsets
+    let newMaxSeqLen = 0;
+    for (const s of sequences) {
+      if (s?.sequence && s.sequence.length > newMaxSeqLen) newMaxSeqLen = s.sequence.length;
+    }
+    window.maskStr = '1'.repeat(newMaxSeqLen);
+
+    if (typeof viewer.buildColOffsetsFor === 'function') {
+      viewer.colOffsets = viewer.buildColOffsetsFor(viewer.maskEnabled, {
+        maxSeqLen: newMaxSeqLen,
+        CHAR_WIDTH: viewer.charWidth,
+        EXPANDED_RIGHT_PAD: viewer.EXPANDED_RIGHT_PAD || 2,
+        REDUCED_COL_WIDTH: viewer.REDUCED_COL_WIDTH || 1,
+        HIDDEN_MARKER_WIDTH: viewer.HIDDEN_MARKER_WIDTH || 4,
+        hideMode: viewer.hideMode || false,
+        maskStr: window.maskStr,
+      });
+    }
+    if (typeof viewer.setCanvasCSSSizes === 'function') viewer.setCanvasCSSSizes();
+    if (typeof viewer.resizeBackings === 'function') viewer.resizeBackings();
+    if (typeof viewer.invalidateOverviewCache === 'function') viewer.invalidateOverviewCache();
+
+    // Reset scroll
+    if (viewer.scroller) { viewer.scroller.scrollTop = 0; viewer.scroller.scrollLeft = 0; }
+
+    console.info('File loaded successfully:', name);
+    loadDataIntoViewer(alignmentInstance);
+  }
+
+  // Init the FASTA open-file dialog via pearcore
+  const fastaDialog = initOpenFileDialog(document, {
+    prefix: 'fasta',
+    onFile: async (file) => {
+      const validExts = ['.fasta', '.fa', '.fna', '.ffn', '.faa', '.frn'];
+      const lc = file.name.toLowerCase();
+      if (!validExts.some(ext => lc.endsWith(ext))) {
+        fastaDialog.setError('Invalid file type. Please select a FASTA file (.fasta, .fa, .fna, etc.)');
+        return;
+      }
+      fastaDialog.setLoading(true);
+      fastaDialog.setError(null);
+      try {
+        const text = await file.text();
+        const seqs = parseFasta(text);
+        await loadFastaSequences(seqs, file.name);
+        fastaDialog.close();
+      } catch (err) {
+        fastaDialog.setError(err.message || 'Failed to load file.');
+        fastaDialog.setLoading(false);
+      }
+    },
+    onUrl: async (url) => {
+      fastaDialog.setLoading(true);
+      fastaDialog.setError(null);
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} – ${url}`);
+        const text = await resp.text();
+        const seqs = parseFasta(text);
+        await loadFastaSequences(seqs, url.split('/').pop() || 'alignment');
+        fastaDialog.close();
+      } catch (err) {
+        fastaDialog.setError(err.message || 'Failed to load FASTA from URL');
+        fastaDialog.setLoading(false);
+      }
+    },
+  });
+
+  // Build example dataset list in the example tab
+  {
+    const listEl = document.getElementById('fasta-example-list');
+    if (listEl) {
+      for (const ds of EXAMPLE_DATASETS) {
+        const item = document.createElement('div');
+        item.className = 'pt-example-item';
+        const desc = document.createElement('div');
+        desc.className = 'pt-example-desc';
+        desc.innerHTML = `<strong>${ds.title}</strong>${ds.description}`;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-success flex-shrink-0';
+        btn.innerHTML = '<i class="bi bi-database me-1"></i>Load';
+        btn.addEventListener('click', async () => {
+          fastaDialog.setLoading(true);
+          fastaDialog.setError(null);
           try {
-            alignmentInstance = new Alignment(newAlignment);
-          } catch (e) {
-            throw new Error('Failed to create Alignment instance: ' + e.message);
-          }
-          
-          // Update global alignment variable
-          window.alignment = alignmentInstance;
-          
-          // Update viewer with new data
-          if (viewer && typeof viewer.setData === 'function') {
-            // Reset viewer state when loading new file (if properties exist)
-            if (viewer.selectedRows && typeof viewer.selectedRows.clear === 'function') {
-              viewer.selectedRows.clear();
-            }
-            if (viewer.selectedCols && typeof viewer.selectedCols.clear === 'function') {
-              viewer.selectedCols.clear();
-            }
-            if (viewer.labelTags && typeof viewer.labelTags.clear === 'function') {
-              viewer.labelTags.clear();
-            }
-            if (viewer.siteBookmarks && typeof viewer.siteBookmarks.clear === 'function') {
-              viewer.siteBookmarks.clear();
-            }
-            window.refRow = null;
-            
-            // Rebuild column offsets - calculate max length efficiently
-            let newMaxSeqLen = 0;
-            for (let i = 0; i < newAlignment.length; i++) {
-              const s = newAlignment[i];
-              if (s && s.sequence) {
-                const len = s.sequence.length;
-                if (len > newMaxSeqLen) newMaxSeqLen = len;
+            const resp = await fetchWithFallback(ds.path);
+            if (!resp.ok) throw new Error(`Failed to load ${ds.path}`);
+            const text = await resp.text();
+            const seqs = parseFasta(text);
+            await loadFastaSequences(seqs, ds.title);
+            fastaDialog.close();
+
+            // Auto-load associated reference genome if specified
+            if (ds.reference) {
+              try {
+                const refResp = await fetchWithFallback(ds.reference);
+                if (refResp.ok) {
+                  const refText = await refResp.text();
+                  const refData = parseGenBankFile(refText);
+                  if (refData) {
+                    if (!refData.name) refData.name = ds.reference.replace(/^.*\//, '').replace(/\.[^.]+$/, '');
+                    addReferenceGenome(refData);
+                    console.info('Reference genome loaded:', refData.accession);
+                  }
+                }
+              } catch (refErr) {
+                console.warn('Failed to load reference genome:', refErr);
               }
             }
-            window.maskStr = '1'.repeat(newMaxSeqLen);
-            
-            if (typeof viewer.buildColOffsetsFor === 'function') {
-              viewer.colOffsets = viewer.buildColOffsetsFor(viewer.maskEnabled, {
-                maxSeqLen: newMaxSeqLen,
-                CHAR_WIDTH: viewer.charWidth,
-                EXPANDED_RIGHT_PAD: viewer.EXPANDED_RIGHT_PAD || 2,
-                REDUCED_COL_WIDTH: viewer.REDUCED_COL_WIDTH || 1,
-                HIDDEN_MARKER_WIDTH: viewer.HIDDEN_MARKER_WIDTH || 4,
-                hideMode: viewer.hideMode || false,
-                maskStr: window.maskStr
-              });
-            }
-            
-            // Update canvas sizes
-            if (typeof viewer.setCanvasCSSSizes === 'function') {
-              viewer.setCanvasCSSSizes();
-            }
-            if (typeof viewer.resizeBackings === 'function') {
-              viewer.resizeBackings();
-            }
-            
-            // Invalidate overview cache
-            if (typeof viewer.invalidateOverviewCache === 'function') {
-              viewer.invalidateOverviewCache();
-            }
-            
-            // Reset scroll position
-            if (viewer.scroller) {
-              viewer.scroller.scrollTop = 0;
-              viewer.scroller.scrollLeft = 0;
-            }
-            
-            console.info('File loaded successfully:', file.name);
-            
-            // Hide loading state and close modal
-            fileLoading.style.display = 'none';
-            fileModal.hide();
-            
-            // Load data using shared function
-            loadDataIntoViewer(alignmentInstance);
-            
-          } else {
-            throw new Error('Viewer not available');
+          } catch (err) {
+            fastaDialog.setError(err.message || 'Failed to load example data.');
+            fastaDialog.setLoading(false);
           }
-          
-        } catch (error) {
-          console.error('Error loading file:', error);
-          fileErrorText.textContent = error.message || 'Failed to load file. Please check the file format.';
-          fileError.style.display = 'block';
-          fileLoading.style.display = 'none';
-          // Re-show the panels by removing inline styles
-          document.getElementById('fasta-url-panel').style.display = '';
-          document.getElementById('fasta-file-panel').style.display = '';
-          document.getElementById('fasta-example-panel').style.display = '';
-        }
+        });
+        item.appendChild(desc);
+        item.appendChild(btn);
+        listEl.appendChild(item);
       }
-
-      // Expose for Tauri adapter: load a FASTA alignment directly from text content.
-      window.sealion.loadFastaFromText = async (content, name) => {
-        await handleFileUpload(new File([content], name, { type: 'text/plain' }));
-      };
-      window.sealion.closeModal = () => {
-        try { fileModal.hide(); } catch (_) {}
-        try { if (refGenomeModal) refGenomeModal.hide(); } catch (_) {}
-      };
-
-      // Function to load example data
-      async function loadExampleData() {
-        try {
-          // Show loading state
-          document.getElementById('fasta-url-panel').style.display = 'none';
-          document.getElementById('fasta-file-panel').style.display = 'none';
-          document.getElementById('fasta-example-panel').style.display = 'none';
-          fileError.style.display = 'none';
-          fileLoading.style.display = 'block';
-          
-          // Load mpox_clade_iib.fasta
-          console.log('Loading mpox_clade_iib.fasta...');
-          const fastaResponse = await fetchWithFallback('data/mpox_clade_iib.fasta');
-          if (!fastaResponse.ok) {
-            throw new Error('Failed to load mpox_clade_iib.fasta');
-          }
-          const fastaText = await fastaResponse.text();
-          const sequences = parseFasta(fastaText);
-          
-          if (!sequences || sequences.length === 0) {
-            throw new Error('No sequences found in mpox_clade_iib.fasta');
-          }
-          
-          console.log(`Loaded ${sequences.length} sequences from mpox_clade_iib.fasta`);
-          
-          // Wrap in an Alignment class instance
-          let alignmentInstance;
-          try {
-            alignmentInstance = new Alignment(sequences);
-          } catch (e) {
-            throw new Error('Failed to create Alignment instance: ' + e.message);
-          }
-          
-          // Update global alignment variable
-          window.alignment = alignmentInstance;
-          
-          // Hide loading state and close modal
-          fileLoading.style.display = 'none';
-          fileModal.hide();
-          
-          // Load the data into the viewer using the shared function
-          loadDataIntoViewer(alignmentInstance);
-          
-          console.info('Example alignment loaded successfully');
-          
-          // Load the reference genome NC_063383_mpox_clade_iib.gb
-          try {
-            console.log('Loading NC_063383_mpox_clade_iib.gb reference genome...');
-            const gbResponse = await fetchWithFallback('data/NC_063383_mpox_clade_iib.gb');
-            if (!gbResponse.ok) {
-              console.warn('Failed to load reference genome NC_063383_mpox_clade_iib.gb');
-              return;
-            }
-            const gbText = await gbResponse.text();
-            
-            const referenceGenomeData = parseGenBankFile(gbText);
-            
-            if (referenceGenomeData) {
-              // Set name from filename
-              if (!referenceGenomeData.name) {
-                referenceGenomeData.name = 'NC_063383_mpox_clade_iib';
-              }
-              addReferenceGenome(referenceGenomeData);
-              console.info('Reference genome loaded successfully');
-            } else {
-              console.warn('Failed to parse reference genome');
-            }
-          } catch (refError) {
-            console.warn('Error loading reference genome:', refError);
-            // Don't fail the whole load if reference fails
-          }
-          
-        } catch (error) {
-          console.error('Error loading example data:', error);
-          fileErrorText.textContent = error.message || 'Failed to load example data.';
-          fileError.style.display = 'block';
-          fileLoading.style.display = 'none';
-          // Re-show the panels by removing inline styles
-          document.getElementById('fasta-url-panel').style.display = '';
-          document.getElementById('fasta-file-panel').style.display = '';
-          document.getElementById('fasta-example-panel').style.display = '';
-        }
-      }
-      
-      // Function to load FASTA from URL
-      async function loadFastaFromUrl(url) {
-        try {
-          console.log('loadFastaFromUrl called with URL:', url);
-          
-          // Show loading state
-          fileLoading.style.display = 'block';
-          fileError.style.display = 'none';
-          document.getElementById('fasta-url-panel').style.display = 'none';
-          document.getElementById('fasta-file-panel').style.display = 'none';
-          document.getElementById('fasta-example-panel').style.display = 'none';
-          
-          console.log('Fetching URL...');
-          // Fetch the URL
-          const response = await fetch(url);
-          console.log('Fetch response:', response.status, response.statusText);
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
-          }
-          
-          console.log('Reading response text...');
-          // Get text content
-          const text = await response.text();
-          console.log('Received text, length:', text.length);
-          
-          // Parse FASTA
-          const newAlignment = parseFasta(text);
-          console.log('Parsed sequences:', newAlignment.length);
-          
-          if (newAlignment.length === 0) {
-            throw new Error('No sequences found in file');
-          }
-          
-          console.log(`Loaded ${newAlignment.length} sequences from URL`);
-          
-          // Wrap in Alignment instance
-          let alignmentInstance;
-          try {
-            alignmentInstance = new Alignment(newAlignment);
-          } catch (e) {
-            throw new Error('Failed to create Alignment instance: ' + e.message);
-          }
-          
-          // Update global alignment variable
-          window.alignment = alignmentInstance;
-          
-          // Hide loading state and close modal
-          fileLoading.style.display = 'none';
-          fileModal.hide();
-          
-          // Load data using shared function
-          loadDataIntoViewer(alignmentInstance);
-          
-        } catch (error) {
-          console.error('Error loading FASTA from URL:', error);
-          fileErrorText.textContent = error.message || 'Failed to load FASTA from URL';
-          fileError.style.display = 'block';
-          fileLoading.style.display = 'none';
-          // Re-show the panels by removing inline styles
-          document.getElementById('fasta-url-panel').style.display = '';
-          document.getElementById('fasta-file-panel').style.display = '';
-          document.getElementById('fasta-example-panel').style.display = '';
-          // Pre-fill the URL input with the attempted URL and switch to the URL tab
-          const fastaUrlInput = document.getElementById('fasta-url');
-          if (fastaUrlInput) fastaUrlInput.value = url;
-          const urlTab = document.getElementById('fasta-url-tab');
-          if (urlTab) bootstrap.Tab.getOrCreateInstance(urlTab).show();
-          // Ensure the modal is visible so the user can see the error
-          fileModal.show();
-        }
-      }
-      
-      // Make loadFastaFromUrl accessible outside this block for auto-load
-      window.loadFastaFromUrl = loadFastaFromUrl;
-      
-      // Open file button click handler
-      openFileBtn.addEventListener('click', () => {
-        try {
-          // Reset modal state
-          const fastaUrl = document.getElementById('fasta-url');
-          if (fastaUrl) fastaUrl.value = '';
-          fileLoading.style.display = 'none';
-          fileError.style.display = 'none';
-          fileUploadInput.value = '';
-          // Remove inline styles to let Bootstrap handle tab visibility
-          document.getElementById('fasta-url-panel').style.display = '';
-          document.getElementById('fasta-file-panel').style.display = '';
-          document.getElementById('fasta-example-panel').style.display = '';
-          
-          fileModal.show();
-        } catch (e) {
-          console.warn('Failed to open file upload modal', e);
-        }
-      });
-      
-      // Command-O keyboard shortcut
-      document.addEventListener('keydown', (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
-          e.preventDefault();
-          openFileBtn.click();
-        }
-      });
-      
-      // File select button
-      if (fileSelectBtn && fileUploadInput) {
-        fileSelectBtn.addEventListener('click', () => {
-          fileUploadInput.click();
-        });
-      }
-      
-      // Load example data button
-      const loadExampleBtn = document.getElementById('load-example-btn');
-      if (loadExampleBtn) {
-        loadExampleBtn.addEventListener('click', () => {
-          loadExampleData();
-        });
-      }
-      
-      // Load from URL button
-      const loadFastaUrlBtn = document.getElementById('load-fasta-url-btn');
-      const fastaUrlInput = document.getElementById('fasta-url');
-      if (loadFastaUrlBtn && fastaUrlInput) {
-        loadFastaUrlBtn.addEventListener('click', () => {
-          const url = fastaUrlInput.value.trim();
-          if (!url) {
-            fileErrorText.textContent = 'Please enter a URL';
-            fileError.style.display = 'block';
-            return;
-          }
-          loadFastaFromUrl(url);
-        });
-        
-        // Allow pressing Enter in URL input to load
-        fastaUrlInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            loadFastaUrlBtn.click();
-          }
-        });
-      }
-      
-      // File input change handler
-      if (fileUploadInput) {
-        fileUploadInput.addEventListener('change', (e) => {
-          if (e.target.files && e.target.files.length > 0) {
-            handleFileUpload(e.target.files[0]);
-          }
-        });
-      }
-      
-      // Drag and drop handlers
-      if (fileDropZone) {
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-          fileDropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }, false);
-        });
-        
-        // Highlight drop zone when dragging over
-        ['dragenter', 'dragover'].forEach(eventName => {
-          fileDropZone.addEventListener(eventName, () => {
-            fileDropZone.classList.add('drag-over');
-          }, false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-          fileDropZone.addEventListener(eventName, () => {
-            fileDropZone.classList.remove('drag-over');
-          }, false);
-        });
-        
-        // Handle dropped files
-        fileDropZone.addEventListener('drop', (e) => {
-          const files = e.dataTransfer.files;
-          if (files.length > 0) {
-            handleFileUpload(files[0]);
-          }
-        }, false);
-        
-        // Click on drop zone to select file
-        fileDropZone.addEventListener('click', (e) => {
-          // Don't trigger if clicking on the button
-          if (e.target === fileSelectBtn || fileSelectBtn.contains(e.target)) {
-            return;
-          }
-          if (fileUploadInput) fileUploadInput.click();
-        });
-      }
-      
-    } catch (e) {
-      console.warn('Failed to initialize file upload modal', e);
     }
   }
 
-  // Reference genome modal functionality
-  const loadReferenceBtn = document.getElementById('load-reference-btn');
-  const referenceGenomeModal = document.getElementById('referenceGenomeModal');
-  const refGenomeUrl = document.getElementById('ref-genome-url');
-  const loadRefUrlBtn = document.getElementById('load-ref-url-btn');
-  const refGenomeDropZone = document.getElementById('ref-genome-drop-zone');
-  const refGenomeFileInput = document.getElementById('ref-genome-file-input');
-  const refGenomeSelectBtn = document.getElementById('ref-genome-select-btn');
-  const refGenomeLoading = document.getElementById('ref-genome-loading');
-  const refGenomeError = document.getElementById('ref-genome-error');
-  const refGenomeErrorText = document.getElementById('ref-genome-error-text');
-  const refGenomeSuccess = document.getElementById('ref-genome-success');
-  const refGenomeSuccessText = document.getElementById('ref-genome-success-text');
-  
-  if (loadReferenceBtn && referenceGenomeModal) {
+  // Open File button → open the pearcore dialog
+  const openFileBtn = document.getElementById('open-file-btn');
+  if (openFileBtn) {
+    openFileBtn.addEventListener('click', () => fastaDialog.open());
+  }
+
+  // Cmd-O keyboard shortcut
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+      e.preventDefault();
+      fastaDialog.open();
+    }
+  });
+
+  // Expose for Tauri adapter
+  window.sealion.loadFastaFromText = async (content, name) => {
+    const seqs = parseFasta(content);
+    await loadFastaSequences(seqs, name);
+  };
+  window.sealion.closeModal = () => {
+    fastaDialog.close();
+    refGenomeDialog.close();
+  };
+  // Make loadFastaFromUrl accessible outside this block for auto-load
+  window.loadFastaFromUrl = async (url) => {
+    fastaDialog.open();
+    fastaDialog.setLoading(true);
     try {
-      refGenomeModal = new bootstrap.Modal(referenceGenomeModal);
-      
-      // Function to validate and add reference genome to alignment
-      function addReferenceGenome(referenceGenomeData) {
-        try {
-          // Validate the reference genome object
-          if (!referenceGenomeData || typeof referenceGenomeData !== 'object') {
-            throw new Error('Invalid reference genome format');
-          }
-          if (!referenceGenomeData.accession) {
-            throw new Error('Reference genome must have an accession field');
-          }
-          
-          // Convert sequence to uppercase if present
-          if (referenceGenomeData.sequence && typeof referenceGenomeData.sequence === 'string') {
-            referenceGenomeData.sequence = referenceGenomeData.sequence.toUpperCase();
-          }
-          
-          // Get the alignment instance
-          if (!window.alignment) {
-            throw new Error('No alignment loaded. Please load an alignment first.');
-          }
-          
-          // Add to alignment
-          window.alignment.addReferenceGenome(referenceGenomeData);
-          
-          console.log(`Reference genome ${referenceGenomeData.accession} added successfully`);
-          
-          // Update the dropdown menu to include the new reference genome
-          if (window.updateReferenceDropdown) {
-            window.updateReferenceDropdown();
-          }
-          
-          // Automatically select the newly loaded reference genome
-          if (window.selectDisplayedReference) {
-            window.selectDisplayedReference('reference', referenceGenomeData.accession);
-            console.log(`Automatically selected reference genome ${referenceGenomeData.accession}`);
-          }
-          
-          // Trigger redraw to show CDS features
-          if (viewer && viewer.scheduleRender) {
-            viewer.scheduleRender();
-          }
-          
-          // Show success message
-          refGenomeSuccessText.textContent = `Reference genome ${referenceGenomeData.accession} loaded successfully!`;
-          refGenomeSuccess.style.display = 'block';
-          refGenomeError.style.display = 'none';
-          
-          // Auto-hide success message and close modal after 2 seconds
-          setTimeout(() => {
-            refGenomeSuccess.style.display = 'none';
-            if (refGenomeModal) refGenomeModal.hide();
-          }, 2000);
-          
-        } catch (error) {
-          throw error;
-        }
-      }
-      
-      // Function to load reference genome from URL
-      async function loadReferenceFromUrl(url) {
-        try {
-          // Show loading state
-          refGenomeLoading.style.display = 'block';
-          refGenomeError.style.display = 'none';
-          refGenomeSuccess.style.display = 'none';
-          
-          // Fetch the URL
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
-          }
-          
-          const text = await response.text();
-          let referenceGenomeData;
-          
-          // Try to parse as JSON first
-          if (url.endsWith('.json')) {
-            try {
-              referenceGenomeData = JSON.parse(text);
-            } catch (jsonError) {
-              throw new Error('Invalid JSON file: ' + jsonError.message);
-            }
-          }
-          // Check if it's a GenBank file
-          else if (url.endsWith('.gb') || url.endsWith('.gbk') || url.endsWith('.genbank') || text.trim().startsWith('LOCUS')) {
-            referenceGenomeData = parseGenBankFile(text);
-            
-            if (!referenceGenomeData) {
-              throw new Error('Failed to parse GenBank file. Please check the file format.');
-            }
-          }
-          // Try to parse as JSON anyway (in case extension is missing)
-          else {
-            try {
-              referenceGenomeData = JSON.parse(text);
-            } catch (jsonError) {
-              throw new Error('Unrecognized file format. File must be either a JSON (.json) or GenBank (.gb, .gbk) format file.');
-            }
-          }
-          
-          // Extract filename from URL (without extension) to use as name
-          const urlParts = url.split('/');
-          const filename = urlParts[urlParts.length - 1];
-          const nameWithoutExt = filename.replace(/\.(json|gb|gbk|genbank)$/i, '');
-          if (!referenceGenomeData.name) {
-            referenceGenomeData.name = nameWithoutExt;
-          }
-          
-          // Add to alignment
-          addReferenceGenome(referenceGenomeData);
-          
-          // Hide loading
-          refGenomeLoading.style.display = 'none';
-          
-        } catch (error) {
-          console.error('Error loading reference genome from URL:', error);
-          refGenomeErrorText.textContent = error.message || 'Failed to load reference genome from URL';
-          refGenomeError.style.display = 'block';
-          refGenomeLoading.style.display = 'none';
-        }
-      }
-      
-      // Function to load reference genome from file
-      async function loadReferenceFromFile(file) {
-        try {
-          // Show loading state
-          refGenomeLoading.style.display = 'block';
-          refGenomeError.style.display = 'none';
-          refGenomeSuccess.style.display = 'none';
-          
-          // Read file
-          const text = await file.text();
-          let referenceGenomeData;
-          
-          // Try to parse as JSON first
-          if (file.name.endsWith('.json')) {
-            try {
-              referenceGenomeData = JSON.parse(text);
-            } catch (jsonError) {
-              throw new Error('Invalid JSON file: ' + jsonError.message);
-            }
-          }
-          // Check if it's a GenBank file
-          else if (file.name.endsWith('.gb') || file.name.endsWith('.gbk') || file.name.endsWith('.genbank') || text.trim().startsWith('LOCUS')) {
-            referenceGenomeData = parseGenBankFile(text);
-            
-            if (!referenceGenomeData) {
-              throw new Error('Failed to parse GenBank file. Please check the file format.');
-            }
-          }
-          // Try to parse as JSON anyway (in case extension is missing)
-          else {
-            try {
-              referenceGenomeData = JSON.parse(text);
-            } catch (jsonError) {
-              throw new Error('Unrecognized file format. File must be either a JSON (.json) or GenBank (.gb, .gbk) format file.');
-            }
-          }
-          
-          // Extract filename (without extension) to use as name
-          const nameWithoutExt = file.name.replace(/\.(json|gb|gbk|genbank)$/i, '');
-          if (!referenceGenomeData.name) {
-            referenceGenomeData.name = nameWithoutExt;
-          }
-          
-          // Add to alignment
-          addReferenceGenome(referenceGenomeData);
-          
-          // Hide loading
-          refGenomeLoading.style.display = 'none';
-          
-        } catch (error) {
-          console.error('Error loading reference genome from file:', error);
-          refGenomeErrorText.textContent = error.message || 'Failed to load reference genome from file';
-          refGenomeError.style.display = 'block';
-          refGenomeLoading.style.display = 'none';
-        }
-      }
-
-      // Expose for Tauri adapter: load reference genome directly from text content.
-      window.sealion.loadReferenceFromText = async (content, name) => {
-        await loadReferenceFromFile(new File([content], name, { type: 'text/plain' }));
-      };
-
-      // Open modal when button clicked
-      loadReferenceBtn.addEventListener('click', () => {
-        // Reset modal state
-        refGenomeUrl.value = '';
-        refGenomeLoading.style.display = 'none';
-        refGenomeError.style.display = 'none';
-        refGenomeSuccess.style.display = 'none';
-        refGenomeModal.show();
-      });
-      
-      // Load from URL button
-      if (loadRefUrlBtn) {
-        loadRefUrlBtn.addEventListener('click', () => {
-          const url = refGenomeUrl.value.trim();
-          if (!url) {
-            refGenomeErrorText.textContent = 'Please enter a URL';
-            refGenomeError.style.display = 'block';
-            return;
-          }
-          loadReferenceFromUrl(url);
-        });
-      }
-      
-      // File select button
-      if (refGenomeSelectBtn) {
-        refGenomeSelectBtn.addEventListener('click', () => {
-          if (refGenomeFileInput) refGenomeFileInput.click();
-        });
-      }
-      
-      // File input change handler
-      if (refGenomeFileInput) {
-        refGenomeFileInput.addEventListener('change', (e) => {
-          if (e.target.files && e.target.files.length > 0) {
-            loadReferenceFromFile(e.target.files[0]);
-          }
-        });
-      }
-      
-      // Drag and drop handlers
-      if (refGenomeDropZone) {
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-          refGenomeDropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }, false);
-        });
-        
-        // Highlight drop zone when dragging over
-        ['dragenter', 'dragover'].forEach(eventName => {
-          refGenomeDropZone.addEventListener(eventName, () => {
-            refGenomeDropZone.classList.add('drag-over');
-          }, false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-          refGenomeDropZone.addEventListener(eventName, () => {
-            refGenomeDropZone.classList.remove('drag-over');
-          }, false);
-        });
-        
-        // Handle dropped files
-        refGenomeDropZone.addEventListener('drop', (e) => {
-          const files = e.dataTransfer.files;
-          if (files.length > 0) {
-            loadReferenceFromFile(files[0]);
-          }
-        }, false);
-        
-        // Click on drop zone to select file
-        refGenomeDropZone.addEventListener('click', (e) => {
-          // Don't trigger if clicking on the button
-          if (e.target === refGenomeSelectBtn || refGenomeSelectBtn.contains(e.target)) {
-            return;
-          }
-          if (refGenomeFileInput) refGenomeFileInput.click();
-        });
-      }
-      
-      // Allow pressing Enter in URL input to load
-      if (refGenomeUrl) {
-        refGenomeUrl.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            loadRefUrlBtn.click();
-          }
-        });
-      }
-      
-    } catch (e) {
-      console.warn('Failed to initialize reference genome modal', e);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} – ${url}`);
+      const text = await resp.text();
+      const seqs = parseFasta(text);
+      await loadFastaSequences(seqs, url.split('/').pop() || 'alignment');
+      fastaDialog.close();
+    } catch (err) {
+      fastaDialog.setError(err.message);
+      fastaDialog.setLoading(false);
     }
+  };
+
+  // ── Reference Genome Dialog (pearcore generic dialog) ──────────────────
+
+  // Shared: validate and add reference genome to alignment
+  function addReferenceGenome(referenceGenomeData) {
+    if (!referenceGenomeData || typeof referenceGenomeData !== 'object') {
+      throw new Error('Invalid reference genome format');
+    }
+    if (!referenceGenomeData.accession) {
+      throw new Error('Reference genome must have an accession field');
+    }
+    if (referenceGenomeData.sequence && typeof referenceGenomeData.sequence === 'string') {
+      referenceGenomeData.sequence = referenceGenomeData.sequence.toUpperCase();
+    }
+    if (!window.alignment) {
+      throw new Error('No alignment loaded. Please load an alignment first.');
+    }
+    window.alignment.addReferenceGenome(referenceGenomeData);
+    console.log(`Reference genome ${referenceGenomeData.accession} added successfully`);
+
+    if (window.updateReferenceDropdown) window.updateReferenceDropdown();
+    if (window.selectDisplayedReference) {
+      window.selectDisplayedReference('reference', referenceGenomeData.accession);
+    }
+    if (viewer && viewer.scheduleRender) viewer.scheduleRender();
   }
+
+  // Shared: parse reference genome text (JSON or GenBank)
+  function parseReferenceText(text, filename) {
+    let data;
+    if (filename.endsWith('.json')) {
+      data = JSON.parse(text);
+    } else if (filename.endsWith('.gb') || filename.endsWith('.gbk') || filename.endsWith('.genbank') || text.trim().startsWith('LOCUS')) {
+      data = parseGenBankFile(text);
+      if (!data) throw new Error('Failed to parse GenBank file.');
+    } else {
+      try { data = JSON.parse(text); }
+      catch (_) { throw new Error('Unrecognized format. Must be JSON or GenBank.'); }
+    }
+    const nameWithoutExt = filename.replace(/\.(json|gb|gbk|genbank)$/i, '');
+    if (!data.name) data.name = nameWithoutExt;
+    return data;
+  }
+
+  const refGenomeDialog = initOpenFileDialog(document, {
+    prefix: 'refgenome',
+    onFile: async (file) => {
+      refGenomeDialog.setLoading(true);
+      refGenomeDialog.setError(null);
+      try {
+        const text = await file.text();
+        const data = parseReferenceText(text, file.name);
+        addReferenceGenome(data);
+        refGenomeDialog.close();
+      } catch (err) {
+        refGenomeDialog.setError(err.message || 'Failed to load reference genome');
+        refGenomeDialog.setLoading(false);
+      }
+    },
+    onUrl: async (url) => {
+      refGenomeDialog.setLoading(true);
+      refGenomeDialog.setError(null);
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} – ${url}`);
+        const text = await resp.text();
+        const filename = url.split('/').pop() || 'reference';
+        const data = parseReferenceText(text, filename);
+        addReferenceGenome(data);
+        refGenomeDialog.close();
+      } catch (err) {
+        refGenomeDialog.setError(err.message || 'Failed to load reference genome from URL');
+        refGenomeDialog.setLoading(false);
+      }
+    },
+  });
+
+  // Reference button → open the pearcore dialog
+  const loadReferenceBtn = document.getElementById('load-reference-btn');
+  if (loadReferenceBtn) {
+    loadReferenceBtn.addEventListener('click', () => refGenomeDialog.open());
+  }
+
+  // Expose for Tauri adapter
+  window.sealion.loadReferenceFromText = async (content, name) => {
+    const data = parseReferenceText(content, name);
+    addReferenceGenome(data);
+  };
 
   // Populate local maskStr
   try { maskStr = '1'.repeat(maxSeqLen || 0); } catch (_) { maskStr = ''; }
